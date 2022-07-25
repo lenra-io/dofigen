@@ -4,7 +4,7 @@ import * as YAML from 'yaml';
 import { readFile, writeFile } from 'fs/promises';
 
 const watchdogBuilder = 'watchdog';
-const watchdogVersion = '0.8.4';
+const watchdogVersion = '0.9.6';
 const scratchImage = 'scratch';
 
 /**

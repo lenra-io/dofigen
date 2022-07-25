@@ -1,5 +1,5 @@
 FROM node:16-alpine
-WORKDIR /dig
+WORKDIR /dockerfile-generator
 COPY . .
 RUN npm i && npm i --location=global .
-ENTRYPOINT ["dig"]
+ENTRYPOINT ["dockerfile-generator"]

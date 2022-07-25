@@ -1,17 +1,17 @@
 {
-  "name": "docker-image-generator",
+  "name": "dockerfile-generator",
   "version": "1.0.0",
   "description": "Generates a Dockerfile from a lenra.config.yml file",
   "type": "module",
   "main": "index.js",
   "bin":{
-    "dig": "index.js"
+    "dockerfile-generator": "index.js"
   },
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "taorepoara",
+  "author": "Lenra",
   "license": "MIT",
   "dependencies": {
     "yaml": "^2.1.1"
