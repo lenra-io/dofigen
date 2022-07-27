@@ -1,0 +1,18 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "title": "image",
+    "type": "object",
+    "allOf": [
+        {
+            "$ref": "./stage.json"
+        },
+        {
+            "properties": {
+                "entrypoint": {
+                    "type": "string",
+                    "description": "The image entrypoint"
+                }
+            }
+        }
+    ]
+}

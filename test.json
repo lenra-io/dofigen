@@ -1,0 +1,6 @@
+{
+    "image": "rust",
+    "script": [
+        "echo \"coucou\""
+    ]
+}
