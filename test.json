@@ -1,4 +1,16 @@
 {
+    "builders": [
+        {
+            "name": "builder",
+            "image": "ekidd/rust-musl-builder",
+            "copy": [
+                "*"
+            ],
+            "script": [
+                "cargo build --release"
+            ]
+        }
+    ],
     "image": "rust",
     "script": [
         "echo \"coucou\""
