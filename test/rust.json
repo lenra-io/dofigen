@@ -1,0 +1,22 @@
+{
+    "builders": [
+        {
+            "name": "builder",
+            "image": "ekidd/rust-musl-builder",
+            "add": [
+                "*"
+            ],
+            "script": [
+                "cargo build --release"
+            ]
+        }
+    ],
+    "image": "scratch",
+    "artifacts": [
+        {
+            "builder": "builder",
+            "source": "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust",
+            "destination": "/app"
+        }
+    ]
+}
