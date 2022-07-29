@@ -3,12 +3,17 @@
 version = 3
 
 [[package]]
-name = "dockerfile-generator"
+name = "dofigen"
 version = "0.1.0"
 dependencies = [
+ "dofigen_lib",
  "serde",
  "serde_json",
 ]
+
+[[package]]
+name = "dofigen_lib"
+version = "0.1.0"
 
 [[package]]
 name = "itoa"
