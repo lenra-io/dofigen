@@ -3,6 +3,11 @@ name = "dofigen"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+edition = "2021"
+name = "dofigen"
+path = "src/main.rs"
+
 [dependencies]
 serde_json = "1.0"
 dofigen_lib = { path = "../dofigen_lib" }

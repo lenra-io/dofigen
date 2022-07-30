@@ -3,8 +3,8 @@
         {
             "name": "builder",
             "image": "ekidd/rust-musl-builder",
-            "add": [
-                "*"
+            "adds": [
+                "."
             ],
             "script": [
                 "cargo build --release"
