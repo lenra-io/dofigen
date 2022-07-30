@@ -27,7 +27,7 @@
 
 <!-- PROJECT LOGO -->
 <br />
-<div align="center">
+<!-- <div align="center"> -->
   <!-- <a href="https://github.com/lenra-io/template-hello-world-node12">
     <img src="images/logo.png" alt="Logo" width="80" height="80">
   </a> -->
@@ -40,13 +40,12 @@ It defines default values and behaviers that make the creation of Dockerfiles si
 
 A french DevOps said about it:
 > C'est une bouffée Dofigen dans ce monde de con...teneurs.
-<br />
-<br />
+
 [Report Bug](https://github.com/lenra-io/dofigen/issues)
 ·
 [Request Feature](https://github.com/lenra-io/dofigen/issues)
   <!-- </p> -->
-</div>
+<!-- </div> -->
 
 <!-- GETTING STARTED -->
 ## Getting Started
