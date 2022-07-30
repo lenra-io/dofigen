@@ -32,20 +32,20 @@
     <img src="images/logo.png" alt="Logo" width="80" height="80">
   </a> -->
 
-<h3 align="center">Dofigen</h3>
+  <h3 align="center">Dofigen</h3>
 
-  <p align="center">
-    Dofigen is a Dockerfile generator using a simplyfied description in YAML or JSON format.
-    It defines default values and behaviers that make the creation of Dockerfiles simpler.
+  <!-- <p align="center"> -->
+Dofigen is a Dockerfile generator using a simplyfied description in YAML or JSON format.
+It defines default values and behaviers that make the creation of Dockerfiles simpler.
 
-    A french DevOps said about it:
-    > C'est une bouffée Dofigen dans ce monde de con...teneurs.
-    <br />
-    <br />
-    <a href="https://github.com/lenra-io/dofigen/issues">Report Bug</a>
-    ·
-    <a href="https://github.com/lenra-io/dofigen/issues">Request Feature</a>
-  </p>
+A french DevOps said about it:
+> C'est une bouffée Dofigen dans ce monde de con...teneurs.
+<br />
+<br />
+[Report Bug](https://github.com/lenra-io/dofigen/issues)
+·
+[Request Feature](https://github.com/lenra-io/dofigen/issues)
+  <!-- </p> -->
 </div>
 
 <!-- GETTING STARTED -->
