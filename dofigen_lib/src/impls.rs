@@ -39,6 +39,8 @@ pub trait Stage {
                 .for_each(|add| buffer.push_str(&add.as_str()));
         }
 
+        let mut root_script: Vec<String> = Vec::new();
+
         // Copy build artifacts
         if let Some(ref artifacts) = self.artifacts() {
             artifacts
@@ -61,13 +63,15 @@ pub trait Stage {
         }
 
         // Root script
-        // if let Some(ref envs) = self.envs() {
-        //     buffer.push_str("ENV ");
-        //     envs.iter().for_each(|(key, value)| {
-        //         buffer.push_str(format!("\\\n\t{}=\"{}\"", key, value).as_str())
-        //     });
-        //     buffer.push_str("\n");
-        // }
+        if let Some(additionnal_root_script) = self.root_script() {
+            additionnal_root_script
+                .iter()
+                .for_each(|script| root_script.push(script.clone()));
+        }
+        if root_script.len() > 0 {
+            buffer.push_str("USER 0\n");
+            add_script(buffer, &root_script, None);
+        }
 
         // Runtime user
 
@@ -80,6 +84,22 @@ pub trait Stage {
     }
 
     fn additionnal_generation(&self, _buffer: &mut String) {}
+}
+
+fn add_script(buffer: &mut String, script: &Vec<String>, caches: Option<&Vec<String>>) {
+    buffer.push_str("RUN ");
+    if let Some(ref paths) = caches {
+        paths.iter().for_each(|path| {
+            buffer.push_str(format!("\\\n\t--mount=type=cache,target={}", path).as_str())
+        })
+    }
+    script.iter().enumerate().for_each(|(i, cmd)| {
+        if i > 0 {
+            buffer.push_str(" && ");
+        }
+        buffer.push_str(format!("\\\n\t{}", cmd).as_str())
+    });
+    buffer.push_str("\n");
 }
 
 impl Stage for Builder {
