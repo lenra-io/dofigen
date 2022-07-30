@@ -23,8 +23,6 @@
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 
-<div style="text-align: center">
-
 # Dofigen
 
 Dofigen is a Dockerfile generator using a simplyfied description in YAML or JSON format.
@@ -36,8 +34,6 @@ A french DevOps said about it:
 [Report Bug](https://github.com/lenra-io/dofigen/issues)
 ·
 [Request Feature](https://github.com/lenra-io/dofigen/issues)
-
-</div>
 
 <!-- GETTING STARTED -->
 ## Getting Started
