@@ -7,7 +7,6 @@ name = "dofigen"
 version = "0.1.0"
 dependencies = [
  "dofigen_lib",
- "serde",
  "serde_json",
 ]
 

@@ -28,7 +28,7 @@ pub trait Stage {
 }
 
 /** Represents a Dockerfile builder stage */
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 pub struct Builder {
     // Common part
     pub image: String,
@@ -58,7 +58,7 @@ impl Stage for Builder {
 }
 
 /** Represents the Dockerfile main stage */
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 pub struct Image {
     // Common part
     pub image: String,
@@ -88,14 +88,14 @@ impl Stage for Image {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 pub struct Artifact {
     pub builder: String,
     pub source: String,
     pub destination: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 pub struct CopyFull {
     pub source: String,
     pub destination: Option<String>,
