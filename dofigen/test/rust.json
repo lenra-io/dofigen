@@ -7,7 +7,13 @@
                 "."
             ],
             "script": [
-                "cargo build --release"
+                "ls -al",
+                "cargo build --release",
+                "cp target/x86_64-unknown-linux-musl/release/dofigen ../"
+            ],
+            "caches": [
+                "/usr/local/cargo/registry",
+                "/home/rust/src/target"
             ]
         }
     ],
@@ -15,8 +21,8 @@
     "artifacts": [
         {
             "builder": "builder",
-            "source": "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust",
-            "destination": "/app"
+            "source": "/home/rust/dofigen",
+            "destination": "/"
         }
     ]
 }

@@ -13,6 +13,7 @@ pub trait Stage {
     fn adds(&self) -> Option<&Vec<String>>;
     fn root_script(&self) -> Option<&Vec<String>>;
     fn script(&self) -> Option<&Vec<String>>;
+    fn caches(&self) -> Option<&Vec<String>>;
 
     fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
         let name = self.name(previous_builders.len().try_into().unwrap());
@@ -68,14 +69,31 @@ pub trait Stage {
                 .iter()
                 .for_each(|script| root_script.push(script.clone()));
         }
+        let mut is_root = false;
         if root_script.len() > 0 {
+            is_root = true;
             buffer.push_str("USER 0\n");
-            add_script(buffer, &root_script, None);
+            add_script(buffer, &root_script, self.caches());
         }
 
         // Runtime user
+        let mut user: Option<String> = None;
+        if self.user().is_some() {
+            user = self.user()
+        }
+        else if let Some(script) = self.script() {
+            if is_root && script.len()>0 && self.image()!="scratch" {
+                user = Some(String::from("1000"));
+            }
+        }
+        if user.is_some() {
+            buffer.push_str(format!("USER {}\n", user.unwrap()).as_str());
+        }
 
         // Script
+        if let Some(script) = self.script() {
+            add_script(buffer, script, self.caches());
+        }
 
         self.additionnal_generation(buffer);
 
@@ -90,7 +108,7 @@ fn add_script(buffer: &mut String, script: &Vec<String>, caches: Option<&Vec<Str
     buffer.push_str("RUN ");
     if let Some(ref paths) = caches {
         paths.iter().for_each(|path| {
-            buffer.push_str(format!("\\\n\t--mount=type=cache,target={}", path).as_str())
+            buffer.push_str(format!("\\\n\t--mount=type=cache,uid=1000,gid=1000,target={}", path).as_str())
         })
     }
     script.iter().enumerate().for_each(|(i, cmd)| {
@@ -133,6 +151,9 @@ impl Stage for Builder {
     fn script(&self) -> Option<&Vec<String>> {
         self.script.as_ref()
     }
+    fn caches(&self) -> Option<&Vec<String>> {
+        self.caches.as_ref()
+    }
 }
 
 impl Stage for Image {
@@ -145,7 +166,12 @@ impl Stage for Image {
     fn user(&self) -> Option<String> {
         match self.user.as_ref() {
             Some(user) => Some(user.to_string()),
-            None => Some(String::from("1000")),
+            None => {
+                match self.image.as_str() {
+                    "scratch" => None,
+                    _ => Some(String::from("1000"))
+                }
+            },
         }
     }
     fn workdir(&self) -> Option<&String> {
@@ -165,6 +191,9 @@ impl Stage for Image {
     }
     fn script(&self) -> Option<&Vec<String>> {
         self.script.as_ref()
+    }
+    fn caches(&self) -> Option<&Vec<String>> {
+        self.caches.as_ref()
     }
 
     fn additionnal_generation(&self, buffer: &mut String) {

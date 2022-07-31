@@ -14,6 +14,7 @@ pub struct Image {
     #[serde(rename = "rootScript")]
     pub root_script: Option<Vec<String>>,
     pub script: Option<Vec<String>>,
+    pub caches: Option<Vec<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
     pub ignores: Option<Vec<String>>,
@@ -34,6 +35,7 @@ pub struct Builder {
     #[serde(rename = "rootScript")]
     pub root_script: Option<Vec<String>>,
     pub script: Option<Vec<String>>,
+    pub caches: Option<Vec<String>>,
     // Specific part
     pub name: Option<String>,
 }
