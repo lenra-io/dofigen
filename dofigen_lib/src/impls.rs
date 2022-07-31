@@ -199,11 +199,11 @@ impl Stage for Image {
     fn additionnal_generation(&self, buffer: &mut String) {
         if let Some(ref entrypoint) = self.entrypoint {
             buffer.push_str(
-                format!("ENTRYPOINT {}", serde_json::to_string(entrypoint).unwrap()).as_str(),
+                format!("ENTRYPOINT {}\n", serde_json::to_string(entrypoint).unwrap()).as_str(),
             );
         }
         if let Some(ref cmd) = self.cmd {
-            buffer.push_str(format!("CMD {}", serde_json::to_string(cmd).unwrap()).as_str());
+            buffer.push_str(format!("CMD {}\n", serde_json::to_string(cmd).unwrap()).as_str());
         }
     }
 }

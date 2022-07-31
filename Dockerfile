@@ -12,4 +12,6 @@ RUN \
 
 # runtime
 FROM scratch as runtime
+WORKDIR /app
 COPY --link --from=builder "/home/rust/dofigen" "/"
+ENTRYPOINT ["/dofigen"]

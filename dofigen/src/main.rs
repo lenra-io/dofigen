@@ -57,7 +57,6 @@ fn main() {
     };
 
     let format = given_format.unwrap_or(Format::Yaml);
-    println!("input format: {}", format);
     let image: Image = match format {
         Format::Yaml => from_yaml_reader(reader),
         Format::Json => from_json_reader(reader),

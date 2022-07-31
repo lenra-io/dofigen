@@ -17,4 +17,7 @@ artifacts:
 - builder: builder
   source: "/home/rust/dofigen"
   destination: "/"
-entrypoint: /dofigen
+entrypoint: 
+- /dofigen
+ignores:
+- target
