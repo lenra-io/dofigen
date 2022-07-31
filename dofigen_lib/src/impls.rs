@@ -208,6 +208,12 @@ impl Stage for Image {
     }
 }
 
+impl Image {
+    pub fn ignores(&self) -> Option<&Vec<String>> {
+        self.ignores.as_ref()
+    }
+}
+
 // pub trait Copy {
 
 // }

@@ -20,7 +20,7 @@ pub fn from_json_reader<R: Read>(reader: R) -> Image {
     serde_json::from_reader(reader).unwrap()
 }
 
-pub fn generate_dockerfile(image: Image) -> String {
+pub fn generate_dockerfile(image: &Image) -> String {
     let mut buffer: String = String::new();
 
     buffer.push_str("# syntax=docker/dockerfile:1.4\n");
@@ -36,8 +36,8 @@ pub fn generate_dockerfile(image: Image) -> String {
     buffer
 }
 
-pub fn generate_dockerignore(image: Image) -> String {
-    if let Some(ignore) = image.ignores {
+pub fn generate_dockerignore(image: &Image) -> String {
+    if let Some(ignore) = image.ignores() {
         ignore.join("\n")
     }
     else {
