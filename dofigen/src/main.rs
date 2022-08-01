@@ -1,4 +1,6 @@
-use dofigen_lib::{from_json_reader, from_yaml_reader, generate_dockerfile, structs::Image, generate_dockerignore};
+use dofigen_lib::{
+    from_json_reader, from_yaml_reader, generate_dockerfile, generate_dockerignore, structs::Image,
+};
 use std::{fmt, fs, io::BufReader, io::Read};
 
 use clap::Parser;
@@ -37,8 +39,35 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
+    let output = args.output;
+    let dockerfile = args.dockerfile.clone();
+    let ignorefile = args.ignorefile.clone();
+    let input_and_format = get_input_and_format(args);
+
+    let format = input_and_format.format.unwrap_or(Format::Yaml);
+    let image: Image = match format {
+        Format::Yaml => from_yaml_reader(input_and_format.input),
+        Format::Json => from_json_reader(input_and_format.input),
+    };
+    let dockerfile_content = generate_dockerfile(&image);
+    if output {
+        print!("{}", dockerfile_content);
+    } else {
+        fs::write(dockerfile, dockerfile_content).expect("Unable to write the Dockerfile");
+        let dockerignore_content = generate_dockerignore(&image);
+        fs::write(ignorefile, dockerignore_content)
+            .expect("Unable to write the .dockerignore file");
+    }
+}
+
+struct InputAndFormat {
+    input: Box<dyn Read>,
+    format: Option<Format>,
+}
+
+fn get_input_and_format(args: Args) -> InputAndFormat {
     let mut given_format: Option<Format> = args.format;
-    let reader: Box<dyn Read + 'static> = if let Some(path) = args.input_file {
+    if let Some(path) = args.input_file {
         if given_format.is_none() {
             given_format = match path.extension() {
                 None => None,
@@ -51,23 +80,14 @@ fn main() {
             }
         }
         let file = fs::File::open(path).unwrap();
-        Box::new(BufReader::new(file))
-    } else {
-        Box::new(std::io::stdin().lock())
-    };
-
-    let format = given_format.unwrap_or(Format::Yaml);
-    let image: Image = match format {
-        Format::Yaml => from_yaml_reader(reader),
-        Format::Json => from_json_reader(reader),
-    };
-    let dockerfile_content = generate_dockerfile(&image);
-    if args.output {
-        print!("{}", dockerfile_content);
+        return InputAndFormat {
+            input: Box::new(BufReader::new(file)),
+            format: given_format,
+        };
     }
-    else {
-        fs::write(args.dockerfile, dockerfile_content).expect("Unable to write the Dockerfile");
-        let dockerignore_content = generate_dockerignore(&image);
-        fs::write(args.ignorefile, dockerignore_content).expect("Unable to write the .dockerignore file");
+
+    InputAndFormat {
+        input: Box::new(std::io::stdin()),
+        format: given_format,
     }
 }

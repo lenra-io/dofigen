@@ -1,1 +1,4 @@
-target
+**
+!/dofigen
+!/dofigen_lib
+!/Cargo.*
