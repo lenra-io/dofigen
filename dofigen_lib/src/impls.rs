@@ -108,7 +108,7 @@ fn add_script(buffer: &mut String, script: &Vec<String>, caches: Option<&Vec<Str
     buffer.push_str("RUN ");
     if let Some(ref paths) = caches {
         paths.iter().for_each(|path| {
-            buffer.push_str(format!("\\\n\t--mount=type=cache,uid=1000,gid=1000,target={}", path).as_str())
+            buffer.push_str(format!("\\\n\t--mount=type=cache,sharing=locked,uid=1000,gid=1000,target={}", path).as_str())
         })
     }
     script.iter().enumerate().for_each(|(i, cmd)| {
