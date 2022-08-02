@@ -54,7 +54,7 @@ pub trait Stage {
                         )
                     }
                     format!(
-                        "COPY --link --from={builder} \"{source}\" \"{destination}\"\n",
+                        "COPY --link --chown=1000:1000 --from={builder} \"{source}\" \"{destination}\"\n",
                         builder = artifact.builder,
                         source = artifact.source,
                         destination = artifact.destination

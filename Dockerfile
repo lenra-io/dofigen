@@ -12,6 +12,6 @@ RUN \
 # runtime
 FROM scratch as runtime
 WORKDIR /app
-COPY --link --from=builder "/home/rust/dofigen" "/bin/"
+COPY --link --chown=1000:1000 --from=builder "/home/rust/dofigen" "/bin/"
 ENTRYPOINT ["/bin/dofigen"]
 CMD ["--help"]
