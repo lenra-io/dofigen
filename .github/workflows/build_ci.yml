@@ -1,0 +1,131 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+      - beta
+    tags:
+      - '^v([0-9]+\.[0-9]+\.[0-9]+)(?:-([a-z]+\.[0-9]+))?$'
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  style:
+    name: Check Style
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+          profile: minimal
+          override: true
+
+      - name: cargo fmt -- --check
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+  test:
+    name: Test
+    needs: [style]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Build debug
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --verbose
+
+    - name: Test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: [test]
+    concurrency: ci-${{ github.ref }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
+        target: [ aarch64-unknown-linux-gnu, armv7-unknown-linux-gnueabihf, arm-unknown-linux-gnueabi, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, riscv64gc-unknown-linux-gnu, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc, x86_64-apple-darwin, aarch64-apple-darwin ]
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+        target: ${{ matrix.target }}
+
+    - name: Build target
+      uses: actions-rs/cargo@v1
+      with:
+        # Cross didn't seems to work : docker image say `sh: 1: cargo: not found`
+        # use-cross: true
+        command: build
+        args: --release --target ${{ matrix.target }}
+
+    - name: Package
+      shell: bash
+      run: |
+        # Without this, archive contain the path `target/${{ matrix.target }}/release/`
+        cd "target/${{ matrix.target }}/release/"
+        tar czvf "../../../dofigen-${{ matrix.target }}.tar.gz" dofigen
+        cd ../../..
+
+    - id: upload
+      name: Upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: dofigen-${{ matrix.target }}
+        path: dofigen-${{ matrix.target }}.tar.gz
+
+  publish:
+    name: publish
+    needs: [build]
+    if: github.ref_name == 'main' || github.ref_name == 'beta'
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: download-artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: "14"
+
+    - name: Setup node deps
+      shell: bash
+      run: npm i conventional-changelog-conventionalcommits@4 @semantic-release/git -D
+
+    - name: Release
+      shell: bash
+      run: npx semantic-release@18
