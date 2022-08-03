@@ -16,6 +16,7 @@ jobs:
   style:
     name: Check Style
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -38,6 +39,7 @@ jobs:
     name: Test
     needs: [style]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
     - name: Checkout
       uses: actions/checkout@v1
@@ -134,6 +136,7 @@ jobs:
     needs: [build]
     if: github.ref_name == 'main' || github.ref_name == 'beta'
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     steps:
     - name: Checkout
       uses: actions/checkout@v3
