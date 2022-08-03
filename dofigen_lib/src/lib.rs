@@ -39,8 +39,7 @@ pub fn generate_dockerfile(image: &Image) -> String {
 pub fn generate_dockerignore(image: &Image) -> String {
     if let Some(ignore) = image.ignores() {
         ignore.join("\n")
-    }
-    else {
+    } else {
         String::from("")
     }
 }
