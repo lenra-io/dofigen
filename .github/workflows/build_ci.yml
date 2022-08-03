@@ -68,6 +68,8 @@ jobs:
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
+        os: [ "linux", "windows", "macos" ]
+        arch: [ "x86_x64", "aarch64" ]
         includes:
         - target: aarch64-unknown-linux-musl
           os: linux
@@ -101,6 +103,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
+        profile: minimal
         override: true
         target: ${{ matrix.target }}
 
