@@ -1,9 +1,70 @@
 use std::{collections::HashMap, io::Result};
 
-use crate::structs::{Artifact, Builder, Image};
+use crate::structs::{Artifact, Builder, Image, Root};
+
+pub trait ScriptRunner {
+    fn script(&self) -> Option<&Vec<String>>;
+    fn caches(&self) -> Option<&Vec<String>>;
+    fn has_script(&self) -> bool {
+        if let Some(script) = self.script() {
+            return script.len() > 0;
+        }
+        false
+    }
+    fn add_script(&self, buffer: &mut String, uid: u16, gid: u16) {
+        if let Some(script) = self.script() {
+            buffer.push_str("RUN ");
+            if let Some(ref paths) = self.caches() {
+                paths.iter().for_each(|path| {
+                    buffer.push_str(
+                        format!(
+                            "\\\n\t--mount=type=cache,sharing=locked,uid={},gid={},target={}",
+                            uid, gid, path
+                        )
+                        .as_str(),
+                    )
+                })
+            }
+            script.iter().enumerate().for_each(|(i, cmd)| {
+                if i > 0 {
+                    buffer.push_str(" && ");
+                }
+                buffer.push_str(format!("\\\n\t{}", cmd).as_str())
+            });
+            buffer.push_str("\n");
+        }
+    }
+}
+
+impl ScriptRunner for Builder {
+    fn script(&self) -> Option<&Vec<String>> {
+        self.script.as_ref()
+    }
+    fn caches(&self) -> Option<&Vec<String>> {
+        self.caches.as_ref()
+    }
+}
+
+impl ScriptRunner for Image {
+    fn script(&self) -> Option<&Vec<String>> {
+        self.script.as_ref()
+    }
+    fn caches(&self) -> Option<&Vec<String>> {
+        self.caches.as_ref()
+    }
+}
+
+impl ScriptRunner for Root {
+    fn script(&self) -> Option<&Vec<String>> {
+        self.script.as_ref()
+    }
+    fn caches(&self) -> Option<&Vec<String>> {
+        self.caches.as_ref()
+    }
+}
 
 /** Represents a Dockerfile stage */
-pub trait Stage {
+pub trait Stage: ScriptRunner {
     fn image(&self) -> &str;
     fn name(&self, position: i32) -> String;
     fn user(&self) -> Option<String>;
@@ -11,9 +72,7 @@ pub trait Stage {
     fn envs(&self) -> Option<&HashMap<String, String>>;
     fn artifacts(&self) -> Option<&Vec<Artifact>>;
     fn adds(&self) -> Option<&Vec<String>>;
-    fn root_script(&self) -> Option<&Vec<String>>;
-    fn script(&self) -> Option<&Vec<String>>;
-    fn caches(&self) -> Option<&Vec<String>>;
+    fn root(&self) -> Option<&Root>;
 
     fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
         let name = self.name(previous_builders.len().try_into().unwrap());
@@ -40,8 +99,6 @@ pub trait Stage {
                 .for_each(|add| buffer.push_str(&add.as_str()));
         }
 
-        let mut root_script: Vec<String> = Vec::new();
-
         // Copy build artifacts
         if let Some(ref artifacts) = self.artifacts() {
             artifacts
@@ -64,34 +121,35 @@ pub trait Stage {
         }
 
         // Root script
-        if let Some(additionnal_root_script) = self.root_script() {
-            additionnal_root_script
-                .iter()
-                .for_each(|script| root_script.push(script.clone()));
-        }
-        let mut is_root = false;
-        if root_script.len() > 0 {
-            is_root = true;
+        let is_root = if let Some(root) = self.root() {
+            root.has_script()
+        } else {
+            false
+        };
+        if is_root {
             buffer.push_str("USER 0\n");
-            add_script(buffer, &root_script, self.caches());
+            self.root().unwrap().add_script(buffer, 0, 0);
         }
 
         // Runtime user
-        let mut user: Option<String> = None;
-        if self.user().is_some() {
-            user = self.user()
-        } else if let Some(script) = self.script() {
-            if is_root && script.len() > 0 && self.image() != "scratch" {
-                user = Some(String::from("1000"));
+        let has_script = self.has_script();
+        let user: Option<String> = match self.user() {
+            Some(u) => Some(u),
+            None => {
+                if is_root && has_script && self.image() != "scratch" {
+                    Some(String::from("1000"))
+                } else {
+                    None
+                }
             }
-        }
+        };
         if user.is_some() {
             buffer.push_str(format!("USER {}\n", user.unwrap()).as_str());
         }
 
         // Script
-        if let Some(script) = self.script() {
-            add_script(buffer, script, self.caches());
+        if has_script {
+            self.add_script(buffer, 1000, 1000);
         }
 
         self.additionnal_generation(buffer);
@@ -101,28 +159,6 @@ pub trait Stage {
     }
 
     fn additionnal_generation(&self, _buffer: &mut String) {}
-}
-
-fn add_script(buffer: &mut String, script: &Vec<String>, caches: Option<&Vec<String>>) {
-    buffer.push_str("RUN ");
-    if let Some(ref paths) = caches {
-        paths.iter().for_each(|path| {
-            buffer.push_str(
-                format!(
-                    "\\\n\t--mount=type=cache,sharing=locked,uid=1000,gid=1000,target={}",
-                    path
-                )
-                .as_str(),
-            )
-        })
-    }
-    script.iter().enumerate().for_each(|(i, cmd)| {
-        if i > 0 {
-            buffer.push_str(" && ");
-        }
-        buffer.push_str(format!("\\\n\t{}", cmd).as_str())
-    });
-    buffer.push_str("\n");
 }
 
 impl Stage for Builder {
@@ -150,14 +186,8 @@ impl Stage for Builder {
     fn adds(&self) -> Option<&Vec<String>> {
         self.adds.as_ref()
     }
-    fn root_script(&self) -> Option<&Vec<String>> {
-        self.root_script.as_ref()
-    }
-    fn script(&self) -> Option<&Vec<String>> {
-        self.script.as_ref()
-    }
-    fn caches(&self) -> Option<&Vec<String>> {
-        self.caches.as_ref()
+    fn root(&self) -> Option<&Root> {
+        self.root.as_ref()
     }
 }
 
@@ -189,14 +219,8 @@ impl Stage for Image {
     fn adds(&self) -> Option<&Vec<String>> {
         self.adds.as_ref()
     }
-    fn root_script(&self) -> Option<&Vec<String>> {
-        self.root_script.as_ref()
-    }
-    fn script(&self) -> Option<&Vec<String>> {
-        self.script.as_ref()
-    }
-    fn caches(&self) -> Option<&Vec<String>> {
-        self.caches.as_ref()
+    fn root(&self) -> Option<&Root> {
+        self.root.as_ref()
     }
 
     fn additionnal_generation(&self, buffer: &mut String) {
@@ -220,9 +244,3 @@ impl Image {
         self.ignores.as_ref()
     }
 }
-
-// pub trait Copy {
-
-// }
-// impl Copy for String {}
-// impl Copy for CopyFull {}

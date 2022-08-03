@@ -26,10 +26,12 @@
   "envs": {
     "NPM_CONFIG_LOGLEVEL": "warn"
   },
-  "rootScript": [
-    "addgroup -S app",
-    "adduser -S -g app app"
-  ],
+  "root": {
+    "script": [
+      "addgroup -S app",
+      "adduser -S -g app app"
+    ]
+  },
   "script": [
     "npm i --omit=dev"
   ],
