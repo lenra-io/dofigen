@@ -85,10 +85,12 @@ jobs:
           os: windows
           arch: x86_64
           runner: windows-2022
+          file_extension: '.exe'
         - target: aarch64-pc-windows-msvc
           os: windows
           arch: aarch64
           runner: windows-2022
+          file_extension: '.exe'
         - target: x86_64-apple-darwin
           os: macos
           arch: x86_64
@@ -116,16 +118,11 @@ jobs:
         command: build
         args: --release --target ${{ matrix.target }}
 
-    - name: Prepare
-      shell: bash
-      run: |
-        cp "target/${{ matrix.target }}/release/dofigen" "dofigen-${{ matrix.os }}-${{ matrix.arch }}"
-
     - name: Upload
       uses: actions/upload-artifact@v3
       with:
-        name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
-        path: target/${{ matrix.target }}/release/dofigen
+        name: dofigen-${{ matrix.exe_name }}-${{ matrix.arch }}${{ matrix.file_extension }}
+        path: target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }}
 
   publish:
     name: publish
