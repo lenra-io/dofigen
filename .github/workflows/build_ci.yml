@@ -124,7 +124,8 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v3
       with:
-        path: dofigen-${{ matrix.os }}-${{ matrix.arch }}
+        name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
+        path: target/${{ matrix.target }}/release/dofigen
 
   publish:
     name: publish
