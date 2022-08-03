@@ -80,9 +80,8 @@ pub trait Stage {
         let mut user: Option<String> = None;
         if self.user().is_some() {
             user = self.user()
-        }
-        else if let Some(script) = self.script() {
-            if is_root && script.len()>0 && self.image()!="scratch" {
+        } else if let Some(script) = self.script() {
+            if is_root && script.len() > 0 && self.image() != "scratch" {
                 user = Some(String::from("1000"));
             }
         }
@@ -108,7 +107,13 @@ fn add_script(buffer: &mut String, script: &Vec<String>, caches: Option<&Vec<Str
     buffer.push_str("RUN ");
     if let Some(ref paths) = caches {
         paths.iter().for_each(|path| {
-            buffer.push_str(format!("\\\n\t--mount=type=cache,sharing=locked,uid=1000,gid=1000,target={}", path).as_str())
+            buffer.push_str(
+                format!(
+                    "\\\n\t--mount=type=cache,sharing=locked,uid=1000,gid=1000,target={}",
+                    path
+                )
+                .as_str(),
+            )
         })
     }
     script.iter().enumerate().for_each(|(i, cmd)| {
@@ -166,11 +171,9 @@ impl Stage for Image {
     fn user(&self) -> Option<String> {
         match self.user.as_ref() {
             Some(user) => Some(user.to_string()),
-            None => {
-                match self.image.as_str() {
-                    "scratch" => None,
-                    _ => Some(String::from("1000"))
-                }
+            None => match self.image.as_str() {
+                "scratch" => None,
+                _ => Some(String::from("1000")),
             },
         }
     }
@@ -199,7 +202,11 @@ impl Stage for Image {
     fn additionnal_generation(&self, buffer: &mut String) {
         if let Some(ref entrypoint) = self.entrypoint {
             buffer.push_str(
-                format!("ENTRYPOINT {}\n", serde_json::to_string(entrypoint).unwrap()).as_str(),
+                format!(
+                    "ENTRYPOINT {}\n",
+                    serde_json::to_string(entrypoint).unwrap()
+                )
+                .as_str(),
             );
         }
         if let Some(ref cmd) = self.cmd {
