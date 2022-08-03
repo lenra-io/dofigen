@@ -62,12 +62,37 @@ jobs:
         args: --verbose
 
   build:
-    name: Build ${{ matrix.target }}
+    name: Build ${{ matrix.os }} ${{ matrix.arch }}
     needs: [test]
-    runs-on: ubuntu-latest
+    continue-on-error: true # It's for test, that will allow me to see what CI work even if another one failed.
+    runs-on: ${{ matrix.runner }}
     strategy:
       matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
-        target: [ aarch64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc, aarch64-pc-windows-msvc, x86_64-apple-darwin, aarch64-apple-darwin ]
+        includes:
+        - target: aarch64-unknown-linux-musl
+          os: linux
+          arch: aarch64
+          runner: ubuntu-20.04
+        - target: x86_64-unknown-linux-musl
+          os: linux
+          arch: x86_64
+          runner: ubuntu-20.04
+        - target: x86_64-pc-windows-msvc
+          os: windows
+          arch: x86_64
+          runner: windows-2022
+        - target: aarch64-pc-windows-msvc
+          os: windows
+          arch: aarch64
+          runner: windows-2022
+        - target: x86_64-apple-darwin
+          os: macos
+          arch: x86_64
+          runner: macos-11
+        - target: aarch64-apple-darwin
+          os: macos
+          arch: aarch64
+          runner: macos-11
     steps:
     - name: Checkout
       uses: actions/checkout@v3
