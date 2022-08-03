@@ -66,7 +66,6 @@ jobs:
   build:
     name: Build ${{ matrix.os }} ${{ matrix.arch }}
     needs: [test]
-    continue-on-error: true # It's for test, that will allow me to see what CI work even if another one failed.
     runs-on: "${{ matrix.runner }}"
     strategy:
       matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
@@ -116,20 +115,15 @@ jobs:
         command: build
         args: --release --target ${{ matrix.target }}
 
-    - name: Package
+    - name: Prepare
       shell: bash
       run: |
-        # Without this, archive contain the path `target/${{ matrix.target }}/release/`
-        cd "target/${{ matrix.target }}/release/"
-        tar czvf "../../../dofigen-${{ matrix.target }}.tar.gz" dofigen
-        cd ../../..
+        cp "target/${{ matrix.target }}/release/dofigen" "dofigen-${{ matrix.os }}-${{ matrix.arch }}"
 
-    - id: upload
-      name: Upload
+    - name: Upload
       uses: actions/upload-artifact@v3
       with:
-        name: dofigen-${{ matrix.target }}
-        path: dofigen-${{ matrix.target }}.tar.gz
+        path: dofigen-${{ matrix.os }}-${{ matrix.arch }}
 
   publish:
     name: publish
