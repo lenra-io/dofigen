@@ -64,7 +64,6 @@ jobs:
   build:
     name: Build ${{ matrix.target }}
     needs: [test]
-    concurrency: ci-${{ github.ref }}
     runs-on: ubuntu-latest
     strategy:
       matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
