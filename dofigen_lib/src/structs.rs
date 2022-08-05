@@ -19,6 +19,8 @@ pub struct Image {
     pub ignores: Option<Vec<String>>,
     pub entrypoint: Option<Vec<String>>,
     pub cmd: Option<Vec<String>>,
+    pub ports: Option<Vec<u16>>,
+    pub healthcheck: Option<Healthcheck>,
 }
 
 /** Represents a Dockerfile builder stage */
@@ -49,4 +51,13 @@ pub struct Artifact {
 pub struct Root {
     pub script: Option<Vec<String>>,
     pub caches: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
+pub struct Healthcheck {
+    pub cmd: Option<String>,
+    pub interval: Option<String>,
+    pub timeout: Option<String>,
+    pub start: Option<String>,
+    pub retries: Option<u16>,
 }
