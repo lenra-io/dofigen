@@ -165,7 +165,7 @@ jobs:
 
   publish:
     name: publish
-    needs: [build]
+    needs: [build, get-next-version]
     if: github.ref_name == 'main' || github.ref_name == 'beta'
     runs-on: ubuntu-latest
     timeout-minutes: 2
