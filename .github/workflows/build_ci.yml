@@ -14,7 +14,9 @@ env:
 
 jobs:
   get-next-version:
+    name: Get next version
     runs-on: ubuntu-20.04
+    timeout-minutes: 2
     steps:
     - name: Checkout
       uses: actions/checkout@v3
