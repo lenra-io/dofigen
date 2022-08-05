@@ -177,6 +177,15 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         path: artifacts/
+    
+    - name: Unzip artifacts
+      shell: bash
+      run: |
+        for artifact in $(ls artifacts/); do
+          unzip $a
+          mv "artifacts/$a/*" artifacts/
+        done
+        rm artifacts/*.zip
 
     - name: Setup Node.js
       uses: actions/setup-node@v2
