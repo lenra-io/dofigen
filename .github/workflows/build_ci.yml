@@ -136,6 +136,12 @@ jobs:
         override: true
         target: ${{ matrix.target }}
 
+    - name: Install cargo-edit
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-edit
+
     - name: Set version
       uses: actions-rs/cargo@v1
       with:
