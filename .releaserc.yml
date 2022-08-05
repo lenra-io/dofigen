@@ -12,5 +12,4 @@ plugins:
   - - "@semantic-release/github"
     - assets:
       - path: artifacts/*
-  - - "@semantic-release/exec"
-    - publishCmd: /bin/bash -c "sed -i 's/version = \"0.1.0\"/version = \"${nextRelease.version}\"/' dofigen*/Cargo.toml; cargo publish"
+  - - "semantic-release-export-data"
