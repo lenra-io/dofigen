@@ -97,7 +97,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
-        os: [ "linux", "windows", "macos" ]
+        os: [ "linux", "windows", ] # "macos" ]
         arch: [ "x86_64", "aarch64" ]
         include:
         - target: aarch64-unknown-linux-musl
