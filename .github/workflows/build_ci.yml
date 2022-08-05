@@ -94,7 +94,7 @@ jobs:
     name: Build ${{ matrix.os }} ${{ matrix.arch }}
     needs: [test, get-next-version]
     runs-on: "${{ matrix.runner }}"
-    timeout-minutes: 12
+    timeout-minutes: 20
     strategy:
       matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
         os: [ "linux", "windows", "macos" ]
