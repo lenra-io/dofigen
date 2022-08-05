@@ -181,13 +181,11 @@ jobs:
     - name: Unzip artifacts
       shell: bash
       run: |
-        path="$PWD"
-        cd artifacts/
-        for artifact in $(ls); do
-          unzip "$artifact"
+        for artifact in $(ls "artifacts/*.zip"); do
+          unzip "artifacts/${artifact}" -d .out
+          mv .out/* "artifacts/$(basename -s ".zip" "${artifact}")"
         done
-        rm *.zip
-        cd $PWD
+        rm artifacts/*.zip
         
     - name: Setup Node.js
       uses: actions/setup-node@v2
