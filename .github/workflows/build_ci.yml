@@ -203,6 +203,18 @@ jobs:
       shell: bash
       run: npx semantic-release@18
 
+    - name: Install cargo-edit
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-edit
+
+    - name: Set version
+      uses: actions-rs/cargo@v1
+      with:
+        command: set-version
+        args: "${{ needs.get-next-version.outputs.new-release-version }}"
+
     - name: Publish cargo
       shell: bash
       if: ${{ steps.release.outputs.new-release-published }}
