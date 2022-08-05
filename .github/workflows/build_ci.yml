@@ -16,6 +16,7 @@ jobs:
   get-next-version:
     name: Get next version
     runs-on: ubuntu-20.04
+    continue-on-error: true # must be allow to fail
     timeout-minutes: 2
     steps:
     - name: Checkout
@@ -25,7 +26,7 @@ jobs:
       uses: actions/setup-node@v3
       with:
         node-version: 16
-    
+
     - name: Setup node deps
       shell: bash
       run: npm i conventional-changelog-conventionalcommits@4 @semantic-release/git semantic-release-export-data -D
@@ -177,7 +178,7 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         path: artifacts/
-    
+
     - name: Unzip artifacts
       shell: bash
       run: |
@@ -186,7 +187,7 @@ jobs:
           mv .out/* "artifacts/$(basename -s ".zip" "${artifact}")"
         done
         rm artifacts/*.zip
-        
+
     - name: Setup Node.js
       uses: actions/setup-node@v2
       with:
