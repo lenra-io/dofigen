@@ -28,10 +28,12 @@ jobs:
       shell: bash
       run: npm i conventional-changelog-conventionalcommits@4 @semantic-release/git semantic-release-export-data -D
 
-    - run: npx semantic-release --dry-run
-      id: get-next-version
+    - id: get-next-version
+      name: Get next version
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: npx semantic-release --dry-run
+
     outputs:
       new-release-published: ${{ steps.get-next-version.outputs.new-release-published }}
       new-release-version: ${{ steps.get-next-version.outputs.new-release-version }}
