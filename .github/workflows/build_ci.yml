@@ -148,7 +148,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: set-version
-        args: ${{ needs.get-next-version.outputs.new-release-version }}
+        args: "${{ needs.get-next-version.outputs.new-release-version }}"
 
     - name: Build target
       uses: actions-rs/cargo@v1
