@@ -160,7 +160,7 @@ jobs:
     - name: Upload
       uses: actions/upload-artifact@v3
       with:
-        name: dofigen-${{ matrix.exe_name }}-${{ matrix.arch }}${{ matrix.file_extension }}
+        name: dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
         path: target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }}
 
   publish:
