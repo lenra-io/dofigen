@@ -96,8 +96,6 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
-        os: [ "linux", "windows"] # ", macos" ]
-        arch: [ "x86_64", "aarch64" ]
         include:
         - target: aarch64-unknown-linux-musl
           os: linux
@@ -117,14 +115,14 @@ jobs:
           arch: aarch64
           runner: windows-2022
           file_extension: '.exe'
-        - target: x86_64-apple-darwin
-          os: macos
-          arch: x86_64
-          runner: macos-11
-        - target: aarch64-apple-darwin
-          os: macos
-          arch: aarch64
-          runner: macos-11
+        #- target: x86_64-apple-darwin
+        #  os: macos
+        #  arch: x86_64
+        #  runner: macos-11
+        #- target: aarch64-apple-darwin
+        #  os: macos
+        #  arch: aarch64
+        #  runner: macos-11
     steps:
     - name: Checkout
       uses: actions/checkout@v3
