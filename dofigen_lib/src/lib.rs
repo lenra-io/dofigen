@@ -401,6 +401,8 @@ mod tests {
         - builder: builder
           source: /fwatchdog
           destination: /fwatchdog
+        ports:
+        - 8080
         healthcheck:
           interval: 3s
           cmd: "[ -e /tmp/.lock ] || exit 1"
@@ -433,6 +435,7 @@ ENV \
     fprocess="/app"
 COPY --link --chown=1000:1000 --from=builder "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust" "/app"
 COPY --link --chown=1000:1000 --from=builder "/fwatchdog" "/fwatchdog"
+EXPOSE 8080
 HEALTHCHECK --interval=3s CMD [ -e /tmp/.lock ] || exit 1
 CMD ["/fwatchdog"]
 "#
