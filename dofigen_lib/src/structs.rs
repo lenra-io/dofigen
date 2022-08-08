@@ -11,8 +11,7 @@ pub struct Image {
     pub envs: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
     pub adds: Option<Vec<String>>,
-    #[serde(rename = "rootScript")]
-    pub root_script: Option<Vec<String>>,
+    pub root: Option<Root>,
     pub script: Option<Vec<String>>,
     pub caches: Option<Vec<String>>,
     // Specific part
@@ -32,8 +31,7 @@ pub struct Builder {
     pub envs: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
     pub adds: Option<Vec<String>>,
-    #[serde(rename = "rootScript")]
-    pub root_script: Option<Vec<String>>,
+    pub root: Option<Root>,
     pub script: Option<Vec<String>>,
     pub caches: Option<Vec<String>>,
     // Specific part
@@ -48,8 +46,7 @@ pub struct Artifact {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
-pub struct CopyFull {
-    pub source: String,
-    pub destination: Option<String>,
-    pub chown: Option<String>,
+pub struct Root {
+    pub script: Option<Vec<String>>,
+    pub caches: Option<Vec<String>>,
 }
