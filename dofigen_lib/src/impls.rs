@@ -89,22 +89,20 @@ impl StageGenerator for Image {
                 .for_each(|port| buffer.push_str(format!("EXPOSE {}\n", port).as_str()));
         }
         if let Some(healthcheck) = &self.healthcheck {
-            if let Some(cmd) = &healthcheck.cmd {
-                buffer.push_str("HEALTHCHECK ");
-                if let Some(interval) = &healthcheck.interval {
-                    buffer.push_str(format!("--interval={} ", interval).as_str());
-                }
-                if let Some(timeout) = &healthcheck.timeout {
-                    buffer.push_str(format!("--timeout={} ", timeout).as_str());
-                }
-                if let Some(start) = &healthcheck.start {
-                    buffer.push_str(format!("--start-period={} ", start).as_str());
-                }
-                if let Some(retries) = &healthcheck.retries {
-                    buffer.push_str(format!("--retries={} ", retries).as_str());
-                }
-                buffer.push_str(format!("CMD {}\n", cmd).as_str());
+            buffer.push_str("HEALTHCHECK ");
+            if let Some(interval) = &healthcheck.interval {
+                buffer.push_str(format!("--interval={} ", interval).as_str());
             }
+            if let Some(timeout) = &healthcheck.timeout {
+                buffer.push_str(format!("--timeout={} ", timeout).as_str());
+            }
+            if let Some(start) = &healthcheck.start {
+                buffer.push_str(format!("--start-period={} ", start).as_str());
+            }
+            if let Some(retries) = &healthcheck.retries {
+                buffer.push_str(format!("--retries={} ", retries).as_str());
+            }
+            buffer.push_str(format!("CMD {}\n", healthcheck.cmd).as_str());
         }
         if let Some(ref entrypoint) = self.entrypoint {
             buffer.push_str(

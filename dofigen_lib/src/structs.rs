@@ -55,7 +55,7 @@ pub struct Root {
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Default)]
 pub struct Healthcheck {
-    pub cmd: Option<String>,
+    pub cmd: String,
     pub interval: Option<String>,
     pub timeout: Option<String>,
     pub start: Option<String>,
