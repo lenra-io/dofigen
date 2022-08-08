@@ -1,6 +1,6 @@
-use std::{collections::HashMap, io::Result};
+use std::io::Result;
 
-use crate::structs::{Artifact, Builder, Image, Root};
+use crate::structs::{Builder, Image, Root};
 
 pub trait ScriptRunner {
     fn script(&self) -> Option<&Vec<String>>;
@@ -18,7 +18,7 @@ pub trait ScriptRunner {
                 paths.iter().for_each(|path| {
                     buffer.push_str(
                         format!(
-                            "\\\n\t--mount=type=cache,sharing=locked,uid={},gid={},target={}",
+                            "\\\n    --mount=type=cache,sharing=locked,uid={},gid={},target={}",
                             uid, gid, path
                         )
                         .as_str(),
@@ -29,142 +29,35 @@ pub trait ScriptRunner {
                 if i > 0 {
                     buffer.push_str(" && ");
                 }
-                buffer.push_str(format!("\\\n\t{}", cmd).as_str())
+                buffer.push_str(format!("\\\n    {}", cmd).as_str())
             });
             buffer.push_str("\n");
         }
     }
 }
 
-impl ScriptRunner for Builder {
-    fn script(&self) -> Option<&Vec<String>> {
-        self.script.as_ref()
-    }
-    fn caches(&self) -> Option<&Vec<String>> {
-        self.caches.as_ref()
-    }
-}
-
-impl ScriptRunner for Image {
-    fn script(&self) -> Option<&Vec<String>> {
-        self.script.as_ref()
-    }
-    fn caches(&self) -> Option<&Vec<String>> {
-        self.caches.as_ref()
+macro_rules! impl_ScriptRunner {
+    (for $($t:ty),+) => {
+        $(impl ScriptRunner for $t {
+            fn script(&self) -> Option<&Vec<String>> {
+                self.script.as_ref()
+            }
+            fn caches(&self) -> Option<&Vec<String>> {
+                self.caches.as_ref()
+            }
+        })*
     }
 }
-
-impl ScriptRunner for Root {
-    fn script(&self) -> Option<&Vec<String>> {
-        self.script.as_ref()
-    }
-    fn caches(&self) -> Option<&Vec<String>> {
-        self.caches.as_ref()
-    }
-}
-
-/** Represents a Dockerfile stage */
-pub trait Stage: ScriptRunner {
-    fn image(&self) -> &str;
+pub trait StageGenerator: ScriptRunner {
     fn name(&self, position: i32) -> String;
     fn user(&self) -> Option<String>;
-    fn workdir(&self) -> Option<&String>;
-    fn envs(&self) -> Option<&HashMap<String, String>>;
-    fn artifacts(&self) -> Option<&Vec<Artifact>>;
-    fn adds(&self) -> Option<&Vec<String>>;
-    fn root(&self) -> Option<&Root>;
-
-    fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
-        let name = self.name(previous_builders.len().try_into().unwrap());
-        buffer.push_str(format!("\n# {}\nFROM {} as {}\n", name, self.image(), name).as_str());
-
-        // Set env variables
-        if let Some(ref envs) = self.envs() {
-            buffer.push_str("ENV ");
-            envs.iter().for_each(|(key, value)| {
-                buffer.push_str(format!("\\\n\t{}=\"{}\"", key, value).as_str())
-            });
-            buffer.push_str("\n");
-        }
-
-        // Set workdir
-        if let Some(ref workdir) = self.workdir() {
-            buffer.push_str(format!("WORKDIR {}\n", workdir).as_str());
-        }
-
-        // Add sources
-        if let Some(ref adds) = self.adds() {
-            adds.iter()
-                .map(|add| format!("ADD --link {} ./\n", add))
-                .for_each(|add| buffer.push_str(&add.as_str()));
-        }
-
-        // Copy build artifacts
-        if let Some(ref artifacts) = self.artifacts() {
-            artifacts
-                .iter()
-                .map(|artifact| {
-                    if !previous_builders.contains(&artifact.builder) {
-                        panic!(
-                            "The builder '{}' is not found in previous artifacts",
-                            artifact.builder
-                        )
-                    }
-                    format!(
-                        "COPY --link --chown=1000:1000 --from={builder} \"{source}\" \"{destination}\"\n",
-                        builder = artifact.builder,
-                        source = artifact.source,
-                        destination = artifact.destination
-                    )
-                })
-                .for_each(|artifact| buffer.push_str(&artifact.as_str()));
-        }
-
-        // Root script
-        let is_root = if let Some(root) = self.root() {
-            root.has_script()
-        } else {
-            false
-        };
-        if is_root {
-            buffer.push_str("USER 0\n");
-            self.root().unwrap().add_script(buffer, 0, 0);
-        }
-
-        // Runtime user
-        let has_script = self.has_script();
-        let user: Option<String> = match self.user() {
-            Some(u) => Some(u),
-            None => {
-                if is_root && has_script && self.image() != "scratch" {
-                    Some(String::from("1000"))
-                } else {
-                    None
-                }
-            }
-        };
-        if user.is_some() {
-            buffer.push_str(format!("USER {}\n", user.unwrap()).as_str());
-        }
-
-        // Script
-        if has_script {
-            self.add_script(buffer, 1000, 1000);
-        }
-
-        self.additionnal_generation(buffer);
-
-        previous_builders.push(name);
-        Ok(())
-    }
-
     fn additionnal_generation(&self, _buffer: &mut String) {}
 }
+pub trait Stage: StageGenerator {
+    fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()>;
+}
 
-impl Stage for Builder {
-    fn image(&self) -> &str {
-        &self.image
-    }
+impl StageGenerator for Builder {
     fn name(&self, position: i32) -> String {
         match self.name.as_ref() {
             Some(name) => String::from(name),
@@ -174,27 +67,9 @@ impl Stage for Builder {
     fn user(&self) -> Option<String> {
         self.user.clone()
     }
-    fn workdir(&self) -> Option<&String> {
-        self.workdir.as_ref()
-    }
-    fn envs(&self) -> Option<&HashMap<String, String>> {
-        self.envs.as_ref()
-    }
-    fn artifacts(&self) -> Option<&Vec<Artifact>> {
-        self.artifacts.as_ref()
-    }
-    fn adds(&self) -> Option<&Vec<String>> {
-        self.adds.as_ref()
-    }
-    fn root(&self) -> Option<&Root> {
-        self.root.as_ref()
-    }
 }
 
-impl Stage for Image {
-    fn image(&self) -> &str {
-        &self.image
-    }
+impl StageGenerator for Image {
     fn name(&self, _position: i32) -> String {
         String::from("runtime")
     }
@@ -207,22 +82,6 @@ impl Stage for Image {
             },
         }
     }
-    fn workdir(&self) -> Option<&String> {
-        self.workdir.as_ref()
-    }
-    fn envs(&self) -> Option<&HashMap<String, String>> {
-        self.envs.as_ref()
-    }
-    fn artifacts(&self) -> Option<&Vec<Artifact>> {
-        self.artifacts.as_ref()
-    }
-    fn adds(&self) -> Option<&Vec<String>> {
-        self.adds.as_ref()
-    }
-    fn root(&self) -> Option<&Root> {
-        self.root.as_ref()
-    }
-
     fn additionnal_generation(&self, buffer: &mut String) {
         if let Some(ports) = &self.ports {
             ports
@@ -261,6 +120,102 @@ impl Stage for Image {
         }
     }
 }
+
+macro_rules! impl_Stage {
+    (for $($t:ty),+) => {
+        $(impl Stage for $t {
+            fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
+                let name = self.name(previous_builders.len().try_into().unwrap());
+                buffer.push_str(format!("\n# {}\nFROM {} as {}\n", name, self.image, name).as_str());
+
+                // Set env variables
+                if let Some(ref envs) = self.envs {
+                    buffer.push_str("ENV ");
+                    envs.iter().for_each(|(key, value)| {
+                        buffer.push_str(format!("\\\n    {}=\"{}\"", key, value).as_str())
+                    });
+                    buffer.push_str("\n");
+                }
+
+                // Set workdir
+                if let Some(ref workdir) = self.workdir {
+                    buffer.push_str(format!("WORKDIR {}\n", workdir).as_str());
+                }
+
+                // Add sources
+                if let Some(ref adds) = self.adds {
+                    adds.iter()
+                        .map(|add| format!("ADD --link {} ./\n", add))
+                        .for_each(|add| buffer.push_str(&add.as_str()));
+                }
+
+                // Copy build artifacts
+                if let Some(ref artifacts) = self.artifacts {
+                    artifacts
+                        .iter()
+                        .map(|artifact| {
+                            if !previous_builders.contains(&artifact.builder) {
+                                panic!(
+                                    "The builder '{}' is not found in previous artifacts",
+                                    artifact.builder
+                                )
+                            }
+                            format!(
+                                "COPY --link --chown=1000:1000 --from={builder} \"{source}\" \"{destination}\"\n",
+                                builder = artifact.builder,
+                                source = artifact.source,
+                                destination = artifact.destination
+                            )
+                        })
+                        .for_each(|artifact| buffer.push_str(&artifact.as_str()));
+                }
+
+                // Root script
+                let is_root = if let Some(root) = &self.root {
+                    if root.has_script() {
+                        buffer.push_str("USER 0\n");
+                        root.add_script(buffer, 0, 0);
+                        true
+                    }
+                    else {
+                    false
+                    }
+                } else {
+                    false
+                };
+
+                // Runtime user
+                let has_script = self.has_script();
+                let user: Option<String> = match self.user() {
+                    Some(u) => Some(u),
+                    None => {
+                        if is_root && has_script && self.image != "scratch" {
+                            Some(String::from("1000"))
+                        } else {
+                            None
+                        }
+                    }
+                };
+                if user.is_some() {
+                    buffer.push_str(format!("USER {}\n", user.unwrap()).as_str());
+                }
+
+                // Script
+                if has_script {
+                    self.add_script(buffer, 1000, 1000);
+                }
+
+                self.additionnal_generation(buffer);
+
+                previous_builders.push(name);
+                Ok(())
+            }
+        })*
+    }
+}
+
+impl_ScriptRunner!(for Builder, Image, Root);
+impl_Stage!(for Builder, Image);
 
 impl Image {
     pub fn ignores(&self) -> Option<&Vec<String>> {
