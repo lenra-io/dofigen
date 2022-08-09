@@ -26,7 +26,7 @@
 # Dofigen
 
 Dofigen is a Dockerfile generator using a simplyfied description in YAML or JSON format.
-It defines default values and behaviers that make the creation of Dockerfiles simpler.
+It defines default values and behaviors that makes the creation of Dockerfiles simpler.
 
 A french DevOps said about it:
 > C'est une bouffée Dofigen dans ce monde de con...teneurs.
@@ -92,7 +92,7 @@ OPTIONS:
 
 ### Image descriptor
 
-The image descriptor struture has been created to be simpler than the Dockerfile one.
+The image descriptor structure has been created to be simplier than the Dockerfile's one.
 
 ### Image
 
@@ -154,7 +154,7 @@ Actions made using the `root` user :
 
 ### Healthcheck
 
-The Docker image healthcheck definition. It defines when the container is not healthy :
+The Docker image's healthcheck definition. It defines when the container is not healthy :
 
 | Field            | Type             | Description                   |
 |------------------|------------------|-------------------------------|
