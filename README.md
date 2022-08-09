@@ -25,7 +25,7 @@
 
 # Dofigen
 
-Dofigen is a Dockerfile generator using a simplyfied description in YAML or JSON format.
+Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
 It defines default values and behaviors that makes the creation of Dockerfiles simpler.
 
 A french DevOps said about it:
