@@ -187,6 +187,8 @@ jobs:
     - id: release
       name: Release
       shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: npx semantic-release@18
 
     - name: Install cargo-edit
