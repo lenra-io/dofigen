@@ -1,0 +1,229 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+      - beta
+    paths-ignore:
+      - '*.md'
+  pull_request:
+    paths-ignore:
+      - '*.md'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  get-next-version:
+    name: Get next version
+    runs-on: ubuntu-20.04
+    continue-on-error: true # must be allow to fail
+    timeout-minutes: 2
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    - name: Setup node deps
+      shell: bash
+      run: npm i conventional-changelog-conventionalcommits@4 @semantic-release/git semantic-release-export-data -D
+
+    - id: get-next-version
+      name: Get next version
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: npx semantic-release --dry-run
+
+    outputs:
+      new-release-published: ${{ steps.get-next-version.outputs.new-release-published }}
+      new-release-version: ${{ steps.get-next-version.outputs.new-release-version }}
+
+  style:
+    name: Check Style
+    runs-on: ubuntu-20.04
+    timeout-minutes: 2
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt
+        profile: minimal
+        override: true
+
+    - name: cargo fmt -- --check
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
+
+  test:
+    name: Test
+    needs: [style]
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Build debug
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --verbose
+
+    - name: Test
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose
+
+  build:
+    name: Build ${{ matrix.os }} ${{ matrix.arch }}
+    needs: [test, get-next-version]
+    runs-on: "${{ matrix.runner }}"
+    env:
+      VERSION: ${{ needs.get-next-version.outputs.new-release-version }}
+    timeout-minutes: 20
+    strategy:
+      matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
+        include:
+        - target: aarch64-unknown-linux-musl
+          os: linux
+          arch: aarch64
+          runner: ubuntu-20.04
+        - target: x86_64-unknown-linux-musl
+          os: linux
+          arch: x86_64
+          runner: ubuntu-20.04
+        - target: x86_64-pc-windows-msvc
+          os: windows
+          arch: x86_64
+          runner: windows-2022
+          file_extension: '.exe'
+        - target: aarch64-pc-windows-msvc
+          os: windows
+          arch: aarch64
+          runner: windows-2022
+          file_extension: '.exe'
+        - target: x86_64-apple-darwin
+          os: macos
+          arch: x86_64
+          runner: macos-11
+        - target: aarch64-apple-darwin
+          os: macos
+          arch: aarch64
+          runner: macos-11
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+        target: ${{ matrix.target }}
+
+    - name: Install cargo-edit
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-edit
+
+    - name: Set version
+      uses: actions-rs/cargo@v1
+      with:
+        command: set-version
+        args: ${{ env.VERSION }}
+
+    - name: Build target
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: build
+        args: --release --target ${{ matrix.target }}
+
+    - name: Zip
+      if: ${{ matrix.os == 'windows' }}
+      shell: pwsh
+      run: Compress-Archive "target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }}" "dofigen-${{ matrix.os }}-${{ matrix.arch }}.zip"
+    - name: Zip
+      if: ${{ matrix.os != 'windows' }}
+      shell: bash
+      run: tar -czf "dofigen-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" "target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }}"
+
+    - name: Upload
+      uses: actions/upload-artifact@v3
+      with:
+        name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
+        path: dofigen-${{ matrix.os }}-${{ matrix.arch }}.*
+
+
+  publish:
+    name: publish
+    needs: [build, get-next-version]
+    if: github.ref_name == 'main' || github.ref_name == 'beta'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.get-next-version.outputs.new-release-version }}
+    timeout-minutes: 8
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: download-artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: "16"
+
+    - name: Setup node deps
+      shell: bash
+      run: npm i conventional-changelog-conventionalcommits@4 @semantic-release/git semantic-release-export-data -D
+
+    - id: release
+      name: Release
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: npx semantic-release@18
+
+    - name: Install cargo-edit
+      if: ${{ steps.release.outputs.new-release-published }}
+      uses: actions-rs/cargo@v1
+      with:
+        command: install
+        args: cargo-edit
+
+    - name: Set version
+      if: ${{ steps.release.outputs.new-release-published }}
+      uses: actions-rs/cargo@v1
+      with:
+        command: set-version
+        args: ${{ env.VERSION }}
+
+    - name: Publish cargo
+      shell: bash
+      if: ${{ steps.release.outputs.new-release-published }}
+      run: cargo publish -p dofigen --token "${{ secrets.CARGO_TOKEN }}"
