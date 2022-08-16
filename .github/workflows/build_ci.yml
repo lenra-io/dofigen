@@ -226,4 +226,4 @@ jobs:
     - name: Publish cargo
       shell: bash
       if: ${{ steps.release.outputs.new-release-published }}
-      run: cargo publish -p dofigen --token "${{ secrets.CARGO_TOKEN }}"
+      run: cargo publish -p dofigen --allow-dirty --token "${{ secrets.CARGO_TOKEN }}"
