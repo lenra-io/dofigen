@@ -16,13 +16,14 @@ include = [
 [lib]
 name = "dofigen_lib"
 path = "src/lib.rs"
+required-features = []
 
 [[bin]]
 name = "dofigen"
 path = "src/bin/main.rs"
+required-features = ["bin"]
 
 [features]
-default = ["bin"]
 bin = ["clap"]
 
 [dependencies]

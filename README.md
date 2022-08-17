@@ -49,7 +49,7 @@ First install Cargo, the Rust package manager: https://doc.rust-lang.org/cargo/g
 Then use the next command to install dofigen:
 
 ```bash
-cargo install dofigen
+cargo install dofigen -F bin
 ```
 
 #### Download the binary
