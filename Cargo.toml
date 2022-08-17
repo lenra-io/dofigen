@@ -16,7 +16,6 @@ include = [
 [lib]
 name = "dofigen_lib"
 path = "src/lib.rs"
-required-features = []
 
 [[bin]]
 name = "dofigen"
