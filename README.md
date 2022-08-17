@@ -26,7 +26,7 @@
 # Dofigen
 
 Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
-It defines default values and behaviors that makes the creation of Dockerfiles simplier.
+It defines default values and behaviors that simplify the creation of Dockerfiles.
 
 A french DevOps said about it:
 > C'est une bouffée Dofigen dans ce monde de con...teneurs.
@@ -40,13 +40,13 @@ A french DevOps said about it:
 
 ### Prerequisites
 
-Install Dofigen using one of the next possibilities.
+Install Dofigen using one of the following options.
 
 #### Cargo install
 
 First install Cargo, the Rust package manager: https://doc.rust-lang.org/cargo/getting-started/installation.html
 
-Then use the next command to install dofigen:
+Then use the following command to install dofigen:
 
 ```bash
 cargo install dofigen
@@ -58,7 +58,7 @@ You can download the Dofigen binary from [the release page](https://github.com/l
 
 #### Use it with Docker
 
-You can run Dofigen directly from it Docker image with the next command:
+You can run Dofigen directly from its Docker image with the following command:
 
 ```bash
 docker run --rm -it -v $(pwd):/app lenra/dofigen
@@ -73,13 +73,13 @@ Use the help options to understand how to use it:
 ```bash
 $ dofigen --help
 dofigen 0.0.0
-Dofigen is a Dockerfile generator using a simplyfied description in YAML or JSON format
+Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format
 
 USAGE:
     dofigen [OPTIONS] [INPUT_FILE]
 
 ARGS:
-    <INPUT_FILE>    The input file Dofigen file. Default reads stdin
+    <INPUT_FILE>    The input Dofigen file. Default reads stdin
 
 OPTIONS:
     -d, --dockerfile <DOCKERFILE>    The output Dockerfile file [default: Dockerfile]
@@ -92,7 +92,7 @@ OPTIONS:
 
 ### Image descriptor
 
-The image descriptor structure has been created to be simplier than the Dockerfile's one.
+The structure of the image descriptor was created to be simpler than the Dockerfile.
 
 Here is an example to generate the Dofigen Dockerfile:
 
