@@ -28,6 +28,14 @@
 Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
 It defines default values and behaviors that simplify the creation of Dockerfiles.
 
+Dofigen is also made to use the Buildkit optimizations that speed-up the Docker image build by parallelazing the layer builds.
+It uses the [`--link` option](https://docs.docker.com/engine/reference/builder/#benefits-of-using---link) when adding files and the [`--mount=type=cache` option](https://docs.docker.com/engine/reference/builder/#run---mounttypecache) when running scripts (when you define `caches` attribute).
+You can use Buildkit with the [`docker buildx buid` subcommand](https://docs.docker.com/engine/reference/commandline/buildx_build/) like this: 
+
+```bash
+docker buildx build --cache-to=type=local,dest=.dockercache --cache-from=type=local,src=.dockercache -t my-app:latest --load .
+```
+
 A french DevOps said about it:
 > C'est une bouffée Dofigen dans ce monde de con...teneurs.
 
@@ -144,7 +152,7 @@ The image is the main element. It defines the runtime stage of the Dockerfile:
 | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
 | `root`           | [Root](#root)?   | Actions made using the `root` user |
 | `script`         | String[]?        | Script commands to execute    |
-| `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution |
+| `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 | `builders`       | [Builder](#builder)[]? | Build stages executed before the runtime stage and not in the final Docker image. Mostly to generate artifacts |
 | `ports`          | int[]?           | The list of exposed ports of the Docker image |
 | `healthcheck`    | [Healthcheck](#healthcheck)? | The Docker image healthcheck definition. |
@@ -167,7 +175,7 @@ The builders are stages executed before the runtime stage and not in the final D
 | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
 | `root`           | [Root](#root)?   | Actions made using the `root` user |
 | `script`         | String[]?        | Script commands to execute    |
-| `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution |
+| `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 
 #### Artifact
 
@@ -186,7 +194,7 @@ Actions made using the `root` user :
 | Field            | Type             | Description                   |
 |------------------|------------------|-------------------------------|
 | `script`         | String[]?        | Script commands to execute    |
-| `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution |
+| `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 
 #### Healthcheck
 
