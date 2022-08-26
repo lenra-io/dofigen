@@ -5,6 +5,7 @@ use std::collections::HashMap;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Image {
     // Common part
+    #[serde(alias = "from")]
     pub image: String,
     pub user: Option<String>,
     pub workdir: Option<String>,
@@ -12,6 +13,7 @@ pub struct Image {
     pub artifacts: Option<Vec<Artifact>>,
     pub adds: Option<Vec<String>>,
     pub root: Option<Root>,
+    #[serde(alias = "run")]
     pub script: Option<Vec<String>>,
     pub caches: Option<Vec<String>>,
     // Specific part
@@ -27,6 +29,7 @@ pub struct Image {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Builder {
     // Common part
+    #[serde(alias = "from")]
     pub image: String,
     pub user: Option<String>,
     pub workdir: Option<String>,
@@ -34,6 +37,7 @@ pub struct Builder {
     pub artifacts: Option<Vec<Artifact>>,
     pub adds: Option<Vec<String>>,
     pub root: Option<Root>,
+    #[serde(alias = "run")]
     pub script: Option<Vec<String>>,
     pub caches: Option<Vec<String>>,
     // Specific part
@@ -49,6 +53,7 @@ pub struct Artifact {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Root {
+    #[serde(alias = "run")]
     pub script: Option<Vec<String>>,
     pub caches: Option<Vec<String>>,
 }
