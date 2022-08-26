@@ -158,7 +158,7 @@ jobs:
       with:
         use-cross: true
         command: build
-        args: --release -F bin --target ${{ matrix.target }}
+        args: --release -F cli --target ${{ matrix.target }}
 
     - name: Zip
       if: ${{ matrix.os == 'windows' }}
