@@ -210,7 +210,7 @@ The Docker image's healthcheck definition. It defines when the container is not 
 | `cmd`            | String           | The command executed to check the container health |
 | `interval`       | String?          | The command execution interval (default `30s`) |
 | `timeout`        | String?          | The command execution timeout (default `30s`) |
-| `start`          | String?          | The duration before starting the commmand execution at container start (default `0s`) |
+| `start`          | String?          | The duration before starting the command execution at container start (default `0s`) |
 | `retries`        | int?             | The number of retries before defining the container as unhealthy (default `3`) |
 
 <p align="right">(<a href="#top">back to top</a>)</p>
