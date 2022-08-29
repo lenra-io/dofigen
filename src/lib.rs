@@ -459,4 +459,55 @@ CMD ["/fwatchdog"]
 
         assert_eq!(dockerignore, "target\ntest\n");
     }
+
+    #[test]
+    fn using_dockerfile_overlap_aliases() {
+        let yaml = r#"
+builders:
+- name: builder
+  from: ekidd/rust-musl-builder
+  adds:
+  - "*"
+  run:
+  - cargo build --release
+from: scratch
+artifacts:
+- builder: builder
+  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+  destination: /app
+"#;
+        let image: Image = from_yaml(yaml.to_string()).unwrap();
+        assert_eq!(
+            image,
+            Image {
+                builders: Some(Vec::from([Builder {
+                    name: Some(String::from("builder")),
+                    image: String::from("ekidd/rust-musl-builder"),
+                    adds: Some(Vec::from([String::from("*")])),
+                    script: Some(Vec::from([String::from("cargo build --release")])),
+                    ..Default::default()
+                }])),
+                image: String::from("scratch"),
+                artifacts: Some(Vec::from([Artifact {
+                    builder: String::from("builder"),
+                    source: String::from(
+                        "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
+                    ),
+                    destination: String::from("/app"),
+                    ..Default::default()
+                }])),
+                ..Default::default()
+            }
+        );
+    }
+
+    #[test]
+    fn combine_field_and_aliases() {
+        let yaml = r#"
+image: scratch
+from: alpine
+"#;
+        let result = from_yaml(yaml.to_string());
+        assert!(result.is_err());
+    }
 }
