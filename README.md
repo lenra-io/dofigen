@@ -22,6 +22,7 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
+[![Crates.io][crate-shield]][crate-url]
 
 # Dofigen
 
@@ -258,3 +259,5 @@ Project Link: [https://github.com/lenra-io/dofigen](https://github.com/lenra-io/
 [issues-url]: https://github.com/lenra-io/dofigen/issues
 [license-shield]: https://img.shields.io/github/license/lenra-io/dofigen.svg?style=for-the-badge
 [license-url]: https://github.com/lenra-io/dofigen/blob/master/LICENSE.txt
+[crate-shield]: https://img.shields.io/crates/v/dofigen.svg?style=for-the-badge
+[crate-url]: https://crates.io/crates/dofigen
