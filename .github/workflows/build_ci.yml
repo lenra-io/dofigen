@@ -179,51 +179,56 @@ jobs:
   publish:
     name: publish
     needs: [build, get-next-version]
-    if: ${{ needs.get-next-version.outputs.new-release-version }} && (github.ref_name == 'main' || github.ref_name == 'beta')
+    if: github.ref_name == 'main' || github.ref_name == 'beta'
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.get-next-version.outputs.new-release-version }}
     timeout-minutes: 8
     steps:
     - name: Checkout
+      if: ${{ needs.get-next-version.outputs.new-release-version }}
       uses: actions/checkout@v3
 
     - name: download-artifacts
+      if: ${{ needs.get-next-version.outputs.new-release-version }}
       uses: actions/download-artifact@v3
       with:
         path: artifacts/
 
     - name: Setup Node.js
+      if: ${{ needs.get-next-version.outputs.new-release-version }}
       uses: actions/setup-node@v2
       with:
         node-version: "16"
 
     - name: Setup node deps
+      if: ${{ needs.get-next-version.outputs.new-release-version }}
       shell: bash
       run: npm i conventional-changelog-conventionalcommits@4 @semantic-release/git semantic-release-export-data -D
 
     - id: release
       name: Release
+      if: ${{ needs.get-next-version.outputs.new-release-version }}
       shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: npx semantic-release@18
 
     - name: Install cargo-edit
-      if: ${{ steps.release.outputs.new-release-published }}
+      if: ${{ needs.get-next-version.outputs.new-release-version }}
       uses: actions-rs/cargo@v1
       with:
         command: install
         args: cargo-edit
 
     - name: Set version
-      if: ${{ steps.release.outputs.new-release-published }}
+      if: ${{ needs.get-next-version.outputs.new-release-version }}
       uses: actions-rs/cargo@v1
       with:
         command: set-version
         args: ${{ env.VERSION }}
 
     - name: Publish cargo
+      if: ${{ needs.get-next-version.outputs.new-release-version }}
       shell: bash
-      if: ${{ steps.release.outputs.new-release-published }}
       run: cargo publish -p dofigen --allow-dirty --token "${{ secrets.CARGO_TOKEN }}"
