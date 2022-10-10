@@ -186,7 +186,7 @@ jobs:
     timeout-minutes: 8
     steps:
     - name: Checkout
-      if: ${{ needs.get-next-version.outputs.new-release-version }}
+      if: ${{ needs.get-next-version.outputs.new-release-published }}
       uses: actions/checkout@v3
 
     - name: download-artifacts
