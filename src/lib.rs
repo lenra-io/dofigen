@@ -446,7 +446,9 @@ FROM ghcr.io/openfaas/of-watchdog:0.9.6 as watchdog
 # runtime
 FROM scratch as runtime
 ENV \
-    fprocess="/app"
+    fprocess="/app"\
+    exec_timeout="0"
+
 COPY --link --chown=1000:1000 --from=builder "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust" "/app"
 COPY --link --chown=1000:1000 --from=builder "/fwatchdog" "/fwatchdog"
 EXPOSE 8080
