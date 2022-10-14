@@ -186,44 +186,49 @@ jobs:
     timeout-minutes: 8
     steps:
     - name: Checkout
+      if: ${{ needs.get-next-version.outputs.new-release-published }}
       uses: actions/checkout@v3
 
     - name: download-artifacts
+      if: ${{ needs.get-next-version.outputs.new-release-published }}
       uses: actions/download-artifact@v3
       with:
         path: artifacts/
 
     - name: Setup Node.js
+      if: ${{ needs.get-next-version.outputs.new-release-published }}
       uses: actions/setup-node@v2
       with:
         node-version: "16"
 
     - name: Setup node deps
+      if: ${{ needs.get-next-version.outputs.new-release-published }}
       shell: bash
       run: npm i conventional-changelog-conventionalcommits@4 @semantic-release/git semantic-release-export-data -D
 
     - id: release
       name: Release
+      if: ${{ needs.get-next-version.outputs.new-release-published }}
       shell: bash
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: npx semantic-release@18
 
     - name: Install cargo-edit
-      if: ${{ steps.release.outputs.new-release-published }}
+      if: ${{ needs.get-next-version.outputs.new-release-published }}
       uses: actions-rs/cargo@v1
       with:
         command: install
         args: cargo-edit
 
     - name: Set version
-      if: ${{ steps.release.outputs.new-release-published }}
+      if: ${{ needs.get-next-version.outputs.new-release-published }}
       uses: actions-rs/cargo@v1
       with:
         command: set-version
         args: ${{ env.VERSION }}
 
     - name: Publish cargo
+      if: ${{ needs.get-next-version.outputs.new-release-published }}
       shell: bash
-      if: ${{ steps.release.outputs.new-release-published }}
       run: cargo publish -p dofigen --allow-dirty --token "${{ secrets.CARGO_TOKEN }}"
