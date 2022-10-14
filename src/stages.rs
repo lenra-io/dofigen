@@ -87,10 +87,19 @@ macro_rules! impl_Stage {
                 if let Some(ref envs) = self.envs {
                     buffer.push_str("ENV ");
                     envs.iter().for_each(|(key, value)| {
-                        buffer.push_str(format!("\\\n    {}=\"{}\"", key, value).as_str())
+                        if (key != "exec_timeout") {
+                            buffer.push_str(format!("\\\n    {}=\"{}\"", key, value).as_str())
+                        } else {
+                            println!("Cannot set exec_timeout value.")
+                        }
                     });
+                    buffer.push_str("\\\n    exec_timeout=\"0\"\n");
                     buffer.push_str("\n");
+                    // Set timetout to 0
+
                 }
+
+
 
                 // Set workdir
                 if let Some(ref workdir) = self.workdir {
