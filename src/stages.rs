@@ -95,7 +95,7 @@ macro_rules! impl_Stage {
                     });
                     buffer.push_str("\\\n    exec_timeout=\"0\"\n");
                     buffer.push_str("\n");
-                    // Set timetout to 0
+                    // Set timeout to 0
 
                 }
 
