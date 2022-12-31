@@ -1,5 +1,5 @@
 use dofigen_lib::{
-    from_file_path, from_json_reader, from_yaml_reader, generate_dockerfile, generate_dockerignore,
+    from_file_path, from_yaml_reader, generate_dockerfile, generate_dockerignore,
 };
 use std::{fmt, fs};
 
@@ -23,7 +23,7 @@ struct Args {
     /// The input file Dofigen file. Default reads stdin
     #[clap(parse(from_os_str))]
     input_file: Option<std::path::PathBuf>,
-    /// The input format [default: yaml]
+    /// Deprecated. The input format [default: yaml]
     #[clap(value_enum, short, long)]
     format: Option<Format>,
     /// The output Dockerfile file
@@ -45,11 +45,7 @@ fn main() {
     let image = if let Some(path) = args.input_file {
         from_file_path(&path)
     } else {
-        let stdin = std::io::stdin();
-        match args.format.unwrap_or(Format::Yaml) {
-            Format::Yaml => from_yaml_reader(stdin),
-            Format::Json => from_json_reader(stdin),
-        }
+        from_yaml_reader(std::io::stdin())
     }
     .expect("Failed to load the Dofigen structure");
 

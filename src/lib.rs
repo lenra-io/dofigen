@@ -7,10 +7,148 @@ mod errors;
 mod runners;
 mod stages;
 mod structs;
-use errors::{Error, Result};
+pub use errors::*;
 pub use stages::*;
 use std::{fs, io::Read};
 pub use structs::*;
+
+/// Parse an Image from a string.
+///
+/// # Examples
+///
+/// Basic parsing
+///
+/// ```
+/// use dofigen_lib::{from, Image};
+///
+/// let yaml = "
+/// image: scratch
+/// ";
+/// let image: Image = from(yaml.to_string()).unwrap();
+/// assert_eq!(
+///     image,
+///     Image {
+///         image: String::from("scratch"),
+///         ..Default::default()
+///     }
+/// );
+/// ```
+///
+/// Basic parsing
+///
+/// ```
+/// use dofigen_lib::{from, Image, Builder, Artifact};
+///
+/// let yaml = r#"
+/// builders:
+///   - name: builder
+///     image: ekidd/rust-musl-builder
+///     adds:
+///       - "*"
+///     script:
+///       - cargo build --release
+/// image: scratch
+/// artifacts:
+///   - builder: builder
+///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+///     destination: /app
+/// "#;
+/// let image: Image = from(yaml.to_string()).unwrap();
+/// assert_eq!(
+///     image,
+///     Image {
+///         builders: Some(Vec::from([Builder {
+///             name: Some(String::from("builder")),
+///             image: String::from("ekidd/rust-musl-builder"),
+///             adds: Some(Vec::from([String::from("*")])),
+///             script: Some(Vec::from([String::from("cargo build --release")])),
+///             ..Default::default()
+///         }])),
+///         image: String::from("scratch"),
+///         artifacts: Some(Vec::from([Artifact {
+///             builder: String::from("builder"),
+///             source: String::from(
+///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
+///             ),
+///             destination: String::from("/app"),
+///             ..Default::default()
+///         }])),
+///         ..Default::default()
+///     }
+/// );
+/// ```
+pub fn from(input: String) -> Result<Image> {
+    serde_yaml::from_str(&input).map_err(|err| Error::DeserializeYaml(err))
+}
+
+/// Parse an Image from a reader.
+///
+/// # Examples
+///
+/// Basic parsing
+///
+/// ```
+/// use dofigen_lib::{from_reader, Image};
+///
+/// let yaml = "
+/// image: scratch
+/// ";
+/// let image: Image = from_reader(yaml.as_bytes()).unwrap();
+/// assert_eq!(
+///     image,
+///     Image {
+///         image: String::from("scratch"),
+///         ..Default::default()
+///     }
+/// );
+/// ```
+///
+/// Basic parsing
+///
+/// ```
+/// use dofigen_lib::{from_reader, Image, Builder, Artifact};
+///
+/// let yaml = r#"
+/// builders:
+///   - name: builder
+///     image: ekidd/rust-musl-builder
+///     adds:
+///       - "*"
+///     script:
+///       - cargo build --release
+/// image: scratch
+/// artifacts:
+///   - builder: builder
+///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+///     destination: /app
+/// "#;
+/// let image: Image = from_reader(yaml.as_bytes()).unwrap();
+/// assert_eq!(
+///     image,
+///     Image {
+///         builders: Some(Vec::from([Builder {
+///             name: Some(String::from("builder")),
+///             image: String::from("ekidd/rust-musl-builder"),
+///             adds: Some(Vec::from([String::from("*")])),
+///             script: Some(Vec::from([String::from("cargo build --release")])),
+///             ..Default::default()
+///         }])),
+///         image: String::from("scratch"),
+///         artifacts: Some(Vec::from([Artifact {
+///             builder: String::from("builder"),
+///             source: String::from(
+///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
+///             ),
+///             destination: String::from("/app"),
+///             ..Default::default()
+///         }])),
+///         ..Default::default()
+///     }
+/// );
+/// ```
+pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
+    serde_yaml::from_reader(reader).map_err(|err| Error::DeserializeYaml(err))
+}
 
 /// Parse an Image from a YAML string.
 ///
@@ -77,6 +215,7 @@ pub use structs::*;
 ///     }
 /// );
 /// ```
+#[deprecated(since = "1.2.0", note = "The YAML reader can read both JSON and YAML. Should use 'from'")]
 pub fn from_yaml(input: String) -> Result<Image> {
     serde_yaml::from_str(&input).map_err(|err| Error::DeserializeYaml(err))
 }
@@ -146,8 +285,12 @@ pub fn from_yaml(input: String) -> Result<Image> {
 ///     }
 /// );
 /// ```
+#[deprecated(
+    since = "1.2.0",
+    note = "The YAML reader can read both JSON and YAML. Should use 'from_reader'"
+)]
 pub fn from_yaml_reader<R: Read>(reader: R) -> Result<Image> {
-    serde_yaml::from_reader(reader).map_err(|err| Error::DeserializeYaml(err))
+    from_reader(reader)
 }
 
 /// Parse an Image from a JSON string.
@@ -223,6 +366,10 @@ pub fn from_yaml_reader<R: Read>(reader: R) -> Result<Image> {
 ///     }
 /// );
 /// ```
+#[deprecated(
+    since = "1.2.0",
+    note = "The YAML reader can read both JSON and YAML. Should use 'from'"
+)]
 pub fn from_json(input: String) -> Result<Image> {
     serde_json::from_str(&input).map_err(|err| Error::DeserializeJson(err))
 }
@@ -300,6 +447,10 @@ pub fn from_json(input: String) -> Result<Image> {
 ///     }
 /// );
 /// ```
+#[deprecated(
+    since = "1.2.0",
+    note = "The YAML reader can read both JSON and YAML. Should use 'from_reader'"
+)]
 pub fn from_json_reader<R: Read>(reader: R) -> Result<Image> {
     serde_json::from_reader(reader).map_err(|err| Error::DeserializeJson(err))
 }
@@ -309,11 +460,8 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
     let file = fs::File::open(path).unwrap();
     match path.extension() {
         Some(os_str) => match os_str.to_str() {
-            Some("yml" | "yaml") => {
+            Some("yml" | "yaml" | "json") => {
                 serde_yaml::from_reader(file).map_err(|err| Error::DeserializeYaml(err))
-            }
-            Some("json") => {
-                serde_json::from_reader(file).map_err(|err| Error::DeserializeJson(err))
             }
             Some(ext) => Err(Error::Custom(format!(
                 "Not managed Dofigen file extension {}",
@@ -426,7 +574,7 @@ mod tests {
         - test
         "#;
 
-        let image: Image = from_yaml(yaml.to_string()).unwrap();
+        let image: Image = from(yaml.to_string()).unwrap();
         let dockerfile: String = generate_dockerfile(&image);
 
         assert_eq!(
@@ -476,7 +624,7 @@ artifacts:
   source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
   destination: /app
 "#;
-        let image: Image = from_yaml(yaml.to_string()).unwrap();
+        let image: Image = from(yaml.to_string()).unwrap();
         assert_eq!(
             image,
             Image {
@@ -507,7 +655,7 @@ artifacts:
 image: scratch
 from: alpine
 "#;
-        let result = from_yaml(yaml.to_string());
+        let result = from(yaml.to_string());
         assert!(result.is_err());
     }
 }
