@@ -215,7 +215,10 @@ pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
 ///     }
 /// );
 /// ```
-#[deprecated(since = "1.2.0", note = "The YAML reader can read both JSON and YAML. Should use 'from'")]
+#[deprecated(
+    since = "1.2.0",
+    note = "The YAML reader can read both JSON and YAML. Should use 'from'"
+)]
 pub fn from_yaml(input: String) -> Result<Image> {
     serde_yaml::from_str(&input).map_err(|err| Error::DeserializeYaml(err))
 }

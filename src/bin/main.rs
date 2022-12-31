@@ -1,6 +1,4 @@
-use dofigen_lib::{
-    from_file_path, from_yaml_reader, generate_dockerfile, generate_dockerignore,
-};
+use dofigen_lib::{from_file_path, from_yaml_reader, generate_dockerfile, generate_dockerignore};
 use std::{fmt, fs};
 
 use clap::Parser;
