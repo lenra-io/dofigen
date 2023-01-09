@@ -167,7 +167,7 @@ jobs:
     - name: Zip
       if: ${{ matrix.os != 'windows' }}
       shell: bash
-      run: tar -czf "dofigen-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" "target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }}"
+      run: tar -C "target/${{ matrix.target }}/release" -czf "dofigen-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" "dofigen${{ matrix.file_extension }}"
 
     - name: Upload
       uses: actions/upload-artifact@v3
