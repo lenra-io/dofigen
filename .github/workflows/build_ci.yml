@@ -17,31 +17,7 @@ env:
 jobs:
   get-next-version:
     name: Get next version
-    runs-on: ubuntu-20.04
-    continue-on-error: true # must be allow to fail
-    timeout-minutes: 2
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 18
-
-    - name: Setup node deps
-      shell: bash
-      run: npm i conventional-changelog-conventionalcommits@4 @semantic-release/git semantic-release-export-data -D
-
-    - id: get-next-version
-      name: Get next version
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: npx semantic-release --dry-run
-
-    outputs:
-      new-release-published: ${{ steps.get-next-version.outputs.new-release-published }}
-      new-release-version: ${{ steps.get-next-version.outputs.new-release-version }}
+    uses: lenra-io/github-actions/.github/workflows/get-version.yml@main
 
   style:
     name: Check Style
@@ -98,7 +74,7 @@ jobs:
     needs: [test, get-next-version]
     runs-on: "${{ matrix.runner }}"
     env:
-      VERSION: ${{ needs.get-next-version.outputs.new-release-version }}
+      VERSION: ${{ needs.get-next-version.outputs.version }}
     timeout-minutes: 20
     strategy:
       matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
@@ -175,60 +151,44 @@ jobs:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
         path: dofigen-${{ matrix.os }}-${{ matrix.arch }}.*
 
-
   publish:
     name: publish
     needs: [build, get-next-version]
     if: github.ref_name == 'main' || github.ref_name == 'beta'
+    uses: lenra-io/github-actions/.github/workflows/get-version.yml@main
+
+  publish-cargo:
+    name: publish-cargo
+    needs: [build, get-next-version, publish]
+    if: github.ref_name == 'main' || github.ref_name == 'beta'
     runs-on: ubuntu-latest
     env:
-      VERSION: ${{ needs.get-next-version.outputs.new-release-version }}
-    timeout-minutes: 8
+      VERSION: ${{ needs.get-next-version.outputs.version }}
     steps:
     - name: Checkout
-      if: ${{ needs.get-next-version.outputs.new-release-published }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/checkout@v3
 
     - name: download-artifacts
-      if: ${{ needs.get-next-version.outputs.new-release-published }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v3
       with:
         path: artifacts/
-
-    - name: Setup Node.js
-      if: ${{ needs.get-next-version.outputs.new-release-published }}
-      uses: actions/setup-node@v2
-      with:
-        node-version: "18"
-
-    - name: Setup node deps
-      if: ${{ needs.get-next-version.outputs.new-release-published }}
-      shell: bash
-      run: npm i conventional-changelog-conventionalcommits@4 @semantic-release/git semantic-release-export-data -D
-
-    - id: release
-      name: Release
-      if: ${{ needs.get-next-version.outputs.new-release-published }}
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: npx semantic-release@18
-
     - name: Install cargo-edit
-      if: ${{ needs.get-next-version.outputs.new-release-published }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions-rs/cargo@v1
       with:
         command: install
         args: cargo-edit
 
     - name: Set version
-      if: ${{ needs.get-next-version.outputs.new-release-published }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions-rs/cargo@v1
       with:
         command: set-version
         args: ${{ env.VERSION }}
 
     - name: Publish cargo
-      if: ${{ needs.get-next-version.outputs.new-release-published }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: cargo publish -p dofigen --allow-dirty --token "${{ secrets.CARGO_TOKEN }}"
