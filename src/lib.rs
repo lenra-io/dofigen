@@ -671,41 +671,48 @@ test: Fake value
 "#;
         let result = from(yaml.to_string());
         assert!(result.is_err(), "The parsing must fail since 'test' is not a valid field");
+
+        // Check the error message
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Error while deserializing the YAML document: unknown field `test`, expected one of `from`, `image`, `user`, `workdir`, `env`, `envs`, `artifacts`, `add`, `adds`, `root`, `run`, `script`, `cache`, `caches`, `builders`, `ignore`, `ignores`, `entrypoint`, `cmd`, `ports`, `healthcheck` at line 3 column 1"
+        );
     }
     
     #[test]
-    fn manage_singular_aliases() {
+    fn manage_singular_aliases() -> Result<()>{
         let yaml = r#"
-        image: scratch
-        builders:
-        - name: builder
-          image: ekidd/rust-musl-builder
-          user: rust
-          add: 
-          - "."
-          script:
-          - cargo build --release
-          cache:
-          - /usr/local/cargo/registry
-        - name: watchdog
-          image: ghcr.io/openfaas/of-watchdog:0.9.6
-        env:
-          fprocess: /app
-        artifacts:
-        - builder: builder
-          source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-          destination: /app
-        - builder: builder
-          source: /fwatchdog
-          target: /fwatchdog
-        ports:
-        - 8080
-        ignore:
-        - target
-        - test
-        "#;
+image: scratch
+builders:
+- name: builder
+  image: ekidd/rust-musl-builder
+  user: rust
+  add: 
+  - "."
+  script:
+  - cargo build --release
+  cache:
+  - /usr/local/cargo/registry
+- name: watchdog
+  image: ghcr.io/openfaas/of-watchdog:0.9.6
+env:
+  fprocess: /app
+artifacts:
+- builder: builder
+  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+  destination: /app
+- builder: builder
+  source: /fwatchdog
+  target: /fwatchdog
+ports:
+- 8080
+ignore:
+- target
+- test
+"#;
 
-        let result = from(yaml.to_string());
-        assert!(result.is_ok(), "The parsing should be ok with the aliases");
+        from(yaml.to_string())?;
+        Ok(())
     }
 }
