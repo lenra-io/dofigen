@@ -81,7 +81,7 @@ macro_rules! impl_Stage {
         $(impl Stage for $t {
             fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
                 let name = self.name(previous_builders.len().try_into().unwrap());
-                buffer.push_str(format!("\n# {}\nFROM {} as {}\n", name, self.image, name).as_str());
+                buffer.push_str(format!("\n# {}\nFROM {} AS {}\n", name, self.image, name).as_str());
 
                 // Set env variables
                 if let Some(ref envs) = self.envs {

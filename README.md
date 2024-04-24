@@ -150,18 +150,22 @@ The image is the main element. It defines the runtime stage of the Dockerfile:
 | `user`           | String?          | The runtime user (default `1000`) |
 | `workdir`        | String?          | The runtime work directory    |
 | `envs`           | Map<String, String>? | The runtime environment variables |
+| `env`            | Map<String, String>? | `envs` alias              |
 | `artifacts`      | [Artifact](#artifact)[]? | Defines artifacts to copy from builders |
 | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
+| `add`            | String[]?        | `adds` alias                  |
 | `root`           | [Root](#root)?   | Actions made using the `root` user |
 | `script`         | String[]?        | Script commands to execute    |
 | `run`            | String?          | `script` alias                |
 | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+| `cache`          | String[]?        | `caches` alias                |
 | `builders`       | [Builder](#builder)[]? | Build stages executed before the runtime stage and not in the final Docker image. Mostly to generate artifacts |
 | `ports`          | int[]?           | The list of exposed ports of the Docker image |
 | `healthcheck`    | [Healthcheck](#healthcheck)? | The Docker image healthcheck definition. |
 | `entrypoint`     | String[]?        | The Docker image `ENTRYPOINT` parts |
 | `cmd`            | String[]?        | The Docker image `CMD` parts  |
 | `ignores`        | String[]?        | Paths to generate the `.dockerignore` file |
+| `ignore`         | String[]?        | `ignores` alias               |
 
 #### Builder
 
@@ -175,12 +179,15 @@ The builders are stages executed before the runtime stage and not in the final D
 | `user`           | String?          | The builder user              |
 | `workdir`        | String?          | The builder work directory    |
 | `envs`           | Map<String, String>? | The builder environment variables |
+| `env`            | Map<String, String>? | `envs` alias              |
 | `artifacts`      | [Artifact](#artifact)[]? | Defines artifacts to copy from previous builders |
 | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
+| `add`            | String[]?        | `adds` alias                  |
 | `root`           | [Root](#root)?   | Actions made using the `root` user |
 | `script`         | String[]?        | Script commands to execute    |
 | `run`            | String?          | `script` alias                |
 | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+| `cache`          | String[]?        | `caches` alias                |
 
 #### Artifact
 
@@ -191,6 +198,7 @@ Artifacts are element copied from a previous build to the current stage :
 | `builder`        | String           | The builder name from which the artifact will be copied |
 | `source`         | String           | The source of the artifact in the given builder |
 | `destination`    | String           | The destination path in the current stage |
+| `target`         | String           | `destination` alias           |
 
 #### Root
 
@@ -201,6 +209,7 @@ Actions made using the `root` user :
 | `script`         | String[]?        | Script commands to execute    |
 | `run`            | String?          | `script` alias                |
 | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+| `cache`          | String[]?        | `caches` alias                |
 
 #### Healthcheck
 
