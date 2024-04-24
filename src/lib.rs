@@ -513,6 +513,25 @@ pub fn generate_dockerfile(image: &Image) -> String {
 ///
 /// # Examples
 ///
+/// ## Define the build context
+/// 
+/// ```
+/// use dofigen_lib::{generate_dockerignore, Image};
+///
+/// let image = Image {
+///     image: String::from("scratch"),
+///     context: Some(Vec::from([String::from("/src")])),
+///     ..Default::default()
+/// };
+/// let dockerfile: String = generate_dockerignore(&image);
+/// assert_eq!(
+///     dockerfile,
+///     "**\n!/src\n"
+/// );
+/// ```
+/// 
+/// ## Ignore a path
+/// 
 /// ```
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
@@ -527,13 +546,40 @@ pub fn generate_dockerfile(image: &Image) -> String {
 ///     "target\n"
 /// );
 /// ```
+/// 
+/// ## Define context ignoring a specific files
+/// 
+/// ```
+/// use dofigen_lib::{generate_dockerignore, Image};
+///
+/// let image = Image {
+///     image: String::from("scratch"),
+///     context: Some(Vec::from([String::from("/src")])),
+///     ignores: Some(Vec::from([String::from("/src/*.test.rs")])),
+///     ..Default::default()
+/// };
+/// let dockerfile: String = generate_dockerignore(&image);
+/// assert_eq!(
+///     dockerfile,
+///     "**\n!/src\n/src/*.test.rs\n"
+/// );
+/// ```
 pub fn generate_dockerignore(image: &Image) -> String {
-    let mut content = if let Some(ignore) = image.ignores() {
-        ignore.join("\n")
-    } else {
-        String::from("")
-    };
-    content.push_str("\n");
+    let mut content = String::new();
+    if let Some(context) = image.context.clone() {
+        content.push_str("**\n");
+        context.iter().for_each(|path| {
+            content.push_str("!");
+            content.push_str(path);
+            content.push_str("\n");
+        });
+    }
+    if let Some(ignore) = image.ignores.clone() {
+        ignore.iter().for_each(|path| {
+            content.push_str(path);
+            content.push_str("\n");
+        });
+    }
     content
 }
 

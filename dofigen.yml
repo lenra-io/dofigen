@@ -24,7 +24,6 @@ entrypoint:
 - /bin/dofigen
 cmd:
 - --help
-ignores:
-- "**"
-- "!/src"
-- "!/Cargo.*"
+context:
+- "/src"
+- "/Cargo.*"

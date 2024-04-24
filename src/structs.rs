@@ -18,6 +18,7 @@ pub struct Image {
     pub caches: Option<Vec<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
+    pub context: Option<Vec<String>>,
     pub ignores: Option<Vec<String>>,
     pub entrypoint: Option<Vec<String>>,
     pub cmd: Option<Vec<String>>,

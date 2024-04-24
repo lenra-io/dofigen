@@ -132,11 +132,10 @@ entrypoint:
 - /bin/dofigen
 cmd:
 - --help
-ignores:
-- "**"
-- "!/dofigen"
-- "!/dofigen_lib"
-- "!/Cargo.*"
+context:
+- "/dofigen"
+- "/dofigen_lib"
+- "/Cargo.*"
 ```
 
 #### Image
@@ -161,7 +160,8 @@ The image is the main element. It defines the runtime stage of the Dockerfile:
 | `healthcheck`    | [Healthcheck](#healthcheck)? | The Docker image healthcheck definition. |
 | `entrypoint`     | String[]?        | The Docker image `ENTRYPOINT` parts |
 | `cmd`            | String[]?        | The Docker image `CMD` parts  |
-| `ignores`        | String[]?        | Paths to generate the `.dockerignore` file |
+| `context`        | String[]?        | Paths of the elements to include in the Docker build context. They are used to generate the `.dockerignore` file |
+| `ignores`        | String[]?        | Paths that will be added in the `.dockerignore` file |
 
 #### Builder
 
