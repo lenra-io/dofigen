@@ -514,7 +514,7 @@ pub fn generate_dockerfile(image: &Image) -> String {
 /// # Examples
 ///
 /// ## Define the build context
-/// 
+///
 /// ```
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
@@ -529,9 +529,9 @@ pub fn generate_dockerfile(image: &Image) -> String {
 ///     "**\n!/src\n"
 /// );
 /// ```
-/// 
+///
 /// ## Ignore a path
-/// 
+///
 /// ```
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
@@ -546,9 +546,9 @@ pub fn generate_dockerfile(image: &Image) -> String {
 ///     "target\n"
 /// );
 /// ```
-/// 
+///
 /// ## Define context ignoring a specific files
-/// 
+///
 /// ```
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
