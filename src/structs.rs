@@ -3,22 +3,27 @@ use std::collections::HashMap;
 
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields)]
 pub struct Image {
     // Common part
     #[serde(alias = "from")]
     pub image: String,
     pub user: Option<String>,
     pub workdir: Option<String>,
+    #[serde(alias = "env")]
     pub envs: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
+    #[serde(alias = "add")]
     pub adds: Option<Vec<String>>,
     pub root: Option<Root>,
     #[serde(alias = "run")]
     pub script: Option<Vec<String>>,
+    #[serde(alias = "cache")]
     pub caches: Option<Vec<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
     pub context: Option<Vec<String>>,
+    #[serde(alias = "ignore")]
     pub ignores: Option<Vec<String>>,
     pub entrypoint: Option<Vec<String>>,
     pub cmd: Option<Vec<String>>,
@@ -34,12 +39,15 @@ pub struct Builder {
     pub image: String,
     pub user: Option<String>,
     pub workdir: Option<String>,
+    #[serde(alias = "env")]
     pub envs: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
+    #[serde(alias = "add")]
     pub adds: Option<Vec<String>>,
     pub root: Option<Root>,
     #[serde(alias = "run")]
     pub script: Option<Vec<String>>,
+    #[serde(alias = "cache")]
     pub caches: Option<Vec<String>>,
     // Specific part
     pub name: Option<String>,
@@ -49,6 +57,7 @@ pub struct Builder {
 pub struct Artifact {
     pub builder: String,
     pub source: String,
+    #[serde(alias = "target")]
     pub destination: String,
 }
 
@@ -56,6 +65,7 @@ pub struct Artifact {
 pub struct Root {
     #[serde(alias = "run")]
     pub script: Option<Vec<String>>,
+    #[serde(alias = "cache")]
     pub caches: Option<Vec<String>>,
 }
 

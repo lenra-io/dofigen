@@ -142,77 +142,72 @@ context:
 
 The image is the main element. It defines the runtime stage of the Dockerfile:
 
-| Field            | Type             | Description                   |
-|------------------|------------------|-------------------------------|
-| `image`          | String?          | The `FROM` Docker image       |
-| `from`           | String?          | `image` alias                 |
-| `user`           | String?          | The runtime user (default `1000`) |
-| `workdir`        | String?          | The runtime work directory    |
-| `envs`           | Map<String, String>? | The runtime environment variables |
-| `artifacts`      | [Artifact](#artifact)[]? | Defines artifacts to copy from builders |
-| `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
-| `root`           | [Root](#root)?   | Actions made using the `root` user |
-| `script`         | String[]?        | Script commands to execute    |
-| `run`            | String?          | `script` alias                |
-| `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
-| `builders`       | [Builder](#builder)[]? | Build stages executed before the runtime stage and not in the final Docker image. Mostly to generate artifacts |
-| `ports`          | int[]?           | The list of exposed ports of the Docker image |
-| `healthcheck`    | [Healthcheck](#healthcheck)? | The Docker image healthcheck definition. |
-| `entrypoint`     | String[]?        | The Docker image `ENTRYPOINT` parts |
-| `cmd`            | String[]?        | The Docker image `CMD` parts  |
-| `context`        | String[]?        | Paths of the elements to include in the Docker build context. They are used to generate the `.dockerignore` file |
-| `ignores`        | String[]?        | Paths that will be added in the `.dockerignore` file |
+| Field            | Alias            | Type             | Description                   |
+|------------------|------------------|------------------|-------------------------------|
+| `image`          | `from`           | String?          | The `FROM` Docker image       |
+| `user`           |                  | String?          | The runtime user (default `1000`) |
+| `workdir`        |                  | String?          | The runtime work directory    |
+| `envs`           | `env`            | Map<String, String>? | The runtime environment variables |
+| `artifacts`      |                  | [Artifact](#artifact)[]? | Defines artifacts to copy from builders |
+| `adds`           | `add`            | String[]?        | Paths of elements to add at build time to the workdir |
+| `root`           |                  | [Root](#root)?   | Actions made using the `root` user |
+| `script`         | `run`            | String[]?        | Script commands to execute    |
+| `caches`         | `cache`          | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+| `builders`       |                  | [Builder](#builder)[]? | Build stages executed before the runtime stage and not in the final Docker image. Mostly to generate artifacts |
+| `ports`          |                  | int[]?           | The list of exposed ports of the Docker image |
+| `healthcheck`    |                  | [Healthcheck](#healthcheck)? | The Docker image healthcheck definition. |
+| `entrypoint`     |                  | String[]?        | The Docker image `ENTRYPOINT` parts |
+| `cmd`            |                  | String[]?        | The Docker image `CMD` parts  |
+| `context`        |                  | String[]?        | Paths of the elements to include in the Docker build context. They are used to generate the `.dockerignore` file |
+| `ignores`        | `ignore`         | String[]?        | Paths to generate the `.dockerignore` file |
 
 #### Builder
 
 The builders are stages executed before the runtime stage and not in the final Docker image. Mostly to generate artifacts :
 
-| Field            | Type             | Description                   |
-|------------------|------------------|-------------------------------|
-| `name`           | String?          | The builder name. If not defined, a name is defined with the given pattern: `builder-<position in the builders list starting at 0>` |
-| `image`          | String?          | The `FROM` Docker image of the builder |
-| `from`           | String?          | `image` alias                 |
-| `user`           | String?          | The builder user              |
-| `workdir`        | String?          | The builder work directory    |
-| `envs`           | Map<String, String>? | The builder environment variables |
-| `artifacts`      | [Artifact](#artifact)[]? | Defines artifacts to copy from previous builders |
-| `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
-| `root`           | [Root](#root)?   | Actions made using the `root` user |
-| `script`         | String[]?        | Script commands to execute    |
-| `run`            | String?          | `script` alias                |
-| `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+| Field            | Alias            | Type             | Description                   |
+|------------------|------------------|------------------|-------------------------------|
+| `name`           |                  | String?          | The builder name. If not defined, a name is defined with the given pattern: `builder-<position in the builders list starting at 0>` |
+| `image`          | `from`           | String?          | The `FROM` Docker image of the builder |
+| `user`           |                  | String?          | The builder user              |
+| `workdir`        |                  | String?          | The builder work directory    |
+| `envs`           | `env`            | Map<String, String>? | The builder environment variables |
+| `artifacts`      |                  | [Artifact](#artifact)[]? | Defines artifacts to copy from previous builders |
+| `adds`           | `add`            | String[]?        | Paths of elements to add at build time to the workdir |
+| `root`           |                  | [Root](#root)?   | Actions made using the `root` user |
+| `script`         | `run`            | String[]?        | Script commands to execute    |
+| `caches`         | `cache`          | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 
 #### Artifact
 
 Artifacts are element copied from a previous build to the current stage :
 
-| Field            | Type             | Description                   |
-|------------------|------------------|-------------------------------|
-| `builder`        | String           | The builder name from which the artifact will be copied |
-| `source`         | String           | The source of the artifact in the given builder |
-| `destination`    | String           | The destination path in the current stage |
+| Field            | Alias            | Type             | Description                   |
+|------------------|------------------|------------------|-------------------------------|
+| `builder`        |                  | String           | The builder name from which the artifact will be copied |
+| `source`         |                  | String           | The source of the artifact in the given builder |
+| `destination`    | `target`         | String           | The destination path in the current stage |
 
 #### Root
 
 Actions made using the `root` user :
 
-| Field            | Type             | Description                   |
-|------------------|------------------|-------------------------------|
-| `script`         | String[]?        | Script commands to execute    |
-| `run`            | String?          | `script` alias                |
-| `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+| Field            | Alias            | Type             | Description                   |
+|------------------|------------------|------------------|-------------------------------|
+| `script`         | `run`            | String[]?        | Script commands to execute    |
+| `caches`         | `cache`          | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 
 #### Healthcheck
 
 The Docker image's healthcheck definition. It defines when the container is not healthy :
 
-| Field            | Type             | Description                   |
-|------------------|------------------|-------------------------------|
-| `cmd`            | String           | The command executed to check the container health |
-| `interval`       | String?          | The command execution interval (default `30s`) |
-| `timeout`        | String?          | The command execution timeout (default `30s`) |
-| `start`          | String?          | The duration before starting the command execution at container start (default `0s`) |
-| `retries`        | int?             | The number of retries before defining the container as unhealthy (default `3`) |
+| Field            | Alias            | Type             | Description                   |
+|------------------|------------------|------------------|-------------------------------|
+| `cmd`            |                  | String           | The command executed to check the container health |
+| `interval`       |                  | String?          | The command execution interval (default `30s`) |
+| `timeout`        |                  | String?          | The command execution timeout (default `30s`) |
+| `start`          |                  | String?          | The duration before starting the command execution at container start (default `0s`) |
+| `retries`        |                  | int?             | The number of retries before defining the container as unhealthy (default `3`) |
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 

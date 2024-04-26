@@ -490,7 +490,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
 /// let dockerfile: String = generate_dockerfile(&image);
 /// assert_eq!(
 ///     dockerfile,
-///     "# syntax=docker/dockerfile:1.4\n\n# runtime\nFROM scratch as runtime\n"
+///     "# syntax=docker/dockerfile:1.4\n\n# runtime\nFROM scratch AS runtime\n"
 /// );
 /// ```
 pub fn generate_dockerfile(image: &Image) -> String {
@@ -599,7 +599,7 @@ mod tests {
           - "."
           script:
           - cargo build --release
-          cache:
+          caches:
           - /usr/local/cargo/registry
         - name: watchdog
           image: ghcr.io/openfaas/of-watchdog:0.9.6
@@ -631,17 +631,18 @@ mod tests {
             r#"# syntax=docker/dockerfile:1.4
 
 # builder
-FROM ekidd/rust-musl-builder as builder
+FROM ekidd/rust-musl-builder AS builder
 ADD --link . ./
 USER rust
 RUN \
+    --mount=type=cache,sharing=locked,uid=1000,gid=1000,target=/usr/local/cargo/registry\
     cargo build --release
 
 # watchdog
-FROM ghcr.io/openfaas/of-watchdog:0.9.6 as watchdog
+FROM ghcr.io/openfaas/of-watchdog:0.9.6 AS watchdog
 
 # runtime
-FROM scratch as runtime
+FROM scratch AS runtime
 ENV \
     fprocess="/app"
 COPY --link --chown=1000:1000 --from=builder "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust" "/app"
@@ -705,6 +706,65 @@ image: scratch
 from: alpine
 "#;
         let result = from(yaml.to_string());
-        assert!(result.is_err());
+        assert!(
+            result.is_err(),
+            "The parsing must fail since from and image are not compatible"
+        );
+    }
+
+    #[test]
+    fn fail_on_unknow_field() {
+        let yaml = r#"
+from: alpine
+test: Fake value
+"#;
+        let result = from(yaml.to_string());
+        assert!(
+            result.is_err(),
+            "The parsing must fail since 'test' is not a valid field"
+        );
+
+        // Check the error message
+        let error = result.unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Error while deserializing the YAML document: unknown field `test`, expected one of `from`, `image`, `user`, `workdir`, `env`, `envs`, `artifacts`, `add`, `adds`, `root`, `run`, `script`, `cache`, `caches`, `builders`, `ignore`, `ignores`, `entrypoint`, `cmd`, `ports`, `healthcheck` at line 3 column 1"
+        );
+    }
+
+    #[test]
+    fn manage_singular_aliases() -> Result<()> {
+        let yaml = r#"
+image: scratch
+builders:
+- name: builder
+  image: ekidd/rust-musl-builder
+  user: rust
+  add: 
+  - "."
+  script:
+  - cargo build --release
+  cache:
+  - /usr/local/cargo/registry
+- name: watchdog
+  image: ghcr.io/openfaas/of-watchdog:0.9.6
+env:
+  fprocess: /app
+artifacts:
+- builder: builder
+  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+  destination: /app
+- builder: builder
+  source: /fwatchdog
+  target: /fwatchdog
+ports:
+- 8080
+ignore:
+- target
+- test
+"#;
+
+        from(yaml.to_string())?;
+        Ok(())
     }
 }
