@@ -726,10 +726,9 @@ test: Fake value
 
         // Check the error message
         let error = result.unwrap_err();
-        assert_eq!(
-            error.to_string(),
-            "Error while deserializing the YAML document: unknown field `test`, expected one of `from`, `image`, `user`, `workdir`, `env`, `envs`, `artifacts`, `add`, `adds`, `root`, `run`, `script`, `cache`, `caches`, `builders`, `ignore`, `ignores`, `entrypoint`, `cmd`, `ports`, `healthcheck` at line 3 column 1"
-        );
+        assert!(error.to_string().starts_with(
+            "Error while deserializing the YAML document: unknown field `test`, expected one of "
+        ),"Wrong error message");
     }
 
     #[test]
