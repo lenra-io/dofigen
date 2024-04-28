@@ -6,7 +6,7 @@ ADD --link . ./
 RUN \
     --mount=type=cache,sharing=locked,uid=1000,gid=1000,target=/home/rust/.cargo\
     --mount=type=cache,sharing=locked,uid=1000,gid=1000,target=/home/rust/src/target\
-    cargo build --release --target=x86_64-unknown-linux-musl && \
+    cargo build --release -F cli --target=x86_64-unknown-linux-musl && \
     mv target/x86_64-unknown-linux-musl/release/dofigen ../
 
 # runtime
