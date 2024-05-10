@@ -1,4 +1,4 @@
-use dofigen_lib::{from_file_path, from_yaml_reader, generate_dockerfile, generate_dockerignore};
+use dofigen_lib::{from_file_path, from_reader, generate_dockerfile, generate_dockerignore};
 use std::{fmt, fs};
 
 use clap::Parser;
@@ -40,10 +40,11 @@ fn main() {
     let output = args.output;
     let dockerfile = args.dockerfile.clone();
     let ignorefile = args.ignorefile.clone();
+
     let image = if let Some(path) = args.input_file {
         from_file_path(&path)
     } else {
-        from_yaml_reader(std::io::stdin())
+        from_reader(std::io::stdin())
     }
     .expect("Failed to load the Dofigen structure");
 
