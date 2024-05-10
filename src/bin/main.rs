@@ -40,7 +40,7 @@ fn main() {
     let output = args.output;
     let dockerfile = args.dockerfile.clone();
     let ignorefile = args.ignorefile.clone();
-    
+
     let image = if let Some(path) = args.input_file {
         from_file_path(&path)
     } else {
