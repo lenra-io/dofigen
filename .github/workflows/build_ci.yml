@@ -155,7 +155,10 @@ jobs:
     name: publish
     needs: [build, get-next-version]
     if: github.ref_name == 'main' || github.ref_name == 'beta'
-    uses: lenra-io/github-actions/.github/workflows/get-version.yml@main
+    uses: lenra-io/github-actions/.github/workflows/release.yml@main
+    with:
+      download-artifacts: true
+      assets: artifacts/
 
   publish-cargo:
     name: publish-cargo
@@ -174,6 +177,7 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         path: artifacts/
+
     - name: Install cargo-edit
       if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions-rs/cargo@v1
