@@ -11,24 +11,27 @@ pub trait ScriptRunner {
     }
     fn add_script(&self, buffer: &mut String, uid: u16, gid: u16) {
         if let Some(script) = self.script() {
-            buffer.push_str("RUN ");
+            let mut lines: Vec<String> = script
+                .join(" &&\n")
+                .lines()
+                .map(str::to_string)
+                .collect::<Vec<String>>();
             if let Some(ref paths) = self.caches() {
-                paths.iter().for_each(|path| {
-                    buffer.push_str(
-                        format!(
-                            "\\\n    --mount=type=cache,sharing=locked,uid={},gid={},target={}",
-                            uid, gid, path
-                        )
-                        .as_str(),
-                    )
-                })
+                lines.splice(
+                    0..0,
+                    paths
+                        .iter()
+                        .map(|path| {
+                            format!(
+                                "--mount=type=cache,sharing=locked,uid={},gid={},target={}",
+                                uid, gid, path
+                            )
+                        })
+                        .collect::<Vec<String>>(),
+                );
             }
-            script.iter().enumerate().for_each(|(i, cmd)| {
-                if i > 0 {
-                    buffer.push_str(" && ");
-                }
-                buffer.push_str(format!("\\\n    {}", cmd).as_str())
-            });
+            lines.insert(0, "RUN".to_string());
+            buffer.push_str(&lines.join(" \\\n    "));
             buffer.push_str("\n");
         }
     }
