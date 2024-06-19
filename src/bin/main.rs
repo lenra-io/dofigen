@@ -19,16 +19,15 @@ impl fmt::Display for Format {
 #[clap(author, version, about, long_about = None)]
 struct Args {
     /// The input file Dofigen file. Default reads stdin
-    #[clap(parse(from_os_str))]
     input_file: Option<std::path::PathBuf>,
     /// Deprecated. The input format [default: yaml]
     #[clap(value_enum, short, long)]
     format: Option<Format>,
     /// The output Dockerfile file
-    #[clap(parse(from_os_str), short, long, default_value = "Dockerfile")]
+    #[clap(short, long, default_value = "Dockerfile")]
     dockerfile: std::path::PathBuf,
     /// The output .dockerignore file
-    #[clap(parse(from_os_str), short, long, default_value = ".dockerignore")]
+    #[clap(short, long, default_value = ".dockerignore")]
     ignorefile: std::path::PathBuf,
     /// Writes the Dockerfile to the stdout
     #[clap(short, long, action)]

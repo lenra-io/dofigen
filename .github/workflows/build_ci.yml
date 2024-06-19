@@ -100,11 +100,11 @@ jobs:
         - target: x86_64-apple-darwin
           os: macos
           arch: x86_64
-          runner: macos-11
+          runner: macos-latest
         - target: aarch64-apple-darwin
           os: macos
           arch: aarch64
-          runner: macos-11
+          runner: macos-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v3
