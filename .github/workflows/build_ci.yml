@@ -67,7 +67,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose
+        args: --verbose --all-features
 
   build:
     name: Build ${{ matrix.os }} ${{ matrix.arch }}
