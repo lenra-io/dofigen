@@ -176,3 +176,76 @@ impl Image {
         self.ignores.as_ref()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_builder_name_with_name() {
+        let builder = Builder {
+            name: Some(String::from("my-builder")),
+            ..Default::default()
+        };
+        let position = 1;
+        let name = builder.name(position);
+        assert_eq!(name, "my-builder");
+    }
+
+    #[test]
+    fn test_builder_name_without_name() {
+        let builder = Builder::default();
+        let position = 2;
+        let name = builder.name(position);
+        assert_eq!(name, "builder-2");
+    }
+
+    #[test]
+    fn test_builder_user_with_user() {
+        let builder = Builder {
+            user: Some(String::from("my-user")),
+            ..Default::default()
+        };
+        let user = builder.user();
+        assert_eq!(user, Some(String::from("my-user")));
+    }
+
+    #[test]
+    fn test_builder_user_without_user() {
+        let builder = Builder::default();
+        let user = builder.user();
+        assert_eq!(user, None);
+    }
+
+    #[test]
+    fn test_image_name() {
+        let image = Image {
+            image: String::from("my-image"),
+            ..Default::default()
+        };
+        let position = 3;
+        let name = image.name(position);
+        assert_eq!(name, "runtime");
+    }
+
+    #[test]
+    fn test_image_user_with_user() {
+        let image = Image {
+            user: Some(String::from("my-user")),
+            image: String::from("my-image"),
+            ..Default::default()
+        };
+        let user = image.user();
+        assert_eq!(user, Some(String::from("my-user")));
+    }
+
+    #[test]
+    fn test_image_user_without_user() {
+        let image = Image {
+            image: String::from("my-image"),
+            ..Default::default()
+        };
+        let user = image.user();
+        assert_eq!(user, Some(String::from("1000")));
+    }
+}

@@ -57,3 +57,14 @@ fn main() {
             .expect("Unable to write the .dockerignore file");
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::CommandFactory;
+
+    #[test]
+    fn verify_cmd() {
+        <Args as CommandFactory>::command().debug_assert();
+    }
+}
