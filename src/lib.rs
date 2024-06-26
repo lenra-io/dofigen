@@ -592,7 +592,7 @@ pub fn generate_dockerignore(image: &Image) -> String {
             content.push_str("\n");
         });
     }
-    if let Some(ignore) = image.ignores.clone() {
+    if let Some(ignore) = image.ignore.clone() {
         ignore.iter().for_each(|path| {
             content.push_str(path);
             content.push_str("\n");
@@ -703,18 +703,18 @@ artifacts:
             Image {
                 builders: Some(Vec::from([Builder {
                     name: Some(String::from("builder")),
-                    image: String::from("ekidd/rust-musl-builder"),
-                    adds: Some(Vec::from([String::from("*")])),
-                    script: Some(Vec::from([String::from("cargo build --release")])),
+                    from: String::from("ekidd/rust-musl-builder"),
+                    add: Some(Vec::from([String::from("*")])),
+                    run: Some(Vec::from([String::from("cargo build --release")])),
                     ..Default::default()
                 }])),
-                image: String::from("scratch"),
+                from: String::from("scratch"),
                 artifacts: Some(Vec::from([Artifact {
                     builder: String::from("builder"),
                     source: String::from(
                         "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
                     ),
-                    destination: String::from("/app"),
+                    target: String::from("/app"),
                     ..Default::default()
                 }])),
                 ..Default::default()
