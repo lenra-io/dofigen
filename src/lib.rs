@@ -31,7 +31,7 @@ const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 /// assert_eq!(
 ///     image,
 ///     Image {
-///         image: String::from("scratch"),
+///         from: String::from("scratch"),
 ///         ..Default::default()
 ///     }
 /// );
@@ -62,18 +62,18 @@ const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 ///     Image {
 ///         builders: Some(Vec::from([Builder {
 ///             name: Some(String::from("builder")),
-///             image: String::from("ekidd/rust-musl-builder"),
-///             adds: Some(Vec::from([String::from("*")])),
-///             script: Some(Vec::from([String::from("cargo build --release")])),
+///             from: String::from("ekidd/rust-musl-builder"),
+///             add: Some(Vec::from([String::from("*")])),
+///             run: Some(Vec::from([String::from("cargo build --release")])),
 ///             ..Default::default()
 ///         }])),
-///         image: String::from("scratch"),
+///         from: String::from("scratch"),
 ///         artifacts: Some(Vec::from([Artifact {
 ///             builder: String::from("builder"),
 ///             source: String::from(
 ///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
 ///             ),
-///             destination: String::from("/app"),
+///             target: String::from("/app"),
 ///             ..Default::default()
 ///         }])),
 ///         ..Default::default()
@@ -100,7 +100,7 @@ pub fn from(input: String) -> Result<Image> {
 /// assert_eq!(
 ///     image,
 ///     Image {
-///         image: String::from("scratch"),
+///         from: String::from("scratch"),
 ///         ..Default::default()
 ///     }
 /// );
@@ -131,18 +131,18 @@ pub fn from(input: String) -> Result<Image> {
 ///     Image {
 ///         builders: Some(Vec::from([Builder {
 ///             name: Some(String::from("builder")),
-///             image: String::from("ekidd/rust-musl-builder"),
-///             adds: Some(Vec::from([String::from("*")])),
-///             script: Some(Vec::from([String::from("cargo build --release")])),
+///             from: String::from("ekidd/rust-musl-builder"),
+///             add: Some(Vec::from([String::from("*")])),
+///             run: Some(Vec::from([String::from("cargo build --release")])),
 ///             ..Default::default()
 ///         }])),
-///         image: String::from("scratch"),
+///         from: String::from("scratch"),
 ///         artifacts: Some(Vec::from([Artifact {
 ///             builder: String::from("builder"),
 ///             source: String::from(
 ///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
 ///             ),
-///             destination: String::from("/app"),
+///             target: String::from("/app"),
 ///             ..Default::default()
 ///         }])),
 ///         ..Default::default()
@@ -151,314 +151,6 @@ pub fn from(input: String) -> Result<Image> {
 /// ```
 pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
     serde_yaml::from_reader(reader).map_err(|err| Error::DeserializeYaml(err))
-}
-
-/// Parse an Image from a YAML string.
-///
-/// # Examples
-///
-/// Basic YAML parsing
-///
-/// ```
-/// use dofigen_lib::{from_yaml, Image};
-///
-/// let yaml = "
-/// image: scratch
-/// ";
-/// let image: Image = from_yaml(yaml.to_string()).unwrap();
-/// assert_eq!(
-///     image,
-///     Image {
-///         image: String::from("scratch"),
-///         ..Default::default()
-///     }
-/// );
-/// ```
-///
-/// Basic YAML parsing
-///
-/// ```
-/// use dofigen_lib::{from_yaml, Image, Builder, Artifact};
-///
-/// let yaml = r#"
-/// builders:
-///   - name: builder
-///     image: ekidd/rust-musl-builder
-///     adds:
-///       - "*"
-///     script:
-///       - cargo build --release
-/// image: scratch
-/// artifacts:
-///   - builder: builder
-///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-///     destination: /app
-/// "#;
-/// let image: Image = from_yaml(yaml.to_string()).unwrap();
-/// assert_eq!(
-///     image,
-///     Image {
-///         builders: Some(Vec::from([Builder {
-///             name: Some(String::from("builder")),
-///             image: String::from("ekidd/rust-musl-builder"),
-///             adds: Some(Vec::from([String::from("*")])),
-///             script: Some(Vec::from([String::from("cargo build --release")])),
-///             ..Default::default()
-///         }])),
-///         image: String::from("scratch"),
-///         artifacts: Some(Vec::from([Artifact {
-///             builder: String::from("builder"),
-///             source: String::from(
-///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///             ),
-///             destination: String::from("/app"),
-///             ..Default::default()
-///         }])),
-///         ..Default::default()
-///     }
-/// );
-/// ```
-#[deprecated(
-    since = "1.2.0",
-    note = "The YAML reader can read both JSON and YAML. Should use 'from'"
-)]
-pub fn from_yaml(input: String) -> Result<Image> {
-    serde_yaml::from_str(&input).map_err(|err| Error::DeserializeYaml(err))
-}
-
-/// Parse an Image from a reader of YAML content.
-///
-/// # Examples
-///
-/// Basic YAML parsing
-///
-/// ```
-/// use dofigen_lib::{from_yaml_reader, Image};
-///
-/// let yaml = "
-/// image: scratch
-/// ";
-/// let image: Image = from_yaml_reader(yaml.as_bytes()).unwrap();
-/// assert_eq!(
-///     image,
-///     Image {
-///         image: String::from("scratch"),
-///         ..Default::default()
-///     }
-/// );
-/// ```
-///
-/// Basic YAML parsing
-///
-/// ```
-/// use dofigen_lib::{from_yaml_reader, Image, Builder, Artifact};
-///
-/// let yaml = r#"
-/// builders:
-///   - name: builder
-///     image: ekidd/rust-musl-builder
-///     adds:
-///       - "*"
-///     script:
-///       - cargo build --release
-/// image: scratch
-/// artifacts:
-///   - builder: builder
-///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-///     destination: /app
-/// "#;
-/// let image: Image = from_yaml_reader(yaml.as_bytes()).unwrap();
-/// assert_eq!(
-///     image,
-///     Image {
-///         builders: Some(Vec::from([Builder {
-///             name: Some(String::from("builder")),
-///             image: String::from("ekidd/rust-musl-builder"),
-///             adds: Some(Vec::from([String::from("*")])),
-///             script: Some(Vec::from([String::from("cargo build --release")])),
-///             ..Default::default()
-///         }])),
-///         image: String::from("scratch"),
-///         artifacts: Some(Vec::from([Artifact {
-///             builder: String::from("builder"),
-///             source: String::from(
-///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///             ),
-///             destination: String::from("/app"),
-///             ..Default::default()
-///         }])),
-///         ..Default::default()
-///     }
-/// );
-/// ```
-#[deprecated(
-    since = "1.2.0",
-    note = "The YAML reader can read both JSON and YAML. Should use 'from_reader'"
-)]
-pub fn from_yaml_reader<R: Read>(reader: R) -> Result<Image> {
-    from_reader(reader)
-}
-
-/// Parse an Image from a JSON string.
-///
-/// # Examples
-///
-/// Basic YAML parsing
-///
-/// ```
-/// use dofigen_lib::{from_json, Image};
-///
-/// let json = r#"{ "image": "scratch" }"#;
-/// let image: Image = from_json(json.to_string()).unwrap();
-/// assert_eq!(
-///     image,
-///     Image {
-///         image: String::from("scratch"),
-///         ..Default::default()
-///     }
-/// );
-/// ```
-///
-/// Basic YAML parsing
-///
-/// ```
-/// use dofigen_lib::{from_json, Image, Builder, Artifact};
-///
-/// let json = r#"
-/// {
-///     "builders": [
-///         {
-///             "name": "builder",
-///             "image": "ekidd/rust-musl-builder",
-///             "adds": [
-///                 "*"
-///             ],
-///             "script": [
-///                 "cargo build --release"
-///             ]
-///         }
-///     ],
-///     "image": "scratch",
-///     "artifacts": [
-///         {
-///             "builder": "builder",
-///             "source": "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust",
-///             "destination": "/app"
-///         }
-///     ]
-/// }"#;
-///
-/// let image: Image = from_json(json.to_string()).unwrap();
-/// assert_eq!(
-///     image,
-///     Image {
-///         builders: Some(Vec::from([Builder {
-///             name: Some(String::from("builder")),
-///             image: String::from("ekidd/rust-musl-builder"),
-///             adds: Some(Vec::from([String::from("*")])),
-///             script: Some(Vec::from([String::from("cargo build --release")])),
-///             ..Default::default()
-///         }])),
-///         image: String::from("scratch"),
-///         artifacts: Some(Vec::from([Artifact {
-///             builder: String::from("builder"),
-///             source: String::from(
-///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///             ),
-///             destination: String::from("/app"),
-///             ..Default::default()
-///         }])),
-///         ..Default::default()
-///     }
-/// );
-/// ```
-#[deprecated(
-    since = "1.2.0",
-    note = "The YAML reader can read both JSON and YAML. Should use 'from'"
-)]
-pub fn from_json(input: String) -> Result<Image> {
-    serde_json::from_str(&input).map_err(|err| Error::DeserializeJson(err))
-}
-
-/// Parse an Image from a reader of YAML content.
-///
-/// # Examples
-///
-/// Basic YAML parsing
-///
-/// ```
-/// use dofigen_lib::{from_json_reader, Image};
-///
-/// let json = r#"{ "image": "scratch" }"#;
-/// let image: Image = from_json_reader(json.as_bytes()).unwrap();
-/// assert_eq!(
-///     image,
-///     Image {
-///         image: String::from("scratch"),
-///         ..Default::default()
-///     }
-/// );
-/// ```
-///
-/// Basic YAML parsing
-///
-/// ```
-/// use dofigen_lib::{from_json_reader, Image, Builder, Artifact};
-///
-/// let json = r#"
-/// {
-///     "builders": [
-///         {
-///             "name": "builder",
-///             "image": "ekidd/rust-musl-builder",
-///             "adds": [
-///                 "*"
-///             ],
-///             "script": [
-///                 "cargo build --release"
-///             ]
-///         }
-///     ],
-///     "image": "scratch",
-///     "artifacts": [
-///         {
-///             "builder": "builder",
-///             "source": "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust",
-///             "destination": "/app"
-///         }
-///     ]
-/// }"#;
-///
-/// let image: Image = from_json_reader(json.as_bytes()).unwrap();
-/// assert_eq!(
-///     image,
-///     Image {
-///         builders: Some(Vec::from([Builder {
-///             name: Some(String::from("builder")),
-///             image: String::from("ekidd/rust-musl-builder"),
-///             adds: Some(Vec::from([String::from("*")])),
-///             script: Some(Vec::from([String::from("cargo build --release")])),
-///             ..Default::default()
-///         }])),
-///         image: String::from("scratch"),
-///         artifacts: Some(Vec::from([Artifact {
-///             builder: String::from("builder"),
-///             source: String::from(
-///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///             ),
-///             destination: String::from("/app"),
-///             ..Default::default()
-///         }])),
-///         ..Default::default()
-///     }
-/// );
-/// ```
-#[deprecated(
-    since = "1.2.0",
-    note = "The YAML reader can read both JSON and YAML. Should use 'from_reader'"
-)]
-pub fn from_json_reader<R: Read>(reader: R) -> Result<Image> {
-    serde_json::from_reader(reader).map_err(|err| Error::DeserializeJson(err))
 }
 
 /// Parse an Image from a YAML or JSON file path.
@@ -487,7 +179,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
 /// use dofigen_lib::{generate_dockerfile, Image};
 ///
 /// let image = Image {
-///     image: String::from("scratch"),
+///     from: String::from("scratch"),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerfile(&image);
@@ -529,7 +221,7 @@ pub fn generate_dockerfile(image: &Image) -> String {
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
 /// let image = Image {
-///     image: String::from("scratch"),
+///     from: String::from("scratch"),
 ///     context: Some(Vec::from([String::from("/src")])),
 ///     ..Default::default()
 /// };
@@ -546,8 +238,8 @@ pub fn generate_dockerfile(image: &Image) -> String {
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
 /// let image = Image {
-///     image: String::from("scratch"),
-///     ignores: Some(Vec::from([String::from("target")])),
+///     from: String::from("scratch"),
+///     ignore: Some(Vec::from([String::from("target")])),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
@@ -563,9 +255,9 @@ pub fn generate_dockerfile(image: &Image) -> String {
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
 /// let image = Image {
-///     image: String::from("scratch"),
+///     from: String::from("scratch"),
 ///     context: Some(Vec::from([String::from("/src")])),
-///     ignores: Some(Vec::from([String::from("/src/*.test.rs")])),
+///     ignore: Some(Vec::from([String::from("/src/*.test.rs")])),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
