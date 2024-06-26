@@ -1,6 +1,5 @@
-use dofigen_lib::{from_file_path, from_reader, generate_dockerfile, generate_dockerignore};
-use std::{fmt, fs};
-use thiserror::Error;
+use dofigen_lib::Result;
+use std::fmt;
 
 use clap::{Parser, Subcommand};
 
@@ -19,14 +18,6 @@ impl fmt::Display for Format {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         write!(formatter, "{}", format!("{:?}", self).to_lowercase())
     }
-}
-
-pub type Result<T, E = Error> = std::result::Result<T, E>;
-
-#[derive(Error, Debug)]
-pub enum Error {
-    #[error("{0}")]
-    Custom(String),
 }
 
 /// Dofigen is a Dockerfile generator using a simplyfied description in YAML or JSON format.

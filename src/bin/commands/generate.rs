@@ -2,8 +2,11 @@
 //!
 //! The generate subcommand generates a Dockerfile and a .dockerignore file from a Dofigen file.
 
-use crate::*;
 pub use clap::Args;
+use dofigen_lib::{
+    from_file_path, from_reader, generate_dockerfile, generate_dockerignore, Result,
+};
+use std::fs;
 
 use crate::CliCommand;
 
