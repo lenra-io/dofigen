@@ -44,10 +44,10 @@ macro_rules! impl_ScriptRunner {
     (for $($t:ty),+) => {
         $(impl ScriptRunner for $t {
             fn script(&self) -> Option<&Vec<String>> {
-                self.script.as_ref()
+                self.run.as_ref()
             }
             fn caches(&self) -> Option<&Vec<String>> {
-                self.caches.as_ref()
+                self.cache.as_ref()
             }
         })*
     }
@@ -62,8 +62,7 @@ mod tests {
     #[test]
     fn test_has_script_with_script() {
         let builder = Builder {
-            script: Some(vec!["echo Hello".to_string()]),
-            caches: None,
+            run: Some(vec!["echo Hello".to_string()]),
             ..Default::default()
         };
         assert_eq!(builder.has_script(), true);
@@ -72,8 +71,6 @@ mod tests {
     #[test]
     fn test_has_script_without_script() {
         let builder = Builder {
-            script: None,
-            caches: None,
             ..Default::default()
         };
         assert_eq!(builder.has_script(), false);
@@ -82,8 +79,7 @@ mod tests {
     #[test]
     fn test_has_script_with_empty_script() {
         let builder = Builder {
-            script: Some(vec![]),
-            caches: None,
+            run: Some(vec![]),
             ..Default::default()
         };
         assert_eq!(builder.has_script(), false);
@@ -92,8 +88,7 @@ mod tests {
     #[test]
     fn test_has_script_without_script_with_cache() {
         let builder = Builder {
-            script: None,
-            caches: Some(vec!["/path/to/cache".to_string()]),
+            cache: Some(vec!["/path/to/cache".to_string()]),
             ..Default::default()
         };
         assert_eq!(builder.has_script(), false);
@@ -103,8 +98,8 @@ mod tests {
     fn test_add_script_with_script_and_caches() {
         let mut buffer = String::new();
         let builder = Builder {
-            script: Some(vec!["echo Hello".to_string()]),
-            caches: Some(vec!["/path/to/cache".to_string()]),
+            run: Some(vec!["echo Hello".to_string()]),
+            cache: Some(vec!["/path/to/cache".to_string()]),
             ..Default::default()
         };
         builder.add_script(&mut buffer, 1000, 1000);
@@ -118,8 +113,7 @@ mod tests {
     fn test_add_script_with_script_without_caches() {
         let mut buffer = String::new();
         let builder = Builder {
-            script: Some(vec!["echo Hello".to_string()]),
-            caches: None,
+            run: Some(vec!["echo Hello".to_string()]),
             ..Default::default()
         };
         builder.add_script(&mut buffer, 1000, 1000);
@@ -130,8 +124,6 @@ mod tests {
     fn test_add_script_without_script() {
         let mut buffer = String::new();
         let builder = Builder {
-            script: None,
-            caches: None,
             ..Default::default()
         };
         builder.add_script(&mut buffer, 1000, 1000);
@@ -142,8 +134,7 @@ mod tests {
     fn test_add_script_with_empty_script() {
         let mut buffer = String::new();
         let builder = Builder {
-            script: Some(vec![]),
-            caches: None,
+            run: Some(vec![]),
             ..Default::default()
         };
         builder.add_script(&mut buffer, 1000, 1000);

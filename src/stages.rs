@@ -33,14 +33,14 @@ impl StageGenerator for Image {
     fn user(&self) -> Option<String> {
         match self.user.as_ref() {
             Some(user) => Some(user.to_string()),
-            None => match self.image.as_str() {
+            None => match self.from.as_str() {
                 "scratch" => None,
                 _ => Some(String::from("1000")),
             },
         }
     }
     fn additionnal_generation(&self, buffer: &mut String) {
-        if let Some(ports) = &self.ports {
+        if let Some(ports) = &self.expose {
             ports
                 .iter()
                 .for_each(|port| buffer.push_str(format!("EXPOSE {}\n", port).as_str()));
@@ -81,10 +81,10 @@ macro_rules! impl_Stage {
         $(impl Stage for $t {
             fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
                 let name = self.name(previous_builders.len().try_into().unwrap());
-                buffer.push_str(format!("\n# {}\nFROM {} AS {}\n", name, self.image, name).as_str());
+                buffer.push_str(format!("\n# {}\nFROM {} AS {}\n", name, self.from, name).as_str());
 
                 // Set env variables
-                if let Some(ref envs) = self.envs {
+                if let Some(ref envs) = self.env {
                     buffer.push_str("ENV ");
                     envs.iter().for_each(|(key, value)| {
                         buffer.push_str(format!("\\\n    {}=\"{}\"", key, value).as_str())
@@ -98,7 +98,7 @@ macro_rules! impl_Stage {
                 }
 
                 // Add sources
-                if let Some(ref adds) = self.adds {
+                if let Some(ref adds) = self.add {
                     adds.iter()
                         .map(|add| format!("ADD --link {} ./\n", add))
                         .for_each(|add| buffer.push_str(&add.as_str()));
@@ -116,10 +116,10 @@ macro_rules! impl_Stage {
                                 )
                             }
                             format!(
-                                "COPY --link --chown=1000:1000 --from={builder} \"{source}\" \"{destination}\"\n",
+                                "COPY --link --chown=1000:1000 --from={builder} \"{source}\" \"{target}\"\n",
                                 builder = artifact.builder,
                                 source = artifact.source,
-                                destination = artifact.destination
+                                target = artifact.target
                             )
                         })
                         .for_each(|artifact| buffer.push_str(&artifact.as_str()));
@@ -144,7 +144,7 @@ macro_rules! impl_Stage {
                 let user: Option<String> = match self.user() {
                     Some(u) => Some(u),
                     None => {
-                        if is_root && has_script && self.image != "scratch" {
+                        if is_root && has_script && self.from != "scratch" {
                             Some(String::from("1000"))
                         } else {
                             None
@@ -173,7 +173,7 @@ impl_Stage!(for Builder, Image);
 
 impl Image {
     pub fn ignores(&self) -> Option<&Vec<String>> {
-        self.ignores.as_ref()
+        self.ignore.as_ref()
     }
 }
 
@@ -220,7 +220,7 @@ mod tests {
     #[test]
     fn test_image_name() {
         let image = Image {
-            image: String::from("my-image"),
+            from: String::from("my-image"),
             ..Default::default()
         };
         let position = 3;
@@ -232,7 +232,7 @@ mod tests {
     fn test_image_user_with_user() {
         let image = Image {
             user: Some(String::from("my-user")),
-            image: String::from("my-image"),
+            from: String::from("my-image"),
             ..Default::default()
         };
         let user = image.user();
@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn test_image_user_without_user() {
         let image = Image {
-            image: String::from("my-image"),
+            from: String::from("my-image"),
             ..Default::default()
         };
         let user = image.user();
