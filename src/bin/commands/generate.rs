@@ -11,9 +11,6 @@ use crate::CliCommand;
 pub struct Generate {
     /// The input file Dofigen file. Default reads stdin
     input_file: Option<std::path::PathBuf>,
-    /// Deprecated. The input format [default: yaml]
-    #[clap(value_enum, short, long)]
-    format: Option<Format>,
     /// The output Dockerfile file
     #[clap(short, long, default_value = "Dockerfile")]
     dockerfile: std::path::PathBuf,
