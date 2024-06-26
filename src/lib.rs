@@ -8,6 +8,7 @@ mod runners;
 mod stages;
 mod structs;
 pub use errors::*;
+use schemars::schema_for;
 pub use stages::*;
 use std::{fs, io::Read};
 pub use structs::*;
@@ -291,6 +292,13 @@ pub fn generate_dockerignore(image: &Image) -> String {
         });
     }
     content
+}
+
+/// Generates the JSON schema for the Image structure.
+/// This is useful to validate the structure and IDE autocompletion.
+pub fn generate_json_schema() -> String {
+    let schema = schema_for!(Image);
+    serde_json::to_string_pretty(&schema).unwrap()
 }
 
 #[cfg(test)]
