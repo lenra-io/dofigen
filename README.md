@@ -77,6 +77,12 @@ docker run --rm -it -v $(pwd):/app lenra/dofigen
 
 ### How to use it
 
+To generate a Dockerfile, you need to create a Dofigen file `dofigen.yml` and run the next command:
+
+```bash
+dofigen gen dofigen.yml
+```
+
 Use the help options to understand how to use it:
 
 ```bash
@@ -218,6 +224,22 @@ Contributions are what make the open source community such an amazing place to l
 
 If you have a suggestion that would make this better, please open an issue with the tag "enhancement" or "bug".
 Don't forget to give the project a star! Thanks again!
+
+### Tests
+
+To run the tests, use the following command:
+
+```bash
+cargo test --all-features
+```
+
+### Generate the JSON Schema
+
+To generate the JSON schema of the Dofigen file structure, use the following command:
+
+```bash
+cargo run -F cli -F json_schema -- schema
+```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 

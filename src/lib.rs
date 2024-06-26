@@ -8,6 +8,8 @@ mod runners;
 mod stages;
 mod structs;
 pub use errors::*;
+#[cfg(feature = "json_schema")]
+use schemars::schema_for;
 pub use stages::*;
 use std::{fs, io::Read};
 pub use structs::*;
@@ -45,16 +47,16 @@ const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 /// let yaml = r#"
 /// builders:
 ///   - name: builder
-///     image: ekidd/rust-musl-builder
-///     adds:
+///     from: ekidd/rust-musl-builder
+///     add:
 ///       - "*"
-///     script:
+///     run:
 ///       - cargo build --release
-/// image: scratch
+/// from: scratch
 /// artifacts:
 ///   - builder: builder
 ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-///     destination: /app
+///     target: /app
 /// "#;
 /// let image: Image = from(yaml.to_string()).unwrap();
 /// assert_eq!(
@@ -114,16 +116,16 @@ pub fn from(input: String) -> Result<Image> {
 /// let yaml = r#"
 /// builders:
 ///   - name: builder
-///     image: ekidd/rust-musl-builder
-///     adds:
+///     from: ekidd/rust-musl-builder
+///     add:
 ///       - "*"
-///     script:
+///     run:
 ///       - cargo build --release
-/// image: scratch
+/// from: scratch
 /// artifacts:
 ///   - builder: builder
 ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-///     destination: /app
+///     target: /app
 /// "#;
 /// let image: Image = from_reader(yaml.as_bytes()).unwrap();
 /// assert_eq!(
@@ -293,6 +295,14 @@ pub fn generate_dockerignore(image: &Image) -> String {
     content
 }
 
+/// Generates the JSON schema for the Image structure.
+/// This is useful to validate the structure and IDE autocompletion.
+#[cfg(feature = "json_schema")]
+pub fn generate_json_schema() -> String {
+    let schema = schema_for!(Image);
+    serde_json::to_string_pretty(&schema).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -303,26 +313,26 @@ mod tests {
         image: scratch
         builders:
         - name: builder
-          image: ekidd/rust-musl-builder
+          from: ekidd/rust-musl-builder
           user: rust
-          adds: 
+          add: 
           - "."
-          script:
+          run:
           - ls -al
           - cargo build --release
-          caches:
+          cache:
           - /usr/local/cargo/registry
         - name: watchdog
-          image: ghcr.io/openfaas/of-watchdog:0.9.6
-        envs:
+          from: ghcr.io/openfaas/of-watchdog:0.9.6
+        env:
           fprocess: /app
         artifacts:
         - builder: builder
           source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-          destination: /app
+          target: /app
         - builder: builder
           source: /fwatchdog
-          destination: /fwatchdog
+          target: /fwatchdog
         ports:
         - 8080
         healthcheck:
@@ -378,12 +388,12 @@ CMD ["/fwatchdog"]
         let yaml = r#"
 builders:
 - name: builder
-  from: ekidd/rust-musl-builder
+  image: ekidd/rust-musl-builder
   adds:
   - "*"
-  run:
+  script:
   - cargo build --release
-from: scratch
+image: scratch
 artifacts:
 - builder: builder
   source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
@@ -477,27 +487,27 @@ test: Fake value
     }
 
     #[test]
-    fn manage_singular_aliases() -> Result<()> {
+    fn manage_plural_aliases() -> Result<()> {
         let yaml = r#"
-image: scratch
+from: scratch
 builders:
 - name: builder
-  image: ekidd/rust-musl-builder
+  from: ekidd/rust-musl-builder
   user: rust
-  add: 
+  adds: 
   - "."
-  script:
+  run:
   - cargo build --release
-  cache:
+  caches:
   - /usr/local/cargo/registry
 - name: watchdog
-  image: ghcr.io/openfaas/of-watchdog:0.9.6
-env:
+  from: ghcr.io/openfaas/of-watchdog:0.9.6
+envs:
   fprocess: /app
 artifacts:
 - builder: builder
   source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-  destination: /app
+  target: /app
 - builder: builder
   source: /fwatchdog
   target: /fwatchdog
