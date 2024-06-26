@@ -67,7 +67,10 @@ impl Command {
 }
 
 fn main() {
-    Cli::parse().command.run().unwrap_or_else(|e| eprintln!("{}", e));
+    Cli::parse()
+        .command
+        .run()
+        .unwrap_or_else(|e| eprintln!("{}", e));
 }
 
 #[cfg(test)]

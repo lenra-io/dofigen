@@ -3,8 +3,8 @@
 //! The generate subcommand generates a Dockerfile and a .dockerignore file from a Dofigen file.
 
 use crate::*;
-use dofigen_lib::generate_json_schema;
 pub use clap::Args;
+use dofigen_lib::generate_json_schema;
 
 use crate::CliCommand;
 
