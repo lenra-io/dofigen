@@ -1,9 +1,12 @@
+#[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
+
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /** Represents the Dockerfile main stage */
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 #[serde(deny_unknown_fields)]
 pub struct Image {
     // Common part
@@ -34,7 +37,8 @@ pub struct Image {
 }
 
 /** Represents a Dockerfile builder stage */
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Builder {
     // Common part
     #[serde(alias = "image")]
@@ -55,7 +59,8 @@ pub struct Builder {
     pub name: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Artifact {
     pub builder: String,
     pub source: String,
@@ -63,7 +68,8 @@ pub struct Artifact {
     pub target: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Root {
     #[serde(alias = "script")]
     pub run: Option<Vec<String>>,
@@ -71,7 +77,8 @@ pub struct Root {
     pub cache: Option<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Healthcheck {
     pub cmd: String,
     pub interval: Option<String>,
