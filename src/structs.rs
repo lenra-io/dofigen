@@ -11,7 +11,7 @@ use std::collections::HashMap;
 pub struct Image {
     // Common part
     #[serde(alias = "image")]
-    pub from: String,
+    pub from: ImageName,
     pub user: Option<String>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
@@ -42,7 +42,7 @@ pub struct Image {
 pub struct Builder {
     // Common part
     #[serde(alias = "image")]
-    pub from: String,
+    pub from: ImageName,
     pub user: Option<String>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
@@ -86,3 +86,20 @@ pub struct Healthcheck {
     pub start: Option<String>,
     pub retries: Option<u16>,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct ImageName {
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub path: String,
+    pub version: Option<ImageVersion>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum ImageVersion {
+    Tag(String),
+    Digest(String),
+}
+
