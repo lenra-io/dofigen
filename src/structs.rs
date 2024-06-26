@@ -6,28 +6,29 @@ use std::collections::HashMap;
 #[serde(deny_unknown_fields)]
 pub struct Image {
     // Common part
-    #[serde(alias = "from")]
-    pub image: String,
+    #[serde(alias = "image")]
+    pub from: String,
     pub user: Option<String>,
     pub workdir: Option<String>,
-    #[serde(alias = "env")]
-    pub envs: Option<HashMap<String, String>>,
+    #[serde(alias = "envs")]
+    pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(alias = "add")]
-    pub adds: Option<Vec<String>>,
+    #[serde(alias = "adds")]
+    pub add: Option<Vec<String>>,
     pub root: Option<Root>,
-    #[serde(alias = "run")]
-    pub script: Option<Vec<String>>,
-    #[serde(alias = "cache")]
-    pub caches: Option<Vec<String>>,
+    #[serde(alias = "script")]
+    pub run: Option<Vec<String>>,
+    #[serde(alias = "caches")]
+    pub cache: Option<Vec<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
     pub context: Option<Vec<String>>,
-    #[serde(alias = "ignore")]
-    pub ignores: Option<Vec<String>>,
+    #[serde(alias = "ignores")]
+    pub ignore: Option<Vec<String>>,
     pub entrypoint: Option<Vec<String>>,
     pub cmd: Option<Vec<String>>,
-    pub ports: Option<Vec<u16>>,
+    #[serde(alias = "ports")]
+    pub expose: Option<Vec<u16>>,
     pub healthcheck: Option<Healthcheck>,
 }
 
@@ -35,20 +36,20 @@ pub struct Image {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Builder {
     // Common part
-    #[serde(alias = "from")]
-    pub image: String,
+    #[serde(alias = "image")]
+    pub from: String,
     pub user: Option<String>,
     pub workdir: Option<String>,
-    #[serde(alias = "env")]
-    pub envs: Option<HashMap<String, String>>,
+    #[serde(alias = "envs")]
+    pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(alias = "add")]
-    pub adds: Option<Vec<String>>,
+    #[serde(alias = "adds")]
+    pub add: Option<Vec<String>>,
     pub root: Option<Root>,
-    #[serde(alias = "run")]
-    pub script: Option<Vec<String>>,
-    #[serde(alias = "cache")]
-    pub caches: Option<Vec<String>>,
+    #[serde(alias = "script")]
+    pub run: Option<Vec<String>>,
+    #[serde(alias = "caches")]
+    pub cache: Option<Vec<String>>,
     // Specific part
     pub name: Option<String>,
 }
@@ -57,16 +58,16 @@ pub struct Builder {
 pub struct Artifact {
     pub builder: String,
     pub source: String,
-    #[serde(alias = "target")]
-    pub destination: String,
+    #[serde(alias = "destination")]
+    pub target: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 pub struct Root {
-    #[serde(alias = "run")]
-    pub script: Option<Vec<String>>,
-    #[serde(alias = "cache")]
-    pub caches: Option<Vec<String>>,
+    #[serde(alias = "script")]
+    pub run: Option<Vec<String>>,
+    #[serde(alias = "caches")]
+    pub cache: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
