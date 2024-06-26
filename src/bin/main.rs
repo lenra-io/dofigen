@@ -35,7 +35,7 @@ pub enum Error {
 struct Cli {
     /// The subcommand to run
     #[clap(subcommand)]
-    pub command: Option<Command>,
+    pub command: Command,
 }
 
 pub trait CliCommand {
@@ -67,9 +67,7 @@ impl Command {
 }
 
 fn main() {
-    let args = Cli::parse();
-    let command = args.command.unwrap_or(Command::Generate(Generate::default()));
-    command.run().unwrap_or_else(|e| eprintln!("{}", e));
+    Cli::parse().command.run().unwrap_or_else(|e| eprintln!("{}", e));
 }
 
 #[cfg(test)]
