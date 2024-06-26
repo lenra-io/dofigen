@@ -80,30 +80,29 @@ docker run --rm -it -v $(pwd):/app lenra/dofigen
 To generate a Dockerfile, you need to create a Dofigen file `dofigen.yml` and run the next command:
 
 ```bash
-dofigen gen dofigen.yml
+dofigen gen
 ```
 
-Use the help options to understand how to use it:
+Use the help options to understand how to override default behaviors:
 
 ```bash
-$ dofigen --help
-dofigen 0.0.0
-Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format
+$ dofigen gen --help
+Generate the Dockerfile and .dockerignore files
 
-USAGE:
-    dofigen [OPTIONS] [INPUT_FILE]
+Usage: dofigen generate [OPTIONS]
 
-ARGS:
-    <INPUT_FILE>    The input Dofigen file. Default reads stdin
-
-OPTIONS:
-    -d, --dockerfile <DOCKERFILE>    The output Dockerfile file [default: Dockerfile]
-    -f, --format <FORMAT>            The input format [default: yaml] [possible values: json, yaml]
-    -h, --help                       Print help information
-    -i, --ignorefile <IGNOREFILE>    The output .dockerignore file [default: .dockerignore]
-    -o, --output                     Writes the Dockerfile to the stdout
-    -V, --version                    Print version information
+Options:
+  -f, --file <FILE>      The input file Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json Define to - to read from stdin
+  -o, --output <OUTPUT>  The output Dockerfile file Define to - to write to stdout [default: Dockerfile]
+  -h, --help             Print help
 ```
+
+To look further use the help command:
+
+```bash
+dofigen --help
+```
+
 
 ### Image descriptor
 
