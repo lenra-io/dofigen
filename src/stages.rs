@@ -1,6 +1,7 @@
 use std::io::Result;
 
 use crate::{
+    display::*,
     runners::ScriptRunner,
     structs::{Builder, Image},
 };
@@ -33,9 +34,9 @@ impl StageGenerator for Image {
     fn user(&self) -> Option<String> {
         match self.user.as_ref() {
             Some(user) => Some(user.to_string()),
-            None => match self.from.as_str() {
-                "scratch" => None,
-                _ => Some(String::from("1000")),
+            None => match self.from.is_some() {
+                false => None,
+                true => Some(String::from("1000")),
             },
         }
     }
