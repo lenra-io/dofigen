@@ -1,7 +1,6 @@
 use std::io::Result;
 
 use crate::{
-    display::*,
     runners::ScriptRunner,
     structs::{Builder, Image},
 };
@@ -82,7 +81,7 @@ macro_rules! impl_Stage {
         $(impl Stage for $t {
             fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
                 let name = self.name(previous_builders.len().try_into().unwrap());
-                buffer.push_str(format!("\n# {}\nFROM {} AS {}\n", name, self.from, name).as_str());
+                buffer.push_str(format!("\n# {}\nFROM {:?} AS {}\n", name, self.from, name).as_str());
 
                 // Set env variables
                 if let Some(ref envs) = self.env {
@@ -145,7 +144,7 @@ macro_rules! impl_Stage {
                 let user: Option<String> = match self.user() {
                     Some(u) => Some(u),
                     None => {
-                        if is_root && has_script && self.from != "scratch" {
+                        if is_root && has_script {
                             Some(String::from("1000"))
                         } else {
                             None
@@ -180,6 +179,8 @@ impl Image {
 
 #[cfg(test)]
 mod tests {
+    use crate::ImageName;
+
     use super::*;
 
     #[test]
@@ -221,7 +222,10 @@ mod tests {
     #[test]
     fn test_image_name() {
         let image = Image {
-            from: String::from("my-image"),
+            from: Some(ImageName {
+                path: String::from("my-image"),
+                ..Default::default()
+            }),
             ..Default::default()
         };
         let position = 3;
@@ -233,7 +237,10 @@ mod tests {
     fn test_image_user_with_user() {
         let image = Image {
             user: Some(String::from("my-user")),
-            from: String::from("my-image"),
+            from: Some(ImageName {
+                path: String::from("my-image"),
+                ..Default::default()
+            }),
             ..Default::default()
         };
         let user = image.user();
@@ -243,7 +250,10 @@ mod tests {
     #[test]
     fn test_image_user_without_user() {
         let image = Image {
-            from: String::from("my-image"),
+            from: Some(ImageName {
+                path: String::from("my-image"),
+                ..Default::default()
+            }),
             ..Default::default()
         };
         let user = image.user();

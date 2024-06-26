@@ -11,7 +11,7 @@ use std::collections::HashMap;
 pub struct Image {
     // Common part
     #[serde(alias = "image")]
-    pub from: ImageName,
+    pub from: Option<ImageName>,
     pub user: Option<String>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
