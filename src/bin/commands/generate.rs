@@ -24,8 +24,6 @@ pub struct Generate {
 
 impl CliCommand for Generate {
     fn run(&self) -> Result<()> {
-        println!("Running the generate command");
-
         let output = self.output;
         let dockerfile = &self.dockerfile;
         let ignorefile = &self.ignorefile;
