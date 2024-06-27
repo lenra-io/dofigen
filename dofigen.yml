@@ -5,6 +5,7 @@ builders:
   add:
   - "."
   run:
+  - ls -al
   # Build with musl to work with scratch
   - cargo build --release -F cli --target=x86_64-unknown-linux-musl
   # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume

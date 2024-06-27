@@ -1,12 +1,14 @@
 use std::io::Result;
 
 use crate::{
+    generator::DockerfileGenerator,
     runners::ScriptRunner,
     structs::{Builder, Image},
 };
 
 pub trait StageGenerator: ScriptRunner {
     fn name(&self, position: i32) -> String;
+    fn from(&self) -> String;
     fn user(&self) -> Option<String>;
     fn additionnal_generation(&self, _buffer: &mut String) {}
 }
@@ -21,6 +23,11 @@ impl StageGenerator for Builder {
             None => format!("builder-{}", position),
         }
     }
+    fn from(&self) -> String {
+        self.from
+            .to_dockerfile_content()
+            .expect("Error while generating the From field")
+    }
     fn user(&self) -> Option<String> {
         self.user.clone()
     }
@@ -29,6 +36,16 @@ impl StageGenerator for Builder {
 impl StageGenerator for Image {
     fn name(&self, _position: i32) -> String {
         String::from("runtime")
+    }
+    fn from(&self) -> String {
+        self.from
+            .as_ref()
+            .map(|image_name| {
+                image_name
+                    .to_dockerfile_content()
+                    .expect("Error while generating the From field")
+            })
+            .unwrap_or(String::from("scratch"))
     }
     fn user(&self) -> Option<String> {
         match self.user.as_ref() {
@@ -81,7 +98,7 @@ macro_rules! impl_Stage {
         $(impl Stage for $t {
             fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
                 let name = self.name(previous_builders.len().try_into().unwrap());
-                buffer.push_str(format!("\n# {}\nFROM {:?} AS {}\n", name, self.from, name).as_str());
+                buffer.push_str(format!("\n# {}\nFROM {} AS {}\n", name, self.from(), name).as_str());
 
                 // Set env variables
                 if let Some(ref envs) = self.env {
@@ -98,9 +115,9 @@ macro_rules! impl_Stage {
                 }
 
                 // Add sources
-                if let Some(ref adds) = self.add {
+                if let Some(ref adds) = self.copy {
                     adds.iter()
-                        .map(|add| format!("ADD --link {} ./\n", add))
+                        .map(|add| add.to_dockerfile_content().expect("Error while generating the COPY/ADD field"))
                         .for_each(|add| buffer.push_str(&add.as_str()));
                 }
 

@@ -3,7 +3,7 @@
 //! `dofigen_lib` help creating Dockerfile with a simplified structure and made to cache the build with Buildkit.
 //! You also can parse the structure from YAML or JSON.
 
-mod display;
+mod generator;
 mod errors;
 mod runners;
 mod stages;
@@ -410,7 +410,10 @@ artifacts:
                         path: String::from("ekidd/rust-musl-builder"),
                         ..Default::default()
                     },
-                    add: Some(Vec::from([String::from("*")])),
+                    copy: Some(vec![CopyResources::Copy(Copy {
+                        paths: vec![String::from("*")],
+                        ..Default::default()
+                    })]),
                     run: Some(Vec::from([String::from("cargo build --release")])),
                     ..Default::default()
                 }])),
