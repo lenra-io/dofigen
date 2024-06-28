@@ -4,6 +4,44 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(untagged)]
+pub enum OneOrMany<T> {
+    One(T),
+    Vec(Vec<T>),
+}
+
+impl<T> OneOrMany<T> {
+    pub fn to_vec(self) -> Vec<T> {
+        match self {
+            OneOrMany::One(t) => vec![t],
+            OneOrMany::Vec(v) => v,
+        }
+    }
+}
+
+impl From<Vec<String>> for OneOrMany<String> {
+    fn from(v: Vec<String>) -> Self {
+        OneOrMany::Vec(v)
+    }
+}
+
+impl<T> Into<Vec<T>> for OneOrMany<T> {
+    fn into(self) -> Vec<T> {
+        match self {
+            OneOrMany::One(t) => vec![t],
+            OneOrMany::Vec(v) => v,
+        }
+    }
+}
+
+impl<T> Default for OneOrMany<T> {
+    fn default() -> Self {
+        OneOrMany::Vec(Vec::new())
+    }
+}
+
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
@@ -18,21 +56,21 @@ pub struct Image {
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
     #[serde(alias = "add", alias = "adds")]
-    pub copy: Option<Vec<CopyResources>>,
+    pub copy: Option<OneOrMany<CopyResources>>,
     pub root: Option<Root>,
     #[serde(alias = "script")]
-    pub run: Option<Vec<String>>,
+    pub run: Option<OneOrMany<String>>,
     #[serde(alias = "caches")]
-    pub cache: Option<Vec<String>>,
+    pub cache: Option<OneOrMany<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
-    pub context: Option<Vec<String>>,
+    pub context: Option<OneOrMany<String>>,
     #[serde(alias = "ignores")]
-    pub ignore: Option<Vec<String>>,
-    pub entrypoint: Option<Vec<String>>,
-    pub cmd: Option<Vec<String>>,
+    pub ignore: Option<OneOrMany<String>>,
+    pub entrypoint: Option<OneOrMany<String>>,
+    pub cmd: Option<OneOrMany<String>>,
     #[serde(alias = "ports")]
-    pub expose: Option<Vec<u16>>,
+    pub expose: Option<OneOrMany<u16>>,
     pub healthcheck: Option<Healthcheck>,
 }
 
@@ -49,12 +87,12 @@ pub struct Builder {
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
     #[serde(alias = "add", alias = "adds")]
-    pub copy: Option<Vec<CopyResources>>,
+    pub copy: Option<OneOrMany<CopyResources>>,
     pub root: Option<Root>,
     #[serde(alias = "script")]
-    pub run: Option<Vec<String>>,
+    pub run: Option<OneOrMany<String>>,
     #[serde(alias = "caches")]
-    pub cache: Option<Vec<String>>,
+    pub cache: Option<OneOrMany<String>>,
     // Specific part
     pub name: Option<String>,
 }
@@ -72,9 +110,9 @@ pub struct Artifact {
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Root {
     #[serde(alias = "script")]
-    pub run: Option<Vec<String>>,
+    pub run: Option<OneOrMany<String>>,
     #[serde(alias = "caches")]
-    pub cache: Option<Vec<String>>,
+    pub cache: Option<OneOrMany<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -87,7 +125,7 @@ pub struct Healthcheck {
     pub retries: Option<u16>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ImageName {
     pub host: Option<String>,
@@ -103,7 +141,7 @@ pub enum ImageVersion {
     Digest(String),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum CopyResources {
     Copy(Copy),
@@ -116,17 +154,16 @@ pub enum CopyResources {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
-    pub paths: Vec<String>,
+    pub paths: OneOrMany<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chown: Option<Chown>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    pub exclude: Option<Vec<String>>,
+    pub exclude: Option<OneOrMany<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
-    #[serde(default = "default_copy_link")]
-    pub link: bool,
+    pub link: Option<bool>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---parents
     pub parents: Option<bool>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---from
@@ -145,10 +182,9 @@ pub struct AddGitRepo {
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    pub exclude: Option<Vec<String>>,
+    pub exclude: Option<OneOrMany<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
-    #[serde(default = "default_copy_link")]
-    pub link: bool,
+    pub link: Option<bool>,
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
     pub keep_git_dir: Option<bool>,
 }
@@ -158,19 +194,14 @@ pub struct AddGitRepo {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct AddSimple {
-    pub urls: Vec<String>,
+    pub urls: OneOrMany<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chown: Option<Chown>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
-    #[serde(default = "default_copy_link")]
-    pub link: bool,
-}
-
-fn default_copy_link() -> bool {
-    true
+    pub link: Option<bool>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]

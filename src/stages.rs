@@ -59,6 +59,8 @@ impl StageGenerator for Image {
     fn additionnal_generation(&self, buffer: &mut String) {
         if let Some(ports) = &self.expose {
             ports
+                .clone()
+                .to_vec()
                 .iter()
                 .for_each(|port| buffer.push_str(format!("EXPOSE {}\n", port).as_str()));
         }
@@ -116,9 +118,15 @@ macro_rules! impl_Stage {
 
                 // Add sources
                 if let Some(ref adds) = self.copy {
-                    adds.iter()
+                    adds
+                    .clone()
+                    .to_vec()
+                    .iter()
                         .map(|add| add.to_dockerfile_content().expect("Error while generating the COPY/ADD field"))
-                        .for_each(|add| buffer.push_str(&add.as_str()));
+                        .for_each(|add| {
+                            buffer.push_str(&add.as_str());
+                    buffer.push_str("\n");
+                    });
                 }
 
                 // Copy build artifacts
@@ -187,12 +195,6 @@ macro_rules! impl_Stage {
 }
 
 impl_Stage!(for Builder, Image);
-
-impl Image {
-    pub fn ignores(&self) -> Option<&Vec<String>> {
-        self.ignore.as_ref()
-    }
-}
 
 #[cfg(test)]
 mod tests {

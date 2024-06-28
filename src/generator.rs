@@ -44,32 +44,30 @@ impl DockerfileGenerator for CopyResources {
 
 impl DockerfileGenerator for Copy {
     fn to_dockerfile_content(&self) -> Result<String> {
-        let paths = self.paths.join(" ");
+        let paths = self.paths.clone().to_vec().join(" ");
         let target = self.target.clone().unwrap_or("./".to_string());
         let mut options = String::new();
         push_conditional_str_option(&mut options, "from", &self.from);
         push_chown_option(&mut options, &self.chown);
         push_conditional_str_option(&mut options, "chmod", &self.chmod);
         if let Some(exclude) = &self.exclude {
-            for path in exclude {
-                push_str_option(&mut options, "exclude", path);
+            for path in exclude.clone().to_vec() {
+                push_str_option(&mut options, "exclude", &path);
             }
         }
-        push_bool_option(&mut options, "link", &self.link);
+        push_bool_option(&mut options, "link", &self.link.unwrap_or(true));
         push_conditional_bool_option(&mut options, "parents", &self.parents);
-        Ok(format!("COPY{options} {paths}{target}"))
+        Ok(format!("COPY{options} {paths} {target}"))
     }
 }
 
 impl DockerfileGenerator for AddSimple {
     fn to_dockerfile_content(&self) -> Result<String> {
-        let urls = self.urls.join(" ");
+        let urls = self.urls.clone().to_vec().join(" ");
         let mut options = String::new();
         push_chown_option(&mut options, &self.chown);
         push_conditional_str_option(&mut options, "chmod", &self.chmod);
-        if self.link {
-            options.push_str(" --link");
-        }
+        push_bool_option(&mut options, "link", &self.link.unwrap_or(true));
         Ok(format!(
             "ADD{options} {urls} {target}",
             target = self.target.clone().unwrap_or(".".to_string())
@@ -83,14 +81,11 @@ impl DockerfileGenerator for AddGitRepo {
         push_chown_option(&mut options, &self.chown);
         push_conditional_str_option(&mut options, "chmod", &self.chmod);
         if let Some(exclude) = &self.exclude {
-            for path in exclude {
-                options.push_str(" --exclude=");
-                options.push_str(path);
+            for path in exclude.clone().to_vec() {
+                push_str_option(&mut options, "exclude", &path);
             }
         }
-        if self.link {
-            options.push_str(" --link");
-        }
+        push_bool_option(&mut options, "link", &self.link.unwrap_or(true));
         Ok(format!(
             "ADD{options} {repo} {target}",
             repo = self.repo,
