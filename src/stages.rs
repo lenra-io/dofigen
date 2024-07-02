@@ -1,12 +1,14 @@
 use std::io::Result;
 
 use crate::{
+    generator::DockerfileGenerator,
     runners::ScriptRunner,
     structs::{Builder, Image},
 };
 
 pub trait StageGenerator: ScriptRunner {
     fn name(&self, position: i32) -> String;
+    fn from(&self) -> String;
     fn user(&self) -> Option<String>;
     fn additionnal_generation(&self, _buffer: &mut String) {}
 }
@@ -21,6 +23,11 @@ impl StageGenerator for Builder {
             None => format!("builder-{}", position),
         }
     }
+    fn from(&self) -> String {
+        self.from
+            .to_dockerfile_content()
+            .expect("Error while generating the From field")
+    }
     fn user(&self) -> Option<String> {
         self.user.clone()
     }
@@ -30,18 +37,30 @@ impl StageGenerator for Image {
     fn name(&self, _position: i32) -> String {
         String::from("runtime")
     }
+    fn from(&self) -> String {
+        self.from
+            .as_ref()
+            .map(|image_name| {
+                image_name
+                    .to_dockerfile_content()
+                    .expect("Error while generating the From field")
+            })
+            .unwrap_or(String::from("scratch"))
+    }
     fn user(&self) -> Option<String> {
         match self.user.as_ref() {
             Some(user) => Some(user.to_string()),
-            None => match self.from.as_str() {
-                "scratch" => None,
-                _ => Some(String::from("1000")),
+            None => match self.from.is_some() {
+                false => None,
+                true => Some(String::from("1000")),
             },
         }
     }
     fn additionnal_generation(&self, buffer: &mut String) {
         if let Some(ports) = &self.expose {
             ports
+                .clone()
+                .to_vec()
                 .iter()
                 .for_each(|port| buffer.push_str(format!("EXPOSE {}\n", port).as_str()));
         }
@@ -62,16 +81,10 @@ impl StageGenerator for Image {
             buffer.push_str(format!("CMD {}\n", healthcheck.cmd).as_str());
         }
         if let Some(ref entrypoint) = self.entrypoint {
-            buffer.push_str(
-                format!(
-                    "ENTRYPOINT {}\n",
-                    serde_json::to_string(entrypoint).unwrap()
-                )
-                .as_str(),
-            );
+            buffer.push_str(format!("ENTRYPOINT {}\n", string_vec_to_string(entrypoint)).as_str());
         }
         if let Some(ref cmd) = self.cmd {
-            buffer.push_str(format!("CMD {}\n", serde_json::to_string(cmd).unwrap()).as_str());
+            buffer.push_str(format!("CMD {}\n", string_vec_to_string(cmd)).as_str());
         }
     }
 }
@@ -81,7 +94,7 @@ macro_rules! impl_Stage {
         $(impl Stage for $t {
             fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
                 let name = self.name(previous_builders.len().try_into().unwrap());
-                buffer.push_str(format!("\n# {}\nFROM {} AS {}\n", name, self.from, name).as_str());
+                buffer.push_str(format!("\n# {}\nFROM {} AS {}\n", name, self.from(), name).as_str());
 
                 // Set env variables
                 if let Some(ref envs) = self.env {
@@ -98,10 +111,16 @@ macro_rules! impl_Stage {
                 }
 
                 // Add sources
-                if let Some(ref adds) = self.add {
-                    adds.iter()
-                        .map(|add| format!("ADD --link {} ./\n", add))
-                        .for_each(|add| buffer.push_str(&add.as_str()));
+                if let Some(ref adds) = self.copy {
+                    adds
+                    .clone()
+                    .to_vec()
+                    .iter()
+                        .map(|add| add.to_dockerfile_content().expect("Error while generating the COPY/ADD field"))
+                        .for_each(|add| {
+                            buffer.push_str(&add.as_str());
+                    buffer.push_str("\n");
+                    });
                 }
 
                 // Copy build artifacts
@@ -144,7 +163,7 @@ macro_rules! impl_Stage {
                 let user: Option<String> = match self.user() {
                     Some(u) => Some(u),
                     None => {
-                        if is_root && has_script && self.from != "scratch" {
+                        if is_root && has_script {
                             Some(String::from("1000"))
                         } else {
                             None
@@ -171,14 +190,21 @@ macro_rules! impl_Stage {
 
 impl_Stage!(for Builder, Image);
 
-impl Image {
-    pub fn ignores(&self) -> Option<&Vec<String>> {
-        self.ignore.as_ref()
-    }
+fn string_vec_to_string(string_vec: &Vec<String>) -> String {
+    format!(
+        "[{}]",
+        string_vec
+            .iter()
+            .map(|s| format!("\"{}\"", s))
+            .collect::<Vec<String>>()
+            .join(", ")
+    )
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::ImageName;
+
     use super::*;
 
     #[test]
@@ -220,7 +246,10 @@ mod tests {
     #[test]
     fn test_image_name() {
         let image = Image {
-            from: String::from("my-image"),
+            from: Some(ImageName {
+                path: String::from("my-image"),
+                ..Default::default()
+            }),
             ..Default::default()
         };
         let position = 3;
@@ -232,7 +261,10 @@ mod tests {
     fn test_image_user_with_user() {
         let image = Image {
             user: Some(String::from("my-user")),
-            from: String::from("my-image"),
+            from: Some(ImageName {
+                path: String::from("my-image"),
+                ..Default::default()
+            }),
             ..Default::default()
         };
         let user = image.user();
@@ -242,7 +274,10 @@ mod tests {
     #[test]
     fn test_image_user_without_user() {
         let image = Image {
-            from: String::from("my-image"),
+            from: Some(ImageName {
+                path: String::from("my-image"),
+                ..Default::default()
+            }),
             ..Default::default()
         };
         let user = image.user();

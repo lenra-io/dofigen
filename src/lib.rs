@@ -3,7 +3,9 @@
 //! `dofigen_lib` help creating Dockerfile with a simplified structure and made to cache the build with Buildkit.
 //! You also can parse the structure from YAML or JSON.
 
+mod deserialize;
 mod errors;
+mod generator;
 mod runners;
 mod stages;
 mod structs;
@@ -24,16 +26,19 @@ const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 /// Basic parsing
 ///
 /// ```
-/// use dofigen_lib::{from, Image};
+/// use dofigen_lib::*;
 ///
 /// let yaml = "
-/// image: scratch
+/// image: ubuntu
 /// ";
 /// let image: Image = from(yaml.to_string()).unwrap();
 /// assert_eq!(
 ///     image,
 ///     Image {
-///         from: String::from("scratch"),
+///         from: Some(ImageName {
+///             path: String::from("ubuntu"),
+///             ..Default::default()
+///         }),
 ///         ..Default::default()
 ///     }
 /// );
@@ -52,7 +57,7 @@ const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 ///       - "*"
 ///     run:
 ///       - cargo build --release
-/// from: scratch
+/// from: ubuntu
 /// artifacts:
 ///   - builder: builder
 ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
@@ -69,7 +74,10 @@ const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 ///             run: Some(Vec::from([String::from("cargo build --release")])),
 ///             ..Default::default()
 ///         }])),
-///         from: String::from("scratch"),
+///         from: Some(ImageName {
+///             path: String::from("ubuntu"),
+///             ..Default::default()
+///         }),
 ///         artifacts: Some(Vec::from([Artifact {
 ///             builder: String::from("builder"),
 ///             source: String::from(
@@ -83,7 +91,7 @@ const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 /// );
 /// ```
 pub fn from(input: String) -> Result<Image> {
-    serde_yaml::from_str(&input).map_err(|err| Error::DeserializeYaml(err))
+    serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))
 }
 
 /// Parse an Image from a reader.
@@ -93,16 +101,19 @@ pub fn from(input: String) -> Result<Image> {
 /// Basic parsing
 ///
 /// ```
-/// use dofigen_lib::{from_reader, Image};
+/// use dofigen_lib::*;
 ///
 /// let yaml = "
-/// image: scratch
+/// image: ubuntu
 /// ";
 /// let image: Image = from_reader(yaml.as_bytes()).unwrap();
 /// assert_eq!(
 ///     image,
 ///     Image {
-///         from: String::from("scratch"),
+///         from: Some(ImageName {
+///             path: String::from("ubuntu"),
+///             ..Default::default()
+///         }),
 ///         ..Default::default()
 ///     }
 /// );
@@ -111,7 +122,7 @@ pub fn from(input: String) -> Result<Image> {
 /// Basic parsing
 ///
 /// ```
-/// use dofigen_lib::{from_reader, Image, Builder, Artifact};
+/// use dofigen_lib::*;
 ///
 /// let yaml = r#"
 /// builders:
@@ -121,7 +132,7 @@ pub fn from(input: String) -> Result<Image> {
 ///       - "*"
 ///     run:
 ///       - cargo build --release
-/// from: scratch
+/// from: ubuntu
 /// artifacts:
 ///   - builder: builder
 ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
@@ -138,7 +149,10 @@ pub fn from(input: String) -> Result<Image> {
 ///             run: Some(Vec::from([String::from("cargo build --release")])),
 ///             ..Default::default()
 ///         }])),
-///         from: String::from("scratch"),
+///         from: Some(ImageName {
+///             path: String::from("ubuntu"),
+///             ..Default::default()
+///         }),
 ///         artifacts: Some(Vec::from([Artifact {
 ///             builder: String::from("builder"),
 ///             source: String::from(
@@ -152,7 +166,7 @@ pub fn from(input: String) -> Result<Image> {
 /// );
 /// ```
 pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
-    serde_yaml::from_reader(reader).map_err(|err| Error::DeserializeYaml(err))
+    serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))
 }
 
 /// Parse an Image from a YAML or JSON file path.
@@ -161,7 +175,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
     match path.extension() {
         Some(os_str) => match os_str.to_str() {
             Some("yml" | "yaml" | "json") => {
-                serde_yaml::from_reader(file).map_err(|err| Error::DeserializeYaml(err))
+                serde_yaml::from_reader(file).map_err(|err| Error::Deserialize(err))
             }
             Some(ext) => Err(Error::Custom(format!(
                 "Not managed Dofigen file extension {}",
@@ -181,13 +195,16 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
 /// use dofigen_lib::{generate_dockerfile, Image};
 ///
 /// let image = Image {
-///     from: String::from("scratch"),
+///     from: ImageName {
+///         path: String::from("ubuntu"),
+///         ..Default::default()
+///     },
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerfile(&image);
 /// assert_eq!(
 ///     dockerfile,
-///     "# This file is generated by Dofigen v0.0.0\n# https://github.com/lenra-io/dofigen\n\n# syntax=docker/dockerfile:1.4\n\n# runtime\nFROM scratch AS runtime\n"
+///     "# This file is generated by Dofigen v0.0.0\n# https://github.com/lenra-io/dofigen\n\n# syntax=docker/dockerfile:1.4\n\n# runtime\nFROM ubuntu AS runtime\n"
 /// );
 /// ```
 pub fn generate_dockerfile(image: &Image) -> String {
@@ -280,14 +297,14 @@ pub fn generate_dockerignore(image: &Image) -> String {
 
     if let Some(context) = image.context.clone() {
         content.push_str("**\n");
-        context.iter().for_each(|path| {
+        context.to_vec().iter().for_each(|path| {
             content.push_str("!");
             content.push_str(path);
             content.push_str("\n");
         });
     }
     if let Some(ignore) = image.ignore.clone() {
-        ignore.iter().for_each(|path| {
+        ignore.to_vec().iter().for_each(|path| {
             content.push_str(path);
             content.push_str("\n");
         });
@@ -356,7 +373,7 @@ mod tests {
 
 # builder
 FROM ekidd/rust-musl-builder AS builder
-ADD --link . ./
+COPY --link . ./
 USER rust
 RUN \
     --mount=type=cache,sharing=locked,uid=1000,gid=1000,target=/usr/local/cargo/registry \
@@ -372,6 +389,7 @@ ENV \
     fprocess="/app"
 COPY --link --chown=1000:1000 --from=builder "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust" "/app"
 COPY --link --chown=1000:1000 --from=builder "/fwatchdog" "/fwatchdog"
+USER 1000
 EXPOSE 8080
 HEALTHCHECK --interval=3s CMD [ -e /tmp/.lock ] || exit 1
 CMD ["/fwatchdog"]
@@ -393,7 +411,6 @@ builders:
   - "*"
   script:
   - cargo build --release
-image: scratch
 artifacts:
 - builder: builder
   source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
@@ -403,14 +420,19 @@ artifacts:
         assert_eq!(
             image,
             Image {
-                builders: Some(Vec::from([Builder {
+                builders: Some(vec![Builder {
                     name: Some(String::from("builder")),
-                    from: String::from("ekidd/rust-musl-builder"),
-                    add: Some(Vec::from([String::from("*")])),
-                    run: Some(Vec::from([String::from("cargo build --release")])),
+                    from: ImageName {
+                        path: String::from("ekidd/rust-musl-builder"),
+                        ..Default::default()
+                    },
+                    copy: Some(vec![CopyResources::Copy(Copy {
+                        paths: vec![String::from("*")],
+                        ..Default::default()
+                    })]),
+                    run: Some(vec![String::from("cargo build --release")]),
                     ..Default::default()
-                }])),
-                from: String::from("scratch"),
+                }]),
                 artifacts: Some(Vec::from([Artifact {
                     builder: String::from("builder"),
                     source: String::from(
@@ -446,6 +468,7 @@ run:
 
 # runtime
 FROM scratch AS runtime
+USER 1000
 RUN \
     if [ "test" = "test" ]; then \
       echo "Test" \
@@ -482,7 +505,7 @@ test: Fake value
         // Check the error message
         let error = result.unwrap_err();
         assert!(error.to_string().starts_with(
-            "Error while deserializing the YAML document: unknown field `test`, expected one of "
+            "Error while deserializing the document: unknown field `test`, expected one of "
         ),"Wrong error message");
     }
 
