@@ -16,16 +16,14 @@ impl DockerfileGenerator for ImageName {
             registry.push_str("/");
         }
         let mut version = String::new();
-        if let Some(v) = &self.version {
-            match v {
-                ImageVersion::Tag(tag) => {
-                    version.push_str(":");
-                    version.push_str(tag);
-                }
-                ImageVersion::Digest(digest) => {
-                    version.push_str("@");
-                    version.push_str(digest);
-                }
+        match &self.version {
+            ImageVersion::Tag(tag) => {
+                version.push_str(":");
+                version.push_str(tag);
+            }
+            ImageVersion::Digest(digest) => {
+                version.push_str("@");
+                version.push_str(digest);
             }
         }
         Ok(format!("{registry}{path}{version}", path = self.path))

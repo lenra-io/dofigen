@@ -3,44 +3,7 @@ use schemars::JsonSchema;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(untagged)]
-pub enum OneOrMany<T> {
-    One(T),
-    Vec(Vec<T>),
-}
-
-impl<T> OneOrMany<T> {
-    pub fn to_vec(self) -> Vec<T> {
-        match self {
-            OneOrMany::One(t) => vec![t],
-            OneOrMany::Vec(v) => v,
-        }
-    }
-}
-
-impl From<Vec<String>> for OneOrMany<String> {
-    fn from(v: Vec<String>) -> Self {
-        OneOrMany::Vec(v)
-    }
-}
-
-impl<T> Into<Vec<T>> for OneOrMany<T> {
-    fn into(self) -> Vec<T> {
-        match self {
-            OneOrMany::One(t) => vec![t],
-            OneOrMany::Vec(v) => v,
-        }
-    }
-}
-
-impl<T> Default for OneOrMany<T> {
-    fn default() -> Self {
-        OneOrMany::Vec(Vec::new())
-    }
-}
+use crate::deserialize::{StringOrStruct, deserialize_optional_one_or_many};
 
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -55,22 +18,22 @@ pub struct Image {
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(alias = "add", alias = "adds")]
-    pub copy: Option<OneOrMany<CopyResources>>,
+    #[serde(alias = "add", alias = "adds", deserialize_with = "deserialize_optional_one_or_many")]
+    pub copy: Option<Vec<CopyResources>>,
     pub root: Option<Root>,
     #[serde(alias = "script")]
-    pub run: Option<OneOrMany<String>>,
+    pub run: Option<Vec<String>>,
     #[serde(alias = "caches")]
-    pub cache: Option<OneOrMany<String>>,
+    pub cache: Option<Vec<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
-    pub context: Option<OneOrMany<String>>,
+    pub context: Option<Vec<String>>,
     #[serde(alias = "ignores")]
-    pub ignore: Option<OneOrMany<String>>,
-    pub entrypoint: Option<OneOrMany<String>>,
-    pub cmd: Option<OneOrMany<String>>,
+    pub ignore: Option<Vec<String>>,
+    pub entrypoint: Option<Vec<String>>,
+    pub cmd: Option<Vec<String>>,
     #[serde(alias = "ports")]
-    pub expose: Option<OneOrMany<u16>>,
+    pub expose: Option<Vec<u16>>,
     pub healthcheck: Option<Healthcheck>,
 }
 
@@ -87,12 +50,12 @@ pub struct Builder {
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
     #[serde(alias = "add", alias = "adds")]
-    pub copy: Option<OneOrMany<CopyResources>>,
+    pub copy: Option<Vec<CopyResources>>,
     pub root: Option<Root>,
     #[serde(alias = "script")]
-    pub run: Option<OneOrMany<String>>,
+    pub run: Option<Vec<String>>,
     #[serde(alias = "caches")]
-    pub cache: Option<OneOrMany<String>>,
+    pub cache: Option<Vec<String>>,
     // Specific part
     pub name: Option<String>,
 }
@@ -110,9 +73,9 @@ pub struct Artifact {
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Root {
     #[serde(alias = "script")]
-    pub run: Option<OneOrMany<String>>,
+    pub run: Option<Vec<String>>,
     #[serde(alias = "caches")]
-    pub cache: Option<OneOrMany<String>>,
+    pub cache: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -125,13 +88,14 @@ pub struct Healthcheck {
     pub retries: Option<u16>,
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(from = "StringOrStruct<ImageName>")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ImageName {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub path: String,
-    pub version: Option<ImageVersion>,
+    pub version: ImageVersion,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -141,7 +105,8 @@ pub enum ImageVersion {
     Digest(String),
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(from = "StringOrStruct<CopyResources>")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum CopyResources {
     Copy(Copy),
@@ -154,14 +119,14 @@ pub enum CopyResources {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
-    pub paths: OneOrMany<String>,
+    pub paths: Vec<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chown: Option<Chown>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    pub exclude: Option<OneOrMany<String>>,
+    pub exclude: Option<Vec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
     pub link: Option<bool>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---parents
@@ -182,7 +147,7 @@ pub struct AddGitRepo {
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    pub exclude: Option<OneOrMany<String>>,
+    pub exclude: Option<Vec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
     pub link: Option<bool>,
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
@@ -194,7 +159,7 @@ pub struct AddGitRepo {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct AddSimple {
-    pub urls: OneOrMany<String>,
+    pub urls: Vec<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chown: Option<Chown>,

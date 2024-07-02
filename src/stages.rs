@@ -81,16 +81,10 @@ impl StageGenerator for Image {
             buffer.push_str(format!("CMD {}\n", healthcheck.cmd).as_str());
         }
         if let Some(ref entrypoint) = self.entrypoint {
-            buffer.push_str(
-                format!(
-                    "ENTRYPOINT {}\n",
-                    serde_json::to_string(entrypoint).unwrap()
-                )
-                .as_str(),
-            );
+            buffer.push_str(format!("ENTRYPOINT {}\n", string_vec_to_string(entrypoint)).as_str());
         }
         if let Some(ref cmd) = self.cmd {
-            buffer.push_str(format!("CMD {}\n", serde_json::to_string(cmd).unwrap()).as_str());
+            buffer.push_str(format!("CMD {}\n", string_vec_to_string(cmd)).as_str());
         }
     }
 }
@@ -195,6 +189,17 @@ macro_rules! impl_Stage {
 }
 
 impl_Stage!(for Builder, Image);
+
+fn string_vec_to_string(string_vec: &Vec<String>) -> String {
+    format!(
+        "[{}]",
+        string_vec
+            .iter()
+            .map(|s| format!("\"{}\"", s))
+            .collect::<Vec<String>>()
+            .join(", ")
+    )
+}
 
 #[cfg(test)]
 mod tests {

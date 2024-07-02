@@ -3,11 +3,11 @@
 //! `dofigen_lib` help creating Dockerfile with a simplified structure and made to cache the build with Buildkit.
 //! You also can parse the structure from YAML or JSON.
 
+mod deserialize;
 mod errors;
 mod generator;
 mod runners;
 mod stages;
-mod string_parser;
 mod structs;
 pub use errors::*;
 #[cfg(feature = "json_schema")]
@@ -91,7 +91,7 @@ const REPO: &str = env!("CARGO_PKG_REPOSITORY");
 /// );
 /// ```
 pub fn from(input: String) -> Result<Image> {
-    serde_yaml::from_str(&input).map_err(|err| Error::DeserializeYaml(err))
+    serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))
 }
 
 /// Parse an Image from a reader.
@@ -166,7 +166,7 @@ pub fn from(input: String) -> Result<Image> {
 /// );
 /// ```
 pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
-    serde_yaml::from_reader(reader).map_err(|err| Error::DeserializeYaml(err))
+    serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))
 }
 
 /// Parse an Image from a YAML or JSON file path.
@@ -175,7 +175,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
     match path.extension() {
         Some(os_str) => match os_str.to_str() {
             Some("yml" | "yaml" | "json") => {
-                serde_yaml::from_reader(file).map_err(|err| Error::DeserializeYaml(err))
+                serde_yaml::from_reader(file).map_err(|err| Error::Deserialize(err))
             }
             Some(ext) => Err(Error::Custom(format!(
                 "Not managed Dofigen file extension {}",
@@ -426,11 +426,11 @@ artifacts:
                         path: String::from("ekidd/rust-musl-builder"),
                         ..Default::default()
                     },
-                    copy: Some(OneOrMany::Vec(vec![CopyResources::Copy(Copy {
-                        paths: OneOrMany::One(String::from("*")),
+                    copy: Some(vec![CopyResources::Copy(Copy {
+                        paths: vec![String::from("*")],
                         ..Default::default()
-                    })])),
-                    run: Some(OneOrMany::Vec(vec![String::from("cargo build --release")])),
+                    })]),
+                    run: Some(vec![String::from("cargo build --release")]),
                     ..Default::default()
                 }]),
                 artifacts: Some(Vec::from([Artifact {
@@ -505,7 +505,7 @@ test: Fake value
         // Check the error message
         let error = result.unwrap_err();
         assert!(error.to_string().starts_with(
-            "Error while deserializing the YAML document: unknown field `test`, expected one of "
+            "Error while deserializing the document: unknown field `test`, expected one of "
         ),"Wrong error message");
     }
 
