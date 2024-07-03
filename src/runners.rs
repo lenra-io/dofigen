@@ -1,4 +1,7 @@
-use crate::structs::{Builder, Image, Root};
+use crate::{
+    generator::GenerationContext,
+    structs::{Builder, Image, Root},
+};
 
 pub trait ScriptRunner {
     fn script(&self) -> Option<&Vec<String>>;
@@ -9,7 +12,7 @@ pub trait ScriptRunner {
         }
         false
     }
-    fn add_script(&self, buffer: &mut String, uid: u16, gid: u16) {
+    fn add_script(&self, buffer: &mut String, context: &GenerationContext) {
         if !self.has_script() {
             return;
         }
@@ -28,9 +31,20 @@ pub trait ScriptRunner {
                     .to_vec()
                     .iter()
                     .map(|path| {
+                        let uid: String = if let Some(uid) = context
+                            .user
+                            .clone()
+                            .map(|uid| uid.parse::<u16>().ok())
+                            .flatten()
+                        {
+                            format!(",uid={}", uid)
+                        } else {
+                            String::new()
+                        };
                         format!(
-                            "--mount=type=cache,sharing=locked,uid={},gid={},target={}",
-                            uid, gid, path
+                            "--mount=type=cache,sharing=locked{uid},target={target}",
+                            uid = uid,
+                            target = path
                         )
                     })
                     .collect::<Vec<String>>(),
@@ -105,10 +119,30 @@ mod tests {
             cache: Some(vec!["/path/to/cache".to_string()]),
             ..Default::default()
         };
-        builder.add_script(&mut buffer, 1000, 1000);
+        builder.add_script(&mut buffer, &GenerationContext::default());
         assert_eq!(
             buffer,
-            "RUN \\\n    --mount=type=cache,sharing=locked,uid=1000,gid=1000,target=/path/to/cache \\\n    echo Hello\n"
+            "RUN \\\n    --mount=type=cache,sharing=locked,target=/path/to/cache \\\n    echo Hello\n"
+        );
+    }
+
+    #[test]
+    fn test_add_script_with_script_and_caches_with_user() {
+        let mut buffer = String::new();
+        let builder = Builder {
+            run: Some(vec!["echo Hello".to_string()]),
+            cache: Some(vec!["/path/to/cache".to_string()]),
+            ..Default::default()
+        };
+        builder.add_script(
+            &mut buffer,
+            &GenerationContext {
+                user: Some("1000".to_string()),
+            },
+        );
+        assert_eq!(
+            buffer,
+            "RUN \\\n    --mount=type=cache,sharing=locked,uid=1000,target=/path/to/cache \\\n    echo Hello\n"
         );
     }
 
@@ -119,7 +153,7 @@ mod tests {
             run: Some(vec!["echo Hello".to_string()]),
             ..Default::default()
         };
-        builder.add_script(&mut buffer, 1000, 1000);
+        builder.add_script(&mut buffer, &GenerationContext::default());
         assert_eq!(buffer, "RUN \\\n    echo Hello\n");
     }
 
@@ -129,7 +163,7 @@ mod tests {
         let builder = Builder {
             ..Default::default()
         };
-        builder.add_script(&mut buffer, 1000, 1000);
+        builder.add_script(&mut buffer, &GenerationContext::default());
         assert_eq!(buffer, "");
     }
 
@@ -140,7 +174,7 @@ mod tests {
             run: Some(vec![]),
             ..Default::default()
         };
-        builder.add_script(&mut buffer, 1000, 1000);
+        builder.add_script(&mut buffer, &GenerationContext::default());
         assert_eq!(buffer, "");
     }
 }

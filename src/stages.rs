@@ -1,19 +1,24 @@
-use std::io::Result;
-
 use crate::{
-    generator::DockerfileGenerator,
+    generator::{DockerfileGenerator, GenerationContext},
     runners::ScriptRunner,
     structs::{Builder, Image},
+    Result,
 };
 
 pub trait StageGenerator: ScriptRunner {
     fn name(&self, position: i32) -> String;
-    fn from(&self) -> String;
-    fn user(&self) -> Option<String>;
-    fn additionnal_generation(&self, _buffer: &mut String) {}
+    fn from(&self, context: &GenerationContext) -> Result<String>;
+    fn user(&self, context: &GenerationContext) -> Option<String>;
+    fn additionnal_generation(&self, _context: &GenerationContext) -> Result<String> {
+        Ok("".to_string())
+    }
 }
 pub trait Stage: StageGenerator {
-    fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()>;
+    fn generate(
+        &self,
+        previous_builders: &mut Vec<String>,
+        context: &GenerationContext,
+    ) -> Result<String>;
 }
 
 impl StageGenerator for Builder {
@@ -23,13 +28,12 @@ impl StageGenerator for Builder {
             None => format!("builder-{}", position),
         }
     }
-    fn from(&self) -> String {
-        self.from
-            .to_dockerfile_content()
-            .expect("Error while generating the From field")
+    fn from(&self, context: &GenerationContext) -> Result<String> {
+        self.from.to_dockerfile_content(context)
     }
-    fn user(&self) -> Option<String> {
-        self.user.clone()
+
+    fn user(&self, context: &GenerationContext) -> Option<String> {
+        self.user.clone().or(context.user.clone())
     }
 }
 
@@ -37,26 +41,18 @@ impl StageGenerator for Image {
     fn name(&self, _position: i32) -> String {
         String::from("runtime")
     }
-    fn from(&self) -> String {
-        self.from
-            .as_ref()
-            .map(|image_name| {
-                image_name
-                    .to_dockerfile_content()
-                    .expect("Error while generating the From field")
-            })
-            .unwrap_or(String::from("scratch"))
-    }
-    fn user(&self) -> Option<String> {
-        match self.user.as_ref() {
-            Some(user) => Some(user.to_string()),
-            None => match self.from.is_some() {
-                false => None,
-                true => Some(String::from("1000")),
-            },
+    fn from(&self, context: &GenerationContext) -> Result<String> {
+        if let Some(image_name) = &self.from {
+            image_name.to_dockerfile_content(context)
+        } else {
+            Ok(String::from("scratch"))
         }
     }
-    fn additionnal_generation(&self, buffer: &mut String) {
+    fn user(&self, _context: &GenerationContext) -> Option<String> {
+        self.user.clone().or(Some(String::from("1000")))
+    }
+    fn additionnal_generation(&self, _context: &GenerationContext) -> Result<String> {
+        let mut buffer = String::new();
         if let Some(ports) = &self.expose {
             ports
                 .clone()
@@ -86,15 +82,22 @@ impl StageGenerator for Image {
         if let Some(ref cmd) = self.cmd {
             buffer.push_str(format!("CMD {}\n", string_vec_to_string(cmd)).as_str());
         }
+        Ok(buffer)
     }
 }
 
 macro_rules! impl_Stage {
     (for $($t:ty),+) => {
         $(impl Stage for $t {
-            fn generate(&self, buffer: &mut String, previous_builders: &mut Vec<String>) -> Result<()> {
+            fn generate(&self, previous_builders: &mut Vec<String>, context: &GenerationContext) -> Result<String> {
+                let mut buffer = String::new();
+                let user = self.user(context);
+                let context = &GenerationContext {
+                    user: user.clone(),
+                    ..context.clone()
+                };
                 let name = self.name(previous_builders.len().try_into().unwrap());
-                buffer.push_str(format!("\n# {}\nFROM {} AS {}\n", name, self.from(), name).as_str());
+                buffer.push_str(format!("\n# {}\nFROM {} AS {}\n", name, self.from(context)?, name).as_str());
 
                 // Set env variables
                 if let Some(ref envs) = self.env {
@@ -112,15 +115,13 @@ macro_rules! impl_Stage {
 
                 // Add sources
                 if let Some(ref adds) = self.copy {
-                    adds
+                    buffer.push_str(adds
                     .clone()
                     .to_vec()
                     .iter()
-                        .map(|add| add.to_dockerfile_content().expect("Error while generating the COPY/ADD field"))
-                        .for_each(|add| {
-                            buffer.push_str(&add.as_str());
-                    buffer.push_str("\n");
-                    });
+                    .map(|add| add.to_dockerfile_content(context).map(|add| format!("{}\n", add)))
+                    .collect::<Result<Vec<String>>>()?
+                    .join("").as_str());
                 }
 
                 // Copy build artifacts
@@ -135,7 +136,8 @@ macro_rules! impl_Stage {
                                 )
                             }
                             format!(
-                                "COPY --link --chown=1000:1000 --from={builder} \"{source}\" \"{target}\"\n",
+                                "COPY --link --chown={chown} --from={builder} \"{source}\" \"{target}\"\n",
+                                chown = context.user.clone().unwrap_or("1000:1000".to_string()),
                                 builder = artifact.builder,
                                 source = artifact.source,
                                 target = artifact.target
@@ -145,44 +147,30 @@ macro_rules! impl_Stage {
                 }
 
                 // Root script
-                let is_root = if let Some(root) = &self.root {
+                if let Some(root) = &self.root {
                     if root.has_script() {
                         buffer.push_str("USER 0\n");
-                        root.add_script(buffer, 0, 0);
-                        true
+                        root.add_script(&mut buffer, &GenerationContext {
+                            user: Some("0".to_string()),
+                            ..context.clone()
+                        });
                     }
-                    else {
-                    false
-                    }
-                } else {
-                    false
                 };
 
                 // Runtime user
-                let has_script = self.has_script();
-                let user: Option<String> = match self.user() {
-                    Some(u) => Some(u),
-                    None => {
-                        if is_root && has_script {
-                            Some(String::from("1000"))
-                        } else {
-                            None
-                        }
-                    }
-                };
-                if user.is_some() {
-                    buffer.push_str(format!("USER {}\n", user.unwrap()).as_str());
+                if let Some(user) = user {
+                    buffer.push_str(format!("USER {}\n", user).as_str());
                 }
 
                 // Script
-                if has_script {
-                    self.add_script(buffer, 1000, 1000);
+                if self.has_script() {
+                    self.add_script(&mut buffer, context);
                 }
 
-                self.additionnal_generation(buffer);
+                buffer.push_str(self.additionnal_generation(context)?.as_str());
 
                 previous_builders.push(name);
-                Ok(())
+                Ok(buffer)
             }
         })*
     }
@@ -232,14 +220,14 @@ mod tests {
             user: Some(String::from("my-user")),
             ..Default::default()
         };
-        let user = builder.user();
+        let user = builder.user(&GenerationContext::default());
         assert_eq!(user, Some(String::from("my-user")));
     }
 
     #[test]
     fn test_builder_user_without_user() {
         let builder = Builder::default();
-        let user = builder.user();
+        let user = builder.user(&GenerationContext::default());
         assert_eq!(user, None);
     }
 
@@ -267,7 +255,7 @@ mod tests {
             }),
             ..Default::default()
         };
-        let user = image.user();
+        let user = image.user(&GenerationContext::default());
         assert_eq!(user, Some(String::from("my-user")));
     }
 
@@ -280,7 +268,7 @@ mod tests {
             }),
             ..Default::default()
         };
-        let user = image.user();
+        let user = image.user(&GenerationContext::default());
         assert_eq!(user, Some(String::from("1000")));
     }
 }

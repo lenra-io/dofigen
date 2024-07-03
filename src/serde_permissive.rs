@@ -43,7 +43,6 @@ where
         where
             D: Deserializer<'de>,
         {
-            println!("optional one or many from some");
             let value: Vec<T> = deserialize_one_or_many(deserializer)?;
             Ok(Some(value))
         }
@@ -82,7 +81,6 @@ where
         where
             E: DeError,
         {
-            println!("one or many from str");
             let value: T = Deserialize::deserialize(de::value::StrDeserializer::new(v))?;
             Ok(vec![value])
         }
@@ -91,7 +89,6 @@ where
         where
             A: MapAccess<'de>,
         {
-            println!("one or many from map");
             let value: T = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
             Ok(vec![value])
         }
@@ -100,7 +97,6 @@ where
         where
             A: de::SeqAccess<'de>,
         {
-            println!("one or many from seq");
             Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))
         }
     }
