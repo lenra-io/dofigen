@@ -24,12 +24,13 @@ required-features = ["cli"]
 
 [features]
 cli = ["clap"]
-json_schema = ["schemars"]
+json_schema = ["schemars", "serde_json"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 serde_yaml = "0.9.34"
+serde_json = { version = "1.0.120", optional = true }
 thiserror = "1.0.62"
 clap = { version = "4.5", features = ["derive"], optional = true }
 schemars = { version = "0.8.21", optional = true }
+regex = "1.10.5"
