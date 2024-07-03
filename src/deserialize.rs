@@ -33,9 +33,17 @@ impl FromStr for Copy {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let mut parts: Vec<String> = s.split(" ").map(|s| s.to_string()).collect();
+        let len = parts.len();
+        let target = if len > 1 {
+            let last = parts.split_off(len - 1);
+            Some(last[0].clone())
+        } else {
+            None
+        };
         Ok(Copy {
-            paths: vec![s.into()],
-            target: None,
+            paths: parts.clone(),
+            target: target,
             chown: None,
             chmod: None,
             exclude: None,
@@ -164,75 +172,33 @@ mod test_from_str {
             assert!(result.from.is_none());
         }
 
-        // #[test]
-        // fn with_target_option() {
-        //     let input = "src /app";
-        //     let result = Copy::from_str(input).unwrap();
-        //     assert_eq!(result.paths, vec!["src".to_string()]);
-        //     assert_eq!(result.target, Some("/app".to_string()));
-        //     assert!(result.chown.is_none());
-        //     assert!(result.chmod.is_none());
-        //     assert!(result.exclude.is_none());
-        //     assert!(result.link.is_none());
-        //     assert!(result.parents.is_none());
-        //     assert!(result.from.is_none());
-        // }
+        #[test]
+        fn with_target_option() {
+            let input = "src /app";
+            let result = Copy::from_str(input).unwrap();
+            assert_eq!(result.paths, vec!["src".to_string()]);
+            assert_eq!(result.target, Some("/app".to_string()));
+            assert!(result.chown.is_none());
+            assert!(result.chmod.is_none());
+            assert!(result.exclude.is_none());
+            assert!(result.link.is_none());
+            assert!(result.parents.is_none());
+            assert!(result.from.is_none());
+        }
 
-        // #[test]
-        // fn with_multiple_sources_and_target() {
-        //     let input = "src1 src2 /app";
-        //     let result = Copy::from_str(input).unwrap();
-        //     assert_eq!(result.paths, vec!["src1".to_string(), "src2".to_string()]);
-        //     assert_eq!(result.target, Some("/app".to_string()));
-        //     assert!(result.chown.is_none());
-        //     assert!(result.chmod.is_none());
-        //     assert!(result.exclude.is_none());
-        //     assert!(result.link.is_none());
-        //     assert!(result.parents.is_none());
-        //     assert!(result.from.is_none());
-        // }
-
-        // #[test]
-        // fn with_chown_option() {
-        //     let input = "src --chown=user:group";
-        //     let result = Copy::from_str(input).unwrap();
-        //     assert_eq!(result.paths, vec!["src".to_string()]);
-        //     assert!(result.target.is_none());
-        //     assert_eq!(result.chown, Some("user:group".parse().unwrap()));
-        //     assert!(result.chmod.is_none());
-        //     assert!(result.exclude.is_none());
-        //     assert!(result.link.is_none());
-        //     assert!(result.parents.is_none());
-        //     assert!(result.from.is_none());
-        // }
-
-        // #[test]
-        // fn with_chmod_option() {
-        //     let input = "src --chmod=755";
-        //     let result = Copy::from_str(input).unwrap();
-        //     assert_eq!(result.paths, vec!["src".to_string()]);
-        //     assert!(result.target.is_none());
-        //     assert!(result.chown.is_none());
-        //     assert_eq!(result.chmod, Some("755".to_string()));
-        //     assert!(result.exclude.is_none());
-        //     assert!(result.link.is_none());
-        //     assert!(result.parents.is_none());
-        //     assert!(result.from.is_none());
-        // }
-
-        // #[test]
-        // fn with_exclude_option() {
-        //     let input = "src --exclude=.git";
-        //     let result = Copy::from_str(input).unwrap();
-        //     assert_eq!(result.paths, vec!["src".to_string()]);
-        //     assert!(result.target.is_none());
-        //     assert!(result.chown.is_none());
-        //     assert!(result.chmod.is_none());
-        //     assert_eq!(result.exclude, Some(vec![".git".to_string()]));
-        //     assert!(result.link.is_none());
-        //     assert!(result.parents.is_none());
-        //     assert!(result.from.is_none());
-        // }
+        #[test]
+        fn with_multiple_sources_and_target() {
+            let input = "src1 src2 /app";
+            let result = Copy::from_str(input).unwrap();
+            assert_eq!(result.paths, vec!["src1".to_string(), "src2".to_string()]);
+            assert_eq!(result.target, Some("/app".to_string()));
+            assert!(result.chown.is_none());
+            assert!(result.chmod.is_none());
+            assert!(result.exclude.is_none());
+            assert!(result.link.is_none());
+            assert!(result.parents.is_none());
+            assert!(result.from.is_none());
+        }
     }
 
     mod chown {

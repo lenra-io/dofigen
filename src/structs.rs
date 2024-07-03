@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::serde_permissive::{StringOrStruct, deserialize_optional_one_or_many};
+use crate::serde_permissive::{StringOrStruct, deserialize_one_or_many, deserialize_optional_one_or_many};
 
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -21,18 +21,21 @@ pub struct Image {
     #[serde(alias = "add", alias = "adds", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub copy: Option<Vec<CopyResources>>,
     pub root: Option<Root>,
-    #[serde(alias = "script")]
+    #[serde(alias = "script", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub run: Option<Vec<String>>,
-    #[serde(alias = "caches")]
+    #[serde(alias = "caches", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub cache: Option<Vec<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
+    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
     pub context: Option<Vec<String>>,
-    #[serde(alias = "ignores")]
+    #[serde(alias = "ignores", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub ignore: Option<Vec<String>>,
+    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
     pub entrypoint: Option<Vec<String>>,
+    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
     pub cmd: Option<Vec<String>>,
-    #[serde(alias = "ports")]
+    #[serde(alias = "ports", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub expose: Option<Vec<u16>>,
     pub healthcheck: Option<Healthcheck>,
 }
@@ -49,12 +52,12 @@ pub struct Builder {
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(alias = "add", alias = "adds")]
+    #[serde(alias = "add", alias = "adds", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub copy: Option<Vec<CopyResources>>,
     pub root: Option<Root>,
-    #[serde(alias = "script")]
+    #[serde(alias = "script", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub run: Option<Vec<String>>,
-    #[serde(alias = "caches")]
+    #[serde(alias = "caches", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub cache: Option<Vec<String>>,
     // Specific part
     pub name: Option<String>,
@@ -72,9 +75,9 @@ pub struct Artifact {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Root {
-    #[serde(alias = "script")]
+    #[serde(alias = "script", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub run: Option<Vec<String>>,
-    #[serde(alias = "caches")]
+    #[serde(alias = "caches", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub cache: Option<Vec<String>>,
 }
 
@@ -119,6 +122,7 @@ pub enum CopyResources {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
+    #[serde(deserialize_with = "deserialize_one_or_many", default)]
     pub paths: Vec<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
@@ -126,6 +130,7 @@ pub struct Copy {
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
     pub exclude: Option<Vec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
     pub link: Option<bool>,
@@ -147,6 +152,7 @@ pub struct AddGitRepo {
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
     pub exclude: Option<Vec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
     pub link: Option<bool>,
@@ -159,6 +165,7 @@ pub struct AddGitRepo {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct AddSimple {
+    #[serde(deserialize_with = "deserialize_one_or_many", default)]
     pub urls: Vec<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
