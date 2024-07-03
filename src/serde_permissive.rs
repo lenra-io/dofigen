@@ -6,6 +6,8 @@ use serde::{
     de::{self, value::Error, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer, Serialize,
 };
+#[cfg(feature = "json_schema")]
+use schemars::JsonSchema;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]

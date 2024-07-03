@@ -114,7 +114,7 @@ pub enum ImageVersion {
 pub enum CopyResources {
     Copy(Copy),
     AddGitRepo(AddGitRepo),
-    AddSimple(AddSimple),
+    Add(Add),
 }
 
 /// Represents the COPY instruction in a Dockerfile.
@@ -146,6 +146,7 @@ pub struct Copy {
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct AddGitRepo {
     pub repo: String,
+    // pub repo: GitRepo,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chown: Option<Chown>,
@@ -160,13 +161,12 @@ pub struct AddGitRepo {
     pub keep_git_dir: Option<bool>,
 }
 
-/// Represents the ADD instruction in a Dockerfile specific for Git repo.
-/// See https://docs.docker.com/reference/dockerfile/#adding-private-git-repositories
+/// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct AddSimple {
+pub struct Add {
     #[serde(deserialize_with = "deserialize_one_or_many", default)]
-    pub urls: Vec<String>,
+    pub paths: Vec<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chown: Option<Chown>,
@@ -183,29 +183,24 @@ pub struct Chown {
     pub group: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum GitRepo {
-    Http(HttpGitRepo),
-    Ssh(SshGitRepo),
-}
+// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+// pub enum GitRepo {
+//     Http(HttpGitRepo),
+//     Ssh(SshGitRepo),
+// }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct HttpGitRepo {
-    pub url: String,
-    /// The branch or tag to checkout
-    pub reference: Option<String>,
-}
+// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+// pub struct HttpGitRepo {
+//     pub url: String,
+//     /// The branch or tag to checkout
+//     pub reference: Option<String>,
+// }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct SshGitRepo {
-    pub url: String,
-    #[serde(default = "default_sshgitrepo_user")]
-    pub user: String,
-}
-
-fn default_sshgitrepo_user() -> String {
-    "git".to_string()
-}
+// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+// pub struct SshGitRepo {
+//     pub url: String,
+//     pub user: String,
+// }

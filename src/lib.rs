@@ -330,13 +330,11 @@ mod tests {
         - name: builder
           from: ekidd/rust-musl-builder
           user: rust
-          add: 
-          - "."
+          add: "."
           run:
           - ls -al
           - cargo build --release
-          cache:
-          - /usr/local/cargo/registry
+          cache: /usr/local/cargo/registry
         - name: watchdog
           from: ghcr.io/openfaas/of-watchdog:0.9.6
         env:
@@ -353,7 +351,7 @@ mod tests {
         healthcheck:
           interval: 3s
           cmd: "[ -e /tmp/.lock ] || exit 1"
-        cmd: ["/fwatchdog"]
+        cmd: "/fwatchdog"
         ignores:
         - target
         - test

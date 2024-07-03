@@ -1,4 +1,4 @@
-use crate::{AddGitRepo, AddSimple, Chown, Copy, CopyResources, ImageName, ImageVersion, Result};
+use crate::{AddGitRepo, Add, Chown, Copy, CopyResources, ImageName, ImageVersion, Result};
 
 pub trait DockerfileGenerator {
     fn to_dockerfile_content(&self) -> Result<String>;
@@ -35,7 +35,7 @@ impl DockerfileGenerator for CopyResources {
     fn to_dockerfile_content(&self) -> Result<String> {
         match self {
             CopyResources::Copy(copy) => copy.to_dockerfile_content(),
-            CopyResources::AddSimple(add_web_file) => add_web_file.to_dockerfile_content(),
+            CopyResources::Add(add_web_file) => add_web_file.to_dockerfile_content(),
             CopyResources::AddGitRepo(add_git_repo) => add_git_repo.to_dockerfile_content(),
         }
     }
@@ -60,9 +60,9 @@ impl DockerfileGenerator for Copy {
     }
 }
 
-impl DockerfileGenerator for AddSimple {
+impl DockerfileGenerator for Add {
     fn to_dockerfile_content(&self) -> Result<String> {
-        let urls = self.urls.clone().to_vec().join(" ");
+        let urls = self.paths.clone().to_vec().join(" ");
         let mut options = String::new();
         push_chown_option(&mut options, &self.chown);
         push_conditional_str_option(&mut options, "chmod", &self.chmod);
