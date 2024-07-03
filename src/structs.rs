@@ -3,7 +3,7 @@ use schemars::JsonSchema;
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::deserialize::{StringOrStruct, deserialize_optional_one_or_many};
+use crate::serde_permissive::{StringOrStruct, deserialize_optional_one_or_many};
 
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -18,7 +18,7 @@ pub struct Image {
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(alias = "add", alias = "adds", deserialize_with = "deserialize_optional_one_or_many")]
+    #[serde(alias = "add", alias = "adds", deserialize_with = "deserialize_optional_one_or_many", default)]
     pub copy: Option<Vec<CopyResources>>,
     pub root: Option<Root>,
     #[serde(alias = "script")]

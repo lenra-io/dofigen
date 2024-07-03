@@ -7,6 +7,7 @@ mod deserialize;
 mod errors;
 mod generator;
 mod runners;
+mod serde_permissive;
 mod stages;
 mod structs;
 pub use errors::*;
@@ -504,9 +505,12 @@ test: Fake value
 
         // Check the error message
         let error = result.unwrap_err();
-        assert!(error.to_string().starts_with(
-            "Error while deserializing the document: unknown field `test`, expected one of "
-        ),"Wrong error message");
+        assert!(
+            error.to_string().starts_with(
+                "Error while deserializing the document: unknown field `test`, expected one of "
+            ),
+            "Wrong error message"
+        );
     }
 
     #[test]
