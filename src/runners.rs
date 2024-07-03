@@ -1,6 +1,4 @@
-use crate::{
-    structs::{Builder, Image, Root},
-};
+use crate::structs::{Builder, Image, Root};
 
 pub trait ScriptRunner {
     fn script(&self) -> Option<&Vec<String>>;

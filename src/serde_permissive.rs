@@ -1,13 +1,13 @@
-use std::{
-    fmt::{self},
-    str::FromStr,
-};
+#[cfg(feature = "json_schema")]
+use schemars::JsonSchema;
 use serde::{
     de::{self, value::Error, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer, Serialize,
 };
-#[cfg(feature = "json_schema")]
-use schemars::JsonSchema;
+use std::{
+    fmt::{self},
+    str::FromStr,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]

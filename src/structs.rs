@@ -1,9 +1,11 @@
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 
+use crate::serde_permissive::{
+    deserialize_one_or_many, deserialize_optional_one_or_many, StringOrStruct,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::serde_permissive::{StringOrStruct, deserialize_one_or_many, deserialize_optional_one_or_many};
 
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -18,24 +20,45 @@ pub struct Image {
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(alias = "add", alias = "adds", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "add",
+        alias = "adds",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub copy: Option<Vec<CopyResources>>,
     pub root: Option<Root>,
-    #[serde(alias = "script", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "script",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub run: Option<Vec<String>>,
-    #[serde(alias = "caches", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "caches",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub cache: Option<Vec<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
     #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
     pub context: Option<Vec<String>>,
-    #[serde(alias = "ignores", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "ignores",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub ignore: Option<Vec<String>>,
     #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
     pub entrypoint: Option<Vec<String>>,
     #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
     pub cmd: Option<Vec<String>>,
-    #[serde(alias = "ports", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "ports",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub expose: Option<Vec<u16>>,
     pub healthcheck: Option<Healthcheck>,
 }
@@ -52,12 +75,25 @@ pub struct Builder {
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(alias = "add", alias = "adds", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "add",
+        alias = "adds",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub copy: Option<Vec<CopyResources>>,
     pub root: Option<Root>,
-    #[serde(alias = "script", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "script",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub run: Option<Vec<String>>,
-    #[serde(alias = "caches", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "caches",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub cache: Option<Vec<String>>,
     // Specific part
     pub name: Option<String>,
@@ -75,9 +111,17 @@ pub struct Artifact {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Root {
-    #[serde(alias = "script", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "script",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub run: Option<Vec<String>>,
-    #[serde(alias = "caches", deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[serde(
+        alias = "caches",
+        deserialize_with = "deserialize_optional_one_or_many",
+        default
+    )]
     pub cache: Option<Vec<String>>,
 }
 

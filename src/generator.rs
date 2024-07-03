@@ -1,4 +1,4 @@
-use crate::{AddGitRepo, Add, Chown, Copy, CopyResources, ImageName, ImageVersion, Result};
+use crate::{Add, AddGitRepo, Chown, Copy, CopyResources, ImageName, ImageVersion, Result};
 
 pub trait DockerfileGenerator {
     fn to_dockerfile_content(&self) -> Result<String>;
