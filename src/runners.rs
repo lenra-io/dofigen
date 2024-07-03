@@ -5,38 +5,40 @@ pub trait ScriptRunner {
     fn caches(&self) -> Option<&Vec<String>>;
     fn has_script(&self) -> bool {
         if let Some(script) = self.script() {
-            return script.len() > 0;
+            return script.iter().any(|script| !script.is_empty());
         }
         false
     }
     fn add_script(&self, buffer: &mut String, uid: u16, gid: u16) {
-        if let Some(script) = self.script() {
-            if script.is_empty() {
-                return;
-            }
-            let mut lines: Vec<String> = script
-                .join(" &&\n")
-                .lines()
-                .map(str::to_string)
-                .collect::<Vec<String>>();
-            if let Some(ref paths) = self.caches() {
-                lines.splice(
-                    0..0,
-                    paths
-                        .iter()
-                        .map(|path| {
-                            format!(
-                                "--mount=type=cache,sharing=locked,uid={},gid={},target={}",
-                                uid, gid, path
-                            )
-                        })
-                        .collect::<Vec<String>>(),
-                );
-            }
-            lines.insert(0, "RUN".to_string());
-            buffer.push_str(&lines.join(" \\\n    "));
-            buffer.push_str("\n");
+        if !self.has_script() {
+            return;
         }
+        let one_or_many = self.script().unwrap();
+        let script = one_or_many.clone().to_vec();
+        let mut lines: Vec<String> = script
+            .join(" &&\n")
+            .lines()
+            .map(str::to_string)
+            .collect::<Vec<String>>();
+        if let Some(paths) = self.caches() {
+            lines.splice(
+                0..0,
+                paths
+                    .clone()
+                    .to_vec()
+                    .iter()
+                    .map(|path| {
+                        format!(
+                            "--mount=type=cache,sharing=locked,uid={},gid={},target={}",
+                            uid, gid, path
+                        )
+                    })
+                    .collect::<Vec<String>>(),
+            );
+        }
+        lines.insert(0, "RUN".to_string());
+        buffer.push_str(&lines.join(" \\\n    "));
+        buffer.push_str("\n");
     }
 }
 
@@ -57,6 +59,7 @@ impl_ScriptRunner!(for Builder, Image, Root);
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
 
     #[test]
