@@ -109,7 +109,7 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
 
     mod deserialize_one_or_many {

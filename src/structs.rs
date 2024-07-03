@@ -95,7 +95,7 @@ pub struct ImageName {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub path: String,
-    pub version: ImageVersion,
+    pub version: Option<ImageVersion>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
