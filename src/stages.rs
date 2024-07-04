@@ -1,13 +1,10 @@
 use crate::{
-    generator::{DockerfileGenerator, GenerationContext},
-    runners::ScriptRunner,
-    structs::{Builder, Image},
-    Result,
+    generator::{DockerfileGenerator, GenerationContext}, runners::ScriptRunner, structs::{Builder, Image}, ImageName, Result
 };
 
 pub trait StageGenerator: ScriptRunner {
     fn name(&self, position: i32) -> String;
-    fn from(&self, context: &GenerationContext) -> Result<String>;
+    fn from(&self, context: &GenerationContext) -> ImageName;
     fn user(&self, context: &GenerationContext) -> Option<String>;
     fn additionnal_generation(&self, _context: &GenerationContext) -> Result<String> {
         Ok("".to_string())
@@ -29,7 +26,7 @@ impl StageGenerator for Builder {
         }
     }
     fn from(&self, context: &GenerationContext) -> Result<String> {
-        self.from.to_dockerfile_content(context)
+        self.from.generate_content(context)
     }
 
     fn user(&self, context: &GenerationContext) -> Option<String> {
@@ -43,7 +40,7 @@ impl StageGenerator for Image {
     }
     fn from(&self, context: &GenerationContext) -> Result<String> {
         if let Some(image_name) = &self.from {
-            image_name.to_dockerfile_content(context)
+            image_name.generate_content(context)
         } else {
             Ok(String::from("scratch"))
         }
@@ -178,7 +175,7 @@ macro_rules! impl_Stage {
 
 impl_Stage!(for Builder, Image);
 
-fn string_vec_to_string(string_vec: &Vec<String>) -> String {
+pub fn string_vec_to_string(string_vec: &Vec<String>) -> String {
     format!(
         "[{}]",
         string_vec

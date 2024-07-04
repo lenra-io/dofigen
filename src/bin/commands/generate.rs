@@ -4,7 +4,7 @@
 
 pub use clap::Args;
 use dofigen_lib::{
-    from_file_path, from_reader, generate_dockerfile, generate_dockerignore, Result,
+    from_file_path, from_reader, write_dockerfile, generate_dockerignore, Result,
 };
 use std::{fs, path::PathBuf};
 
@@ -61,7 +61,15 @@ impl CliCommand for Generate {
         }
         .expect("Failed to load the Dofigen structure");
 
-        let dockerfile_content = generate_dockerfile(&image)?;
+        let to_stdout = self.output == "-";
+        let writer = if to_stdout {
+            Box::new(std::io::stdout()) as Box<dyn std::io::Write>
+        } else {
+            Box::new(fs::File::create(&self.output).expect("Unable to create the Dockerfile"))
+                as Box<dyn std::io::Write>
+        };
+        write_dockerfile(&mut writer, &image)?;
+        
 
         if self.output == "-" {
             print!("{}", dockerfile_content);

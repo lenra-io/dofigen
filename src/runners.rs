@@ -1,6 +1,8 @@
 use crate::{
+    dockerfile::{DockerfileInsctruction, InstructionOption, InstructionOptionOption},
     generator::GenerationContext,
     structs::{Builder, Image, Root},
+    Result,
 };
 
 pub trait ScriptRunner {
@@ -53,6 +55,52 @@ pub trait ScriptRunner {
         lines.insert(0, "RUN".to_string());
         buffer.push_str(&lines.join(" \\\n    "));
         buffer.push_str("\n");
+    }
+
+    fn to_run_inscruction(
+        &self,
+        context: &GenerationContext,
+    ) -> Result<Option<DockerfileInsctruction>> {
+        if let Some(script) = self.script() {
+            // TODO: clone context with current stage user if defined
+            // let context =
+            let script_lines = script.iter().flat_map(|s| s.lines()).collect::<Vec<&str>>();
+            let content = match script_lines.len() {
+                0 => {
+                    return Ok(None);
+                }
+                1 => script_lines[0].to_string(),
+                _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
+            };
+            let mut options = vec![];
+            if let Some(caches) = self.caches() {
+                caches.iter().for_each(|cache| {
+                    let mut cache_options = vec![
+                        InstructionOptionOption::new("type", "cache"),
+                        InstructionOptionOption::new("target", cache),
+                        InstructionOptionOption::new("sharing", "locked"),
+                    ];
+                    if let Some(uid) = context
+                        .user
+                        .clone()
+                        .map(|uid| uid.parse::<u16>().ok())
+                        .flatten()
+                    {
+                        cache_options.push(InstructionOptionOption::new("uid", &uid.to_string()));
+                    }
+                    options.push(InstructionOption::WithOptions(
+                        "mount".to_string(),
+                        cache_options,
+                    ));
+                });
+            }
+            return Ok(Some(DockerfileInsctruction {
+                command: "RUN".to_string(),
+                content,
+                options,
+            }));
+        }
+        Ok(None)
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::{
     serde_permissive::StringOrStruct, Add, AddGitRepo, Chown, Copy, CopyResources, ImageName,
-    ImageVersion,
+    ImageVersion, StageFrom,
 };
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
@@ -19,11 +19,36 @@ macro_rules! impl_Stage {
     }
 }
 
-impl_Stage!(for ImageName, CopyResources, Copy);
+impl_Stage!(for ImageName, StageFrom, CopyResources, Copy);
 
 const GIT_HTTP_REPO_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.git(?:#[a-zA-Z0-9_/.-]*(?::[a-zA-Z0-9_/-]+)?)?";
 const GIT_SSH_REPO_REGEX: &str = "[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+:[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:#[a-zA-Z0-9_/.-]+)?(?::[a-zA-Z0-9_/-]+)?";
 const URL_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+(/[a-zA-Z0-9_.-]+)*";
+
+impl FromStr for ImageName {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let regex = Regex::new(r"^(?:(?<host>[^:\/.]+(?:\.[^:\/.]+)+)(?::(?<port>\d{1,5}))?\/)?(?<path>[a-zA-Z0-9-]{1,63}(?:\/[a-zA-Z0-9-]{1,63})*)(?:(?<version_char>[:@])(?<version_value>[a-zA-Z0-9_.:-]{1,128}))?$").unwrap();
+        let Some(captures) = regex.captures(s) else {
+            return Err(Error::custom("Not matching image name pattern"));
+        };
+        Ok(ImageName {
+            host: captures.name("host").map(|m| m.as_str().to_string()),
+            port: captures.name("port").map(|m| m.as_str().parse().unwrap()),
+            path: captures["path"].to_string(),
+            version: match (
+                captures.name("version_char").map(|m| m.as_str()),
+                captures.name("version_value"),
+            ) {
+                (Some(":"), Some(value)) => Some(ImageVersion::Tag(value.as_str().into())),
+                (Some("@"), Some(value)) => Some(ImageVersion::Digest(value.as_str().into())),
+                (None, None) => None,
+                _ => return Err(Error::custom("Invalid version format")),
+            },
+        })
+    }
+}
 
 impl FromStr for CopyResources {
     type Err = Error;
@@ -105,31 +130,6 @@ impl FromStr for Chown {
         Ok(Chown {
             user: captures["user"].into(),
             group: captures.name("group").map(|m| m.as_str().into()),
-        })
-    }
-}
-
-impl FromStr for ImageName {
-    type Err = Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let regex = Regex::new(r"^(?:(?<host>[^:\/.]+(?:\.[^:\/.]+)+)(?::(?<port>\d{1,5}))?\/)?(?<path>[a-zA-Z0-9-]{1,63}(?:\/[a-zA-Z0-9-]{1,63})*)(?:(?<version_char>[:@])(?<version_value>[a-zA-Z0-9_.:-]{1,128}))?$").unwrap();
-        let Some(captures) = regex.captures(s) else {
-            return Err(Error::custom("Not matching image name pattern"));
-        };
-        Ok(ImageName {
-            host: captures.name("host").map(|m| m.as_str().to_string()),
-            port: captures.name("port").map(|m| m.as_str().parse().unwrap()),
-            path: captures["path"].to_string(),
-            version: match (
-                captures.name("version_char").map(|m| m.as_str()),
-                captures.name("version_value"),
-            ) {
-                (Some(":"), Some(value)) => Some(ImageVersion::Tag(value.as_str().into())),
-                (Some("@"), Some(value)) => Some(ImageVersion::Digest(value.as_str().into())),
-                (None, None) => None,
-                _ => return Err(Error::custom("Invalid version format")),
-            },
         })
     }
 }

@@ -212,6 +212,8 @@ pub struct Add {
     #[serde(deserialize_with = "deserialize_one_or_many", default)]
     pub paths: Vec<String>,
     pub target: Option<String>,
+    /// See https://docs.docker.com/reference/dockerfile/#add---checksum
+    pub checksum: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chown: Option<Chown>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
