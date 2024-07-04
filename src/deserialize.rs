@@ -1,6 +1,6 @@
 use crate::{
     serde_permissive::StringOrStruct, Add, AddGitRepo, Chown, Copy, CopyResources, ImageName,
-    ImageVersion, StageFrom,
+    ImageVersion,
 };
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
@@ -19,7 +19,7 @@ macro_rules! impl_Stage {
     }
 }
 
-impl_Stage!(for ImageName, StageFrom, CopyResources, Copy);
+impl_Stage!(for ImageName, CopyResources, Copy);
 
 const GIT_HTTP_REPO_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.git(?:#[a-zA-Z0-9_/.-]*(?::[a-zA-Z0-9_/-]+)?)?";
 const GIT_SSH_REPO_REGEX: &str = "[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+:[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:#[a-zA-Z0-9_/.-]+)?(?::[a-zA-Z0-9_/-]+)?";

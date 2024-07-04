@@ -6,7 +6,7 @@ use crate::{
     },
     runners::ScriptRunner,
     string_vec_to_string, Add, AddGitRepo, Chown, Copy, CopyResources, Error, Image, ImageName,
-    ImageVersion, Result, Stage, StageGenerator,
+    ImageVersion, Result, StageGenerator,
 };
 
 trait CommandOption {
@@ -18,78 +18,78 @@ trait CommandOptionParameter {
 }
 
 pub struct GenerationContext {
-    writer: &'static mut dyn std::io::Write,
     pub user: Option<String>,
+    pub previous_builders: Vec<String>,
 }
 
-impl std::fmt::Write for GenerationContext {
-    fn write_str(&mut self, s: &str) -> std::fmt::Result {
-        self.writer
-            .write_all(s.as_bytes())
-            .map_err(|_err| std::fmt::Error::default())
-    }
+// impl std::fmt::Write for GenerationContext {
+//     fn write_str(&mut self, s: &str) -> std::fmt::Result {
+//         self.writer
+//             .write_all(s.as_bytes())
+//             .map_err(|_err| std::fmt::Error::default())
+//     }
 
-    fn write_char(&mut self, c: char) -> std::fmt::Result {
-        self.writer
-            .write_all(c.to_string().as_bytes())
-            .map_err(|_err| std::fmt::Error::default())
-    }
+//     fn write_char(&mut self, c: char) -> std::fmt::Result {
+//         self.writer
+//             .write_all(c.to_string().as_bytes())
+//             .map_err(|_err| std::fmt::Error::default())
+//     }
 
-    fn write_fmt(&mut self, args: std::fmt::Arguments) -> std::fmt::Result {
-        self.writer
-            .write_all(std::fmt::format(args).as_bytes())
-            .map_err(|_err| std::fmt::Error::default())
-    }
-}
+//     fn write_fmt(&mut self, args: std::fmt::Arguments) -> std::fmt::Result {
+//         self.writer
+//             .write_all(std::fmt::format(args).as_bytes())
+//             .map_err(|_err| std::fmt::Error::default())
+//     }
+// }
 
-impl GenerationContext {
-    // Push option functions
+// impl GenerationContext {
+//     // Push option functions
 
-    pub fn write_chown_option(&mut self, chown: &Chown) {
-        self.write_str(" --chown=");
-        self.write_str(chown.user.as_str());
-        if let Some(group) = &chown.group {
-            self.write_str(":");
-            self.write_str(group);
-        }
-    }
+//     pub fn write_chown_option(&mut self, chown: &Chown) {
+//         self.write_str(" --chown=");
+//         self.write_str(chown.user.as_str());
+//         if let Some(group) = &chown.group {
+//             self.write_str(":");
+//             self.write_str(group);
+//         }
+//     }
 
-    pub fn write_optional_chown_option(&mut self, chown: &Option<Chown>) {
-        if let Some(c) = chown {
-            self.write_chown_option(c);
-        }
-    }
+//     pub fn write_optional_chown_option(&mut self, chown: &Option<Chown>) {
+//         if let Some(c) = chown {
+//             self.write_chown_option(c);
+//         }
+//     }
 
-    pub fn write_conditional_str_option(&mut self, name: &str, value: &Option<String>) {
-        if let Some(v) = value {
-            self.write_str_option(name, v);
-        }
-    }
+//     pub fn write_conditional_str_option(&mut self, name: &str, value: &Option<String>) {
+//         if let Some(v) = value {
+//             self.write_str_option(name, v);
+//         }
+//     }
 
-    pub fn write_str_option(&mut self, name: &str, value: &String) {
-        self.write_str(" --");
-        self.write_str(name);
-        self.write_str("=");
-        self.write_str(value);
-    }
+//     pub fn write_str_option(&mut self, name: &str, value: &String) {
+//         self.write_str(" --");
+//         self.write_str(name);
+//         self.write_str("=");
+//         self.write_str(value);
+//     }
 
-    pub fn write_conditional_bool_option(&mut self, name: &str, value: &Option<bool>) {
-        if let Some(v) = value {
-            self.write_bool_option(name, v);
-        }
-    }
+//     pub fn write_conditional_bool_option(&mut self, name: &str, value: &Option<bool>) {
+//         if let Some(v) = value {
+//             self.write_bool_option(name, v);
+//         }
+//     }
 
-    pub fn write_bool_option(&mut self, name: &str, &value: &bool) {
-        if value {
-            self.write_str(" --");
-            self.write_str(name);
-        }
-    }
+//     pub fn write_bool_option(&mut self, name: &str, &value: &bool) {
+//         if value {
+//             self.write_str(" --");
+//             self.write_str(name);
+//         }
+//     }
 
-    pub fn new(writer: &'static mut dyn std::io::Write, user: Option<String>) -> Self {
-        GenerationContext { writer, user }
-    }
-}
+//     pub fn new(writer: &'static mut dyn std::io::Write, user: Option<String>) -> Self {
+//         GenerationContext { writer, user }
+//     }
+// }
 
 pub trait DockerfileGenerator {
     // fn generate_content(&self, context: &mut GenerationContext) -> Result<()>;
@@ -374,14 +374,14 @@ impl DockerfileGenerator for AddGitRepo {
 impl DockerfileGenerator for dyn StageGenerator {
     fn generate_dockerfile_lines(&self, context: GenerationContext) -> Result<Vec<DockerfileLine>> {
         // TODO: get builder position or give context to the function
-        let stage_name = self.name(0);
+        let stage_name = self.name(&context);
         let mut lines = vec![
             DockerfileLine::Comment(stage_name.clone()),
             DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "FROM".to_string(),
                 content: format!(
                     "{image_name} AS {stage_name}",
-                    image_name = self.from(&context).to_string()
+                    image_name = self.from().to_string()
                 ),
                 options: vec![],
             }),

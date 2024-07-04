@@ -28,22 +28,24 @@ pub struct InstructionOptionOption {
 }
 
 impl InstructionOptionOption {
-		pub fn new(name: &str, value: &str) -> Self {
-				Self {
-						name: name.to_string(),
-						value: value.to_string(),
-				}
-		}
+    pub fn new(name: &str, value: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            value: value.to_string(),
+        }
+    }
 }
 
 impl DockerfileContent for DockerfileLine {
     fn generate_content(&self) -> String {
         match self {
             DockerfileLine::Instruction(instruction) => instruction.generate_content(),
-            DockerfileLine::Comment(comment) => {
-                comment.lines().map(|l| format!("# {}\n", l)).collect()
-            }
-            DockerfileLine::EmptyLine => "\n".to_string(),
+            DockerfileLine::Comment(comment) => comment
+                .lines()
+                .map(|l| format!("# {}", l))
+                .collect::<Vec<String>>()
+                .join("\n"),
+            DockerfileLine::EmptyLine => "".to_string(),
         }
     }
 }
