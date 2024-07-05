@@ -1,29 +1,26 @@
 ---
 builders:
-- name: builder
-  from: ekidd/rust-musl-builder
-  add:
-  - "."
-  run:
-  # Build with musl to work with scratch
-  - cargo build --release -F cli --target=x86_64-unknown-linux-musl
-  # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
-  - mv target/x86_64-unknown-linux-musl/release/dofigen ../
-  cache:
-  # Cargo cache
-  - /home/rust/.cargo
-  # build cache
-  - /home/rust/src/target
-from: scratch
+  - name: builder
+    from: clux/muslrust:stable
+    workdir: /app
+    add: "."
+    run:
+    # Build with musl to work with scratch
+    - cargo build --release -F cli
+    # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
+    - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
+    cache:
+    # Cargo cache
+    - /home/rust/.cargo
+    # build cache
+    - /app/target
 workdir: /app
 artifacts:
-- builder: builder
-  source: "/home/rust/dofigen"
-  target: "/bin/"
-entrypoint: 
-- /bin/dofigen
-cmd:
-- --help
+  - builder: builder
+    source: "/app/dofigen"
+    target: "/bin/"
+entrypoint: /bin/dofigen
+cmd: --help
 context:
 - "/src"
 - "/Cargo.*"
