@@ -12,6 +12,18 @@ use std::{
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 #[serde(untagged)]
+pub enum IntOrStringOrStruct<T>
+where
+    T: FromStr<Err = Error>,
+{
+    Int(u16),
+    String(String),
+    Struct(T),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(untagged)]
 pub enum StringOrStruct<T>
 where
     T: FromStr<Err = Error>,
@@ -74,7 +86,21 @@ where
         type Value = Vec<T>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a str, a map or a seq")
+            formatter.write_str("a number, a string, a map or a seq")
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            self.visit_str(v.to_string().as_str())
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            self.visit_str(v.to_string().as_str())
         }
 
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
