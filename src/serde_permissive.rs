@@ -12,6 +12,19 @@ use std::{
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 #[serde(untagged)]
+pub enum PermissiveStruct<T>
+where
+    T: FromStr<Err = Error>,
+{
+    Int(isize),
+    Uint(usize),
+    String(String),
+    Struct(T),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(untagged)]
 pub enum StringOrStruct<T>
 where
     T: FromStr<Err = Error>,
@@ -43,7 +56,6 @@ where
         where
             D: Deserializer<'de>,
         {
-            println!("optional one or many from some");
             let value: Vec<T> = deserialize_one_or_many(deserializer)?;
             Ok(Some(value))
         }
@@ -75,14 +87,27 @@ where
         type Value = Vec<T>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a str, a map or a seq")
+            formatter.write_str("a number, a string, a map or a seq")
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            self.visit_str(v.to_string().as_str())
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            self.visit_str(v.to_string().as_str())
         }
 
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
             E: DeError,
         {
-            println!("one or many from str");
             let value: T = Deserialize::deserialize(de::value::StrDeserializer::new(v))?;
             Ok(vec![value])
         }
@@ -91,7 +116,6 @@ where
         where
             A: MapAccess<'de>,
         {
-            println!("one or many from map");
             let value: T = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
             Ok(vec![value])
         }
@@ -100,7 +124,6 @@ where
         where
             A: de::SeqAccess<'de>,
         {
-            println!("one or many from seq");
             Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))
         }
     }
