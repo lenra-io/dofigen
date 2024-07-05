@@ -2,7 +2,7 @@
 use schemars::JsonSchema;
 
 use crate::serde_permissive::{
-    deserialize_one_or_many, deserialize_optional_one_or_many, StringOrStruct,
+    deserialize_one_or_many, deserialize_optional_one_or_many, PermissiveStruct,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -15,7 +15,7 @@ pub struct Image {
     // Common part
     #[serde(alias = "image")]
     pub from: Option<ImageName>,
-    pub user: Option<String>,
+    pub user: Option<User>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
@@ -55,11 +55,12 @@ pub struct Image {
     #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
     pub cmd: Option<Vec<String>>,
     #[serde(
+        alias = "port",
         alias = "ports",
         deserialize_with = "deserialize_optional_one_or_many",
         default
     )]
-    pub expose: Option<Vec<u16>>,
+    pub expose: Option<Vec<Port>>,
     pub healthcheck: Option<Healthcheck>,
 }
 
@@ -70,7 +71,7 @@ pub struct Builder {
     // Common part
     #[serde(alias = "image")]
     pub from: ImageName,
-    pub user: Option<String>,
+    pub user: Option<User>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
@@ -136,7 +137,7 @@ pub struct Healthcheck {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "StringOrStruct<ImageName>")]
+#[serde(from = "PermissiveStruct<ImageName>")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ImageName {
     pub host: Option<String>,
@@ -153,7 +154,7 @@ pub enum ImageVersion {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(from = "StringOrStruct<CopyResources>")]
+#[serde(from = "PermissiveStruct<CopyResources>")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum CopyResources {
     Copy(Copy),
@@ -170,7 +171,7 @@ pub struct Copy {
     pub paths: Vec<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chown: Option<Chown>,
+    pub chown: Option<User>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
@@ -193,7 +194,7 @@ pub struct AddGitRepo {
     // pub repo: GitRepo,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chown: Option<Chown>,
+    pub chown: Option<User>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
@@ -212,8 +213,10 @@ pub struct Add {
     #[serde(deserialize_with = "deserialize_one_or_many", default)]
     pub paths: Vec<String>,
     pub target: Option<String>,
+    /// See https://docs.docker.com/reference/dockerfile/#add---checksum
+    pub checksum: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chown: Option<Chown>,
+    pub chown: Option<User>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
@@ -221,10 +224,26 @@ pub struct Add {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(from = "PermissiveStruct<User>")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct Chown {
+pub struct User {
     pub user: String,
     pub group: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(from = "PermissiveStruct<Port>")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct Port {
+    pub port: u16,
+    pub protocol: Option<PortProtocol>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum PortProtocol {
+    Tcp,
+    Udp,
 }
 
 // #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
