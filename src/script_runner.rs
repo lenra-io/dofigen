@@ -75,10 +75,8 @@ impl_ScriptRunner!(for Builder, Image, Root);
 
 #[cfg(test)]
 mod test {
-
-    use crate::User;
-
     use super::*;
+    use crate::User;
 
     #[test]
     fn to_run_inscruction_with_script() {
