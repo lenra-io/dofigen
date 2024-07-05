@@ -60,8 +60,7 @@ impl CliCommand for Generate {
             from_file_path(&PathBuf::from(file))
         }
         .expect("Failed to load the Dofigen structure");
-
-        let dockerfile_content = generate_dockerfile(&image);
+        let dockerfile_content = generate_dockerfile(&image)?;
 
         if self.output == "-" {
             print!("{}", dockerfile_content);

@@ -1,29 +1,56 @@
 use crate::{
-    serde_permissive::StringOrStruct, Add, AddGitRepo, Chown, Copy, CopyResources, ImageName,
-    ImageVersion,
+    serde_permissive::PermissiveStruct, Add, AddGitRepo, Copy, CopyResources, ImageName,
+    ImageVersion, Port, PortProtocol, User,
 };
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
 use std::str::FromStr;
 
-macro_rules! impl_Stage {
+macro_rules! impl_PermissiveStruct {
     (for $($t:ty),+) => {
-        $(impl From<StringOrStruct<$t>> for $t {
-            fn from(s: StringOrStruct<$t>) -> Self {
+        $(impl From<PermissiveStruct<$t>> for $t {
+            fn from(s: PermissiveStruct<$t>) -> Self {
                 match s {
-                    StringOrStruct::String(s) => s.parse().unwrap(),
-                    StringOrStruct::Struct(s) => s,
+                    PermissiveStruct::Int(s) => s.to_string().parse().unwrap(),
+                    PermissiveStruct::Uint(s) => s.to_string().parse().unwrap(),
+                    PermissiveStruct::String(s) => s.parse().unwrap(),
+                    PermissiveStruct::Struct(s) => s,
                 }
             }
         })*
     }
 }
 
-impl_Stage!(for ImageName, CopyResources, Copy);
+impl_PermissiveStruct!(for ImageName, CopyResources, Copy, User, Port);
 
 const GIT_HTTP_REPO_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.git(?:#[a-zA-Z0-9_/.-]*(?::[a-zA-Z0-9_/-]+)?)?";
 const GIT_SSH_REPO_REGEX: &str = "[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+:[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:#[a-zA-Z0-9_/.-]+)?(?::[a-zA-Z0-9_/-]+)?";
 const URL_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+(/[a-zA-Z0-9_.-]+)*";
+
+impl FromStr for ImageName {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let regex = Regex::new(r"^(?:(?<host>[^:\/.]+(?:\.[^:\/.]+)+)(?::(?<port>\d{1,5}))?\/)?(?<path>[a-zA-Z0-9-]{1,63}(?:\/[a-zA-Z0-9-]{1,63})*)(?:(?<version_char>[:@])(?<version_value>[a-zA-Z0-9_.:-]{1,128}))?$").unwrap();
+        let Some(captures) = regex.captures(s) else {
+            return Err(Error::custom("Not matching image name pattern"));
+        };
+        Ok(ImageName {
+            host: captures.name("host").map(|m| m.as_str().to_string()),
+            port: captures.name("port").map(|m| m.as_str().parse().unwrap()),
+            path: captures["path"].to_string(),
+            version: match (
+                captures.name("version_char").map(|m| m.as_str()),
+                captures.name("version_value"),
+            ) {
+                (Some(":"), Some(value)) => Some(ImageVersion::Tag(value.as_str().into())),
+                (Some("@"), Some(value)) => Some(ImageVersion::Digest(value.as_str().into())),
+                (None, None) => None,
+                _ => return Err(Error::custom("Invalid version format")),
+            },
+        })
+    }
+}
 
 impl FromStr for CopyResources {
     type Err = Error;
@@ -94,7 +121,7 @@ impl FromStr for Add {
     }
 }
 
-impl FromStr for Chown {
+impl FromStr for User {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
@@ -102,34 +129,28 @@ impl FromStr for Chown {
         let Some(captures) = regex.captures(s) else {
             return Err(Error::custom("Not matching chown pattern"));
         };
-        Ok(Chown {
+        Ok(User {
             user: captures["user"].into(),
             group: captures.name("group").map(|m| m.as_str().into()),
         })
     }
 }
 
-impl FromStr for ImageName {
+impl FromStr for Port {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let regex = Regex::new(r"^(?:(?<host>[^:\/.]+(?:\.[^:\/.]+)+)(?::(?<port>\d{1,5}))?\/)?(?<path>[a-zA-Z0-9-]{1,63}(?:\/[a-zA-Z0-9-]{1,63})*)(?:(?<version_char>[:@])(?<version_value>[a-zA-Z0-9_.:-]{1,128}))?$").unwrap();
+        let regex = Regex::new(r"^(?<port>\d+)(?:/(?<protocol>(tcp|udp)))?$").unwrap();
         let Some(captures) = regex.captures(s) else {
-            return Err(Error::custom("Not matching image name pattern"));
+            return Err(Error::custom("Not matching chown pattern"));
         };
-        Ok(ImageName {
-            host: captures.name("host").map(|m| m.as_str().to_string()),
-            port: captures.name("port").map(|m| m.as_str().parse().unwrap()),
-            path: captures["path"].to_string(),
-            version: match (
-                captures.name("version_char").map(|m| m.as_str()),
-                captures.name("version_value"),
-            ) {
-                (Some(":"), Some(value)) => Some(ImageVersion::Tag(value.as_str().into())),
-                (Some("@"), Some(value)) => Some(ImageVersion::Digest(value.as_str().into())),
-                (None, None) => None,
-                _ => return Err(Error::custom("Invalid version format")),
-            },
+        Ok(Port {
+            port: captures["port"].parse().map_err(Error::custom)?,
+            protocol: captures.name("protocol").map(|m| match m.as_str() {
+                "tcp" => PortProtocol::Tcp,
+                "udp" => PortProtocol::Udp,
+                _ => unreachable!(),
+            }),
         })
     }
 }
@@ -387,12 +408,12 @@ mod test_from_str {
         }
     }
 
-    mod chown {
+    mod user {
         use super::*;
 
         #[test]
         fn user() {
-            let result = Chown::from_str("user").unwrap();
+            let result = User::from_str("user").unwrap();
 
             assert_eq!(result.user, "user");
             assert!(result.group.is_none());
@@ -400,7 +421,7 @@ mod test_from_str {
 
         #[test]
         fn with_group() {
-            let result = Chown::from_str("user:group").unwrap();
+            let result = User::from_str("user:group").unwrap();
 
             assert_eq!(result.user, "user");
             assert_eq!(result.group, Some("group".into()));
@@ -408,7 +429,7 @@ mod test_from_str {
 
         #[test]
         fn uid() {
-            let result = Chown::from_str("1000").unwrap();
+            let result = User::from_str("1000").unwrap();
 
             assert_eq!(result.user, "1000");
             assert!(result.group.is_none());
@@ -416,7 +437,7 @@ mod test_from_str {
 
         #[test]
         fn uid_with_gid() {
-            let result = Chown::from_str("1000:1000").unwrap();
+            let result = User::from_str("1000:1000").unwrap();
 
             assert_eq!(result.user, "1000");
             assert_eq!(result.group, Some("1000".into()));
@@ -424,7 +445,42 @@ mod test_from_str {
 
         #[test]
         fn invalid() {
-            let result = Chown::from_str("user:group:extra");
+            let result = User::from_str("user:group:extra");
+
+            assert!(result.is_err());
+        }
+    }
+
+    mod port {
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let result = Port::from_str("80").unwrap();
+
+            assert_eq!(result.port, 80);
+            assert!(result.protocol.is_none());
+        }
+
+        #[test]
+        fn with_tcp_protocol() {
+            let result = Port::from_str("80/tcp").unwrap();
+
+            assert_eq!(result.port, 80);
+            assert_eq!(result.protocol, Some(PortProtocol::Tcp));
+        }
+
+        #[test]
+        fn with_udp_protocol() {
+            let result = Port::from_str("80/udp").unwrap();
+
+            assert_eq!(result.port, 80);
+            assert_eq!(result.protocol, Some(PortProtocol::Udp));
+        }
+
+        #[test]
+        fn invalid() {
+            let result = Port::from_str("80/invalid");
 
             assert!(result.is_err());
         }
