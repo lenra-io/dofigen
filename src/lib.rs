@@ -3,22 +3,22 @@
 //! `dofigen_lib` help creating Dockerfile with a simplified structure and made to cache the build with Buildkit.
 //! You also can parse the structure from YAML or JSON.
 
-mod deserialize;
-mod dockerfile;
+mod dockerfile_struct;
+mod dofigen_struct;
 mod errors;
+mod from_str;
 mod generator;
-mod runners;
+mod script_runner;
 mod serde_permissive;
-mod stages;
-mod structs;
-use dockerfile::{DockerfileContent, DockerfileLine};
+mod stage;
+use dockerfile_struct::{DockerfileContent, DockerfileLine};
+pub use dofigen_struct::*;
 pub use errors::*;
 use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]
 use schemars::schema_for;
-pub use stages::*;
+pub use stage::*;
 use std::{fs, io::Read};
-pub use structs::*;
 
 pub const DOCKERFILE_VERSION: &str = "1.7";
 

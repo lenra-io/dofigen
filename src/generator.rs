@@ -1,6 +1,6 @@
 use crate::{
-    dockerfile::{DockerfileInsctruction, DockerfileLine, InstructionOption},
-    runners::ScriptRunner,
+    dockerfile_struct::{DockerfileInsctruction, DockerfileLine, InstructionOption},
+    script_runner::ScriptRunner,
     Add, AddGitRepo, Artifact, BaseStage, Copy, CopyResources, Image, ImageName, ImageVersion,
     Port, PortProtocol, Result, Stage, User, DOCKERFILE_VERSION,
 };

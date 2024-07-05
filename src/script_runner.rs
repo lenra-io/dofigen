@@ -1,7 +1,7 @@
 use crate::{
-    dockerfile::{DockerfileInsctruction, InstructionOption, InstructionOptionOption},
+    dockerfile_struct::{DockerfileInsctruction, InstructionOption, InstructionOptionOption},
+    dofigen_struct::{Builder, Image, Root},
     generator::{GenerationContext, LINE_SEPARATOR},
-    structs::{Builder, Image, Root},
     Result,
 };
 

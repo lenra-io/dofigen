@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use crate::{
+    dofigen_struct::{Builder, Image},
     generator::GenerationContext,
-    runners::ScriptRunner,
-    structs::{Builder, Image},
+    script_runner::ScriptRunner,
     Artifact, CopyResources, ImageName, Root, User,
 };
 
