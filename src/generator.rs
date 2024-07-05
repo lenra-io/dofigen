@@ -471,8 +471,7 @@ impl DockerfileGenerator for Run {
                     return Ok(vec![]);
                 }
                 1 => script_lines[0].into(),
-                _ => script_lines.join(LINE_SEPARATOR),
-                // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
+                _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
             };
             let mut options = vec![];
             self.cache.iter().for_each(|cache| {
