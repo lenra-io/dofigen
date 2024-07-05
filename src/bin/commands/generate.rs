@@ -60,16 +60,7 @@ impl CliCommand for Generate {
             from_file_path(&PathBuf::from(file))
         }
         .expect("Failed to load the Dofigen structure");
-
-        let to_stdout = self.output == "-";
-        let writer = if to_stdout {
-            Box::new(std::io::stdout()) as Box<dyn std::io::Write>
-        } else {
-            Box::new(fs::File::create(&self.output).expect("Unable to create the Dockerfile"))
-                as Box<dyn std::io::Write>
-        };
-        generate_dockerfile(&image)?;
-
+        let dockerfile_content = generate_dockerfile(&image)?;
 
         if self.output == "-" {
             print!("{}", dockerfile_content);
