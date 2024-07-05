@@ -8,62 +8,12 @@ use crate::{
 pub trait ScriptRunner {
     fn script(&self) -> Option<&Vec<String>>;
     fn caches(&self) -> Option<&Vec<String>>;
-    fn has_script(&self) -> bool {
-        if let Some(script) = self.script() {
-            return script.iter().any(|script| !script.is_empty());
-        }
-        false
-    }
-    // fn add_script(&self, buffer: &mut String, context: &GenerationContext) {
-    //     if !self.has_script() {
-    //         return;
-    //     }
-    //     let one_or_many = self.script().unwrap();
-    //     let script = one_or_many.clone().to_vec();
-    //     let mut lines: Vec<String> = script
-    //         .join(" &&\n")
-    //         .lines()
-    //         .map(str::to_string)
-    //         .collect::<Vec<String>>();
-    //     if let Some(paths) = self.caches() {
-    //         lines.splice(
-    //             0..0,
-    //             paths
-    //                 .clone()
-    //                 .to_vec()
-    //                 .iter()
-    //                 .map(|path| {
-    //                     let uid: String = if let Some(uid) = context
-    //                         .user
-    //                         .clone()
-    //                         .map(|uid| uid.parse::<u16>().ok())
-    //                         .flatten()
-    //                     {
-    //                         format!(",uid={}", uid)
-    //                     } else {
-    //                         String::new()
-    //                     };
-    //                     format!(
-    //                         "--mount=type=cache,sharing=locked{uid},target={target}",
-    //                         uid = uid,
-    //                         target = path
-    //                     )
-    //                 })
-    //                 .collect::<Vec<String>>(),
-    //         );
-    //     }
-    //     lines.insert(0, "RUN".to_string());
-    //     buffer.push_str(&lines.join(LINE_SEPARATOR));
-    //     buffer.push_str("\n");
-    // }
 
     fn to_run_inscruction(
         &self,
         context: &GenerationContext,
     ) -> Result<Option<DockerfileInsctruction>> {
         if let Some(script) = self.script() {
-            // TODO: clone context with current stage user if defined
-            // let context =
             let script = script.join(" &&\n");
             let script_lines = script.lines().collect::<Vec<&str>>();
             let content = match script_lines.len() {
@@ -128,40 +78,42 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_has_script_with_script() {
-        let builder = Builder {
-            run: Some(vec!["echo Hello".to_string()]),
-            ..Default::default()
-        };
-        assert_eq!(builder.has_script(), true);
-    }
+    // TODO recreate unit tests
 
-    #[test]
-    fn test_has_script_without_script() {
-        let builder = Builder {
-            ..Default::default()
-        };
-        assert_eq!(builder.has_script(), false);
-    }
+    // #[test]
+    // fn test_has_script_with_script() {
+    //     let builder = Builder {
+    //         run: Some(vec!["echo Hello".to_string()]),
+    //         ..Default::default()
+    //     };
+    //     assert_eq!(builder.has_script(), true);
+    // }
 
-    #[test]
-    fn test_has_script_with_empty_script() {
-        let builder = Builder {
-            run: Some(vec![]),
-            ..Default::default()
-        };
-        assert_eq!(builder.has_script(), false);
-    }
+    // #[test]
+    // fn test_has_script_without_script() {
+    //     let builder = Builder {
+    //         ..Default::default()
+    //     };
+    //     assert_eq!(builder.has_script(), false);
+    // }
 
-    #[test]
-    fn test_has_script_without_script_with_cache() {
-        let builder = Builder {
-            cache: Some(vec!["/path/to/cache".to_string()]),
-            ..Default::default()
-        };
-        assert_eq!(builder.has_script(), false);
-    }
+    // #[test]
+    // fn test_has_script_with_empty_script() {
+    //     let builder = Builder {
+    //         run: Some(vec![]),
+    //         ..Default::default()
+    //     };
+    //     assert_eq!(builder.has_script(), false);
+    // }
+
+    // #[test]
+    // fn test_has_script_without_script_with_cache() {
+    //     let builder = Builder {
+    //         cache: Some(vec!["/path/to/cache".to_string()]),
+    //         ..Default::default()
+    //     };
+    //     assert_eq!(builder.has_script(), false);
+    // }
 
     // #[test]
     // fn test_add_script_with_script_and_caches() {

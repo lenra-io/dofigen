@@ -289,6 +289,7 @@ impl DockerfileGenerator for dyn Stage {
                 lines.append(&mut artifact.generate_dockerfile_lines(&context)?);
             }
         }
+        todo!("Manage root");
         if let Some(user) = self.user() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "USER".to_string(),
