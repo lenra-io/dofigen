@@ -316,7 +316,7 @@ pub fn generate_json_schema() -> String {
 }
 
 #[cfg(test)]
-mod tests {
+mod test {
     use super::*;
 
     #[test]

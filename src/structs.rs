@@ -2,7 +2,7 @@
 use schemars::JsonSchema;
 
 use crate::serde_permissive::{
-    deserialize_one_or_many, deserialize_optional_one_or_many, IntOrStringOrStruct, StringOrStruct,
+    deserialize_one_or_many, deserialize_optional_one_or_many, PermissiveStruct,
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -137,7 +137,7 @@ pub struct Healthcheck {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "StringOrStruct<ImageName>")]
+#[serde(from = "PermissiveStruct<ImageName>")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ImageName {
     pub host: Option<String>,
@@ -154,7 +154,7 @@ pub enum ImageVersion {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(from = "StringOrStruct<CopyResources>")]
+#[serde(from = "PermissiveStruct<CopyResources>")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum CopyResources {
     Copy(Copy),
@@ -224,7 +224,7 @@ pub struct Add {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "IntOrStringOrStruct<User>")]
+#[serde(from = "PermissiveStruct<User>")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct User {
     pub user: String,
@@ -232,7 +232,7 @@ pub struct User {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "IntOrStringOrStruct<Port>")]
+#[serde(from = "PermissiveStruct<Port>")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Port {
     pub port: u16,

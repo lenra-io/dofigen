@@ -1,5 +1,6 @@
 use crate::{
     dockerfile::{DockerfileInsctruction, DockerfileLine, InstructionOption},
+    runners::ScriptRunner,
     Add, AddGitRepo, Artifact, BaseStage, Copy, CopyResources, Image, ImageName, ImageVersion,
     Port, PortProtocol, Result, Stage, User, DOCKERFILE_VERSION,
 };
@@ -289,7 +290,20 @@ impl DockerfileGenerator for dyn Stage {
                 lines.append(&mut artifact.generate_dockerfile_lines(&context)?);
             }
         }
-        todo!("Manage root");
+        if let Some(root) = self.root() {
+            let root_context = GenerationContext {
+                user: Some(User::new("0")),
+                previous_builders: context.previous_builders.clone(),
+            };
+            if let Some(instruction) = root.to_run_inscruction(&root_context)? {
+                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "USER".to_string(),
+                    content: root_context.user.unwrap().to_string(),
+                    options: vec![],
+                }));
+                lines.push(DockerfileLine::Instruction(instruction));
+            }
+        }
         if let Some(user) = self.user() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "USER".to_string(),

@@ -12,11 +12,12 @@ use std::{
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 #[serde(untagged)]
-pub enum IntOrStringOrStruct<T>
+pub enum PermissiveStruct<T>
 where
     T: FromStr<Err = Error>,
 {
-    Int(u16),
+    Int(isize),
+    Uint(usize),
     String(String),
     Struct(T),
 }

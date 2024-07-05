@@ -6,24 +6,28 @@ pub trait DockerfileContent {
     fn generate_content(&self) -> String;
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum DockerfileLine {
     Instruction(DockerfileInsctruction),
     Comment(String),
     Empty,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DockerfileInsctruction {
     pub command: String,
     pub content: String,
     pub options: Vec<InstructionOption>,
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum InstructionOption {
     NameOnly(String),
     WithValue(String, String),
     WithOptions(String, Vec<InstructionOptionOption>),
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct InstructionOptionOption {
     pub name: String,
     pub value: String,

@@ -1,40 +1,27 @@
 use crate::{
-    serde_permissive::{IntOrStringOrStruct, StringOrStruct},
-    Add, AddGitRepo, Copy, CopyResources, ImageName, ImageVersion, Port, PortProtocol, User,
+    serde_permissive::PermissiveStruct, Add, AddGitRepo, Copy, CopyResources, ImageName,
+    ImageVersion, Port, PortProtocol, User,
 };
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
 use std::str::FromStr;
 
-macro_rules! impl_StringOrStruct {
+macro_rules! impl_PermissiveStruct {
     (for $($t:ty),+) => {
-        $(impl From<StringOrStruct<$t>> for $t {
-            fn from(s: StringOrStruct<$t>) -> Self {
+        $(impl From<PermissiveStruct<$t>> for $t {
+            fn from(s: PermissiveStruct<$t>) -> Self {
                 match s {
-                    StringOrStruct::String(s) => s.parse().unwrap(),
-                    StringOrStruct::Struct(s) => s,
+                    PermissiveStruct::Int(s) => s.to_string().parse().unwrap(),
+                    PermissiveStruct::Uint(s) => s.to_string().parse().unwrap(),
+                    PermissiveStruct::String(s) => s.parse().unwrap(),
+                    PermissiveStruct::Struct(s) => s,
                 }
             }
         })*
     }
 }
 
-macro_rules! impl_IntOrStringOrStruct {
-    (for $($t:ty),+) => {
-        $(impl From<IntOrStringOrStruct<$t>> for $t {
-            fn from(s: IntOrStringOrStruct<$t>) -> Self {
-                match s {
-                    IntOrStringOrStruct::Int(s) => s.to_string().parse().unwrap(),
-                    IntOrStringOrStruct::String(s) => s.parse().unwrap(),
-                    IntOrStringOrStruct::Struct(s) => s,
-                }
-            }
-        })*
-    }
-}
-
-impl_StringOrStruct!(for ImageName, CopyResources, Copy);
-impl_IntOrStringOrStruct!(for User, Port);
+impl_PermissiveStruct!(for ImageName, CopyResources, Copy, User, Port);
 
 const GIT_HTTP_REPO_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.git(?:#[a-zA-Z0-9_/.-]*(?::[a-zA-Z0-9_/-]+)?)?";
 const GIT_SSH_REPO_REGEX: &str = "[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+:[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:#[a-zA-Z0-9_/.-]+)?(?::[a-zA-Z0-9_/-]+)?";
