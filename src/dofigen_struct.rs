@@ -245,25 +245,3 @@ pub enum PortProtocol {
     Tcp,
     Udp,
 }
-
-// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-// pub enum GitRepo {
-//     Http(HttpGitRepo),
-//     Ssh(SshGitRepo),
-// }
-
-// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-// pub struct HttpGitRepo {
-//     pub url: String,
-//     /// The branch or tag to checkout
-//     pub reference: Option<String>,
-// }
-
-// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-// pub struct SshGitRepo {
-//     pub url: String,
-//     pub user: String,
-// }

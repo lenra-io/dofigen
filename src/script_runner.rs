@@ -1,7 +1,7 @@
 use crate::{
     dockerfile_struct::{DockerfileInsctruction, InstructionOption, InstructionOptionOption},
     dofigen_struct::{Builder, Image, Root},
-    generator::{GenerationContext, LINE_SEPARATOR},
+    generator::GenerationContext,
     Result,
 };
 
@@ -14,15 +14,16 @@ pub trait ScriptRunner {
         context: &GenerationContext,
     ) -> Result<Option<DockerfileInsctruction>> {
         if let Some(script) = self.script() {
-            let script = script.join(" &&\n");
-            let script_lines = script.lines().collect::<Vec<&str>>();
+            let script_lines = script
+                .iter()
+                .flat_map(|command| command.lines())
+                .collect::<Vec<&str>>();
             let content = match script_lines.len() {
                 0 => {
                     return Ok(None);
                 }
                 1 => script_lines[0].to_string(),
-                _ => script_lines.join(LINE_SEPARATOR),
-                // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
+                _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
             };
             let mut options = vec![];
             if let Some(caches) = self.caches() {
