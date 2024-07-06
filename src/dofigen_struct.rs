@@ -25,7 +25,7 @@ pub struct Image {
         feature = "permissive",
         serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
-    pub copy: Option<Vec<CopyResources>>,
+    pub copy: Option<Vec<CopyResource>>,
     pub root: Option<Root>,
     #[serde(alias = "script")]
     #[cfg_attr(
@@ -88,7 +88,7 @@ pub struct Builder {
         feature = "permissive",
         serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
-    pub copy: Option<Vec<CopyResources>>,
+    pub copy: Option<Vec<CopyResource>>,
     pub root: Option<Root>,
     #[serde(alias = "script")]
     #[cfg_attr(
@@ -160,12 +160,10 @@ pub enum ImageVersion {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[cfg_attr(
-    feature = "permissive",
-    serde(from = "PermissiveStruct<CopyResources>")
-)]
+#[serde(untagged)]
+#[cfg_attr(feature = "permissive", serde(from = "PermissiveStruct<CopyResource>"))]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum CopyResources {
+pub enum CopyResource {
     Copy(Copy),
     AddGitRepo(AddGitRepo),
     Add(Add),
@@ -232,7 +230,7 @@ pub struct Add {
         feature = "permissive",
         serde(deserialize_with = "deserialize_one_or_many", default)
     )]
-    pub paths: Vec<String>,
+    pub files: Vec<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
     pub checksum: Option<String>,
@@ -288,3 +286,130 @@ pub enum PortProtocol {
 //     pub url: String,
 //     pub user: String,
 // }
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    mod copy_resource {
+        use super::*;
+
+        #[test]
+        fn deserialize_copy() {
+            let json_data = r#"{
+            "paths": ["file1.txt", "file2.txt"],
+            "target": "destination/",
+            "chown": {
+                "user": "root",
+                "group": "root"
+            },
+            "chmod": "755",
+            "exclude": ["file3.txt"],
+            "link": true,
+            "parents": true,
+            "from": "source/"
+        }"#;
+
+            let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
+
+            assert_eq!(
+                copy_resource,
+                CopyResource::Copy(Copy {
+                    paths: vec!["file1.txt".to_string(), "file2.txt".to_string()],
+                    target: Some("destination/".to_string()),
+                    chown: Some(User {
+                        user: "root".to_string(),
+                        group: Some("root".to_string())
+                    }),
+                    chmod: Some("755".to_string()),
+                    exclude: Some(vec!["file3.txt".to_string()]),
+                    link: Some(true),
+                    parents: Some(true),
+                    from: Some("source/".to_string())
+                })
+            );
+        }
+
+        #[cfg(feature = "permissive")]
+        #[test]
+        fn deserialize_copy_from_str() {
+            let json_data = "file1.txt destination/";
+
+            let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
+
+            assert_eq!(
+                copy_resource,
+                CopyResource::Copy(Copy {
+                    paths: vec!["file1.txt".to_string()],
+                    target: Some("destination/".to_string()),
+                    ..Default::default()
+                })
+            );
+        }
+
+        #[test]
+        fn deserialize_add_git_repo() {
+            let json_data = r#"{
+            "repo": "https://github.com/example/repo.git",
+            "target": "destination/",
+            "chown": {
+                "user": "root",
+                "group": "root"
+            },
+            "chmod": "755",
+            "exclude": ["file3.txt"],
+            "link": true,
+            "keep_git_dir": true
+        }"#;
+
+            let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
+
+            assert_eq!(
+                copy_resource,
+                CopyResource::AddGitRepo(AddGitRepo {
+                    repo: "https://github.com/example/repo.git".to_string(),
+                    target: Some("destination/".to_string()),
+                    chown: Some(User {
+                        user: "root".to_string(),
+                        group: Some("root".to_string())
+                    }),
+                    chmod: Some("755".to_string()),
+                    exclude: Some(vec!["file3.txt".to_string()]),
+                    link: Some(true),
+                    keep_git_dir: Some(true)
+                })
+            );
+        }
+
+        #[test]
+        fn deserialize_add() {
+            let json_data = r#"{
+            "files": ["file1.txt", "file2.txt"],
+            "target": "destination/",
+            "checksum": "sha256:abcdef123456",
+            "chown": {
+                "user": "root",
+                "group": "root"
+            },
+            "chmod": "755",
+            "link": true
+        }"#;
+
+            let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
+
+            assert_eq!(
+                copy_resource,
+                CopyResource::Add(Add {
+                    files: vec!["file1.txt".to_string(), "file2.txt".to_string()],
+                    target: Some("destination/".to_string()),
+                    checksum: Some("sha256:abcdef123456".to_string()),
+                    chown: Some(User {
+                        user: "root".to_string(),
+                        group: Some("root".to_string())
+                    }),
+                    chmod: Some("755".to_string()),
+                    link: Some(true)
+                })
+            );
+        }
+    }
+}

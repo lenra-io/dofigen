@@ -4,7 +4,7 @@ use crate::{
     dofigen_struct::{Builder, Image},
     generator::GenerationContext,
     script_runner::ScriptRunner,
-    Artifact, CopyResources, ImageName, Root, User,
+    Artifact, CopyResource, ImageName, Root, User,
 };
 
 pub trait BaseStage: ScriptRunner {
@@ -15,7 +15,7 @@ pub trait BaseStage: ScriptRunner {
 pub trait Stage: BaseStage {
     fn workdir(&self) -> Option<&String>;
     fn env(&self) -> Option<&HashMap<String, String>>;
-    fn copy(&self) -> Option<&Vec<CopyResources>>;
+    fn copy(&self) -> Option<&Vec<CopyResource>>;
     fn artifacts(&self) -> Option<&Vec<Artifact>>;
     fn root(&self) -> Option<&Root>;
 }
@@ -66,7 +66,7 @@ macro_rules! impl_Stage {
                 self.env.as_ref()
             }
 
-            fn copy(&self) -> Option<&Vec<CopyResources>> {
+            fn copy(&self) -> Option<&Vec<CopyResource>> {
                 self.copy.as_ref()
             }
 

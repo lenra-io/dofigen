@@ -1,7 +1,7 @@
 use crate::{
     dockerfile_struct::{DockerfileInsctruction, DockerfileLine, InstructionOption},
     script_runner::ScriptRunner,
-    Add, AddGitRepo, Artifact, BaseStage, Copy, CopyResources, Image, ImageName, ImageVersion,
+    Add, AddGitRepo, Artifact, BaseStage, Copy, CopyResource, Image, ImageName, ImageVersion,
     Port, PortProtocol, Result, Stage, User, DOCKERFILE_VERSION,
 };
 
@@ -83,15 +83,15 @@ impl ToString for PortProtocol {
     }
 }
 
-impl DockerfileGenerator for CopyResources {
+impl DockerfileGenerator for CopyResource {
     fn generate_dockerfile_lines(
         &self,
         context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         match self {
-            CopyResources::Copy(copy) => copy.generate_dockerfile_lines(context),
-            CopyResources::Add(add_web_file) => add_web_file.generate_dockerfile_lines(context),
-            CopyResources::AddGitRepo(add_git_repo) => {
+            CopyResource::Copy(copy) => copy.generate_dockerfile_lines(context),
+            CopyResource::Add(add_web_file) => add_web_file.generate_dockerfile_lines(context),
+            CopyResource::AddGitRepo(add_git_repo) => {
                 add_git_repo.generate_dockerfile_lines(context)
             }
         }
@@ -173,7 +173,7 @@ impl DockerfileGenerator for Add {
 
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "ADD".to_string(),
-            content: copy_paths_to_string(&self.paths, &self.target),
+            content: copy_paths_to_string(&self.files, &self.target),
             options,
         })])
     }

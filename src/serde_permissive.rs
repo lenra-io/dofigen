@@ -22,17 +22,6 @@ where
     Struct(T),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(untagged)]
-pub enum StringOrStruct<T>
-where
-    T: FromStr<Err = Error>,
-{
-    String(String),
-    Struct(T),
-}
-
 pub fn deserialize_optional_one_or_many<'de, D, T>(
     deserializer: D,
 ) -> Result<Option<Vec<T>>, D::Error>

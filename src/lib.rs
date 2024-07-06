@@ -43,7 +43,8 @@ const FILE_HEADER_LINES: [&str; 3] = [
 /// use dofigen_lib::*;
 ///
 /// let yaml = "
-/// image: ubuntu
+/// image: 
+///   path: ubuntu
 /// ";
 /// let image: Image = from(yaml.to_string()).unwrap();
 /// assert_eq!(
@@ -61,17 +62,19 @@ const FILE_HEADER_LINES: [&str; 3] = [
 /// Basic parsing
 ///
 /// ```
-/// use dofigen_lib::{from, Image, Builder, Artifact, ImageName};
+/// use dofigen_lib::*;
 ///
 /// let yaml = r#"
 /// builders:
 ///   - name: builder
-///     from: ekidd/rust-musl-builder
+///     from: 
+///       path: ekidd/rust-musl-builder
 ///     add:
-///       - "*"
+///       - paths: ["*"]
 ///     run:
 ///       - cargo build --release
-/// from: ubuntu
+/// from:
+///   path: ubuntu
 /// artifacts:
 ///   - builder: builder
 ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
@@ -83,9 +86,9 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///     Image {
 ///         builders: Some(Vec::from([Builder {
 ///             name: Some(String::from("builder")),
-///             from: "ekidd/rust-musl-builder".parse().unwrap(),
-///             copy: Some(Vec::from(["*".parse().unwrap()])),
-///             run: Some(Vec::from(["cargo build --release".parse().unwrap()])),
+///             from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() },
+///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()], ..Default::default()})]),
+///             run: Some(vec!["cargo build --release".parse().unwrap()]),
 ///             ..Default::default()
 ///         }])),
 ///         from: Some(ImageName {
@@ -118,7 +121,8 @@ pub fn from(input: String) -> Result<Image> {
 /// use dofigen_lib::*;
 ///
 /// let yaml = "
-/// image: ubuntu
+/// image:
+///   path: ubuntu
 /// ";
 /// let image: Image = from_reader(yaml.as_bytes()).unwrap();
 /// assert_eq!(
@@ -141,12 +145,14 @@ pub fn from(input: String) -> Result<Image> {
 /// let yaml = r#"
 /// builders:
 ///   - name: builder
-///     from: ekidd/rust-musl-builder
+///     from:
+///       path: ekidd/rust-musl-builder
 ///     add:
-///       - "*"
+///       - paths: ["*"]
 ///     run:
 ///       - cargo build --release
-/// from: ubuntu
+/// from:
+///     path: ubuntu
 /// artifacts:
 ///   - builder: builder
 ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
@@ -158,8 +164,8 @@ pub fn from(input: String) -> Result<Image> {
 ///     Image {
 ///         builders: Some(Vec::from([Builder {
 ///             name: Some(String::from("builder")),
-///             from: "ekidd/rust-musl-builder".parse().unwrap(),
-///             copy: Some(Vec::from(["*".parse().unwrap()])),
+///             from: ImageName{path: "ekidd/rust-musl-builder".into(), ..Default::default()},
+///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()], ..Default::default()})]),
 ///             run: Some(Vec::from(["cargo build --release".parse().unwrap()])),
 ///             ..Default::default()
 ///         }])),
@@ -317,6 +323,8 @@ pub fn generate_json_schema() -> String {
     serde_json::to_string_pretty(&schema).unwrap()
 }
 
+
+#[cfg(feature = "permissive")]
 #[cfg(test)]
 mod test {
     use super::*;
@@ -432,7 +440,7 @@ artifacts:
                         path: String::from("ekidd/rust-musl-builder"),
                         ..Default::default()
                     },
-                    copy: Some(vec![CopyResources::Copy(Copy {
+                    copy: Some(vec![CopyResource::Copy(Copy {
                         paths: vec![String::from("*")],
                         ..Default::default()
                     })]),
