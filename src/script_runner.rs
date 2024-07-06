@@ -14,8 +14,10 @@ pub trait ScriptRunner {
         context: &GenerationContext,
     ) -> Result<Option<DockerfileInsctruction>> {
         if let Some(script) = self.script() {
-            let script = script.join(" &&\n");
-            let script_lines = script.lines().collect::<Vec<&str>>();
+            let script_lines = script
+                .iter()
+                .flat_map(|command| command.lines())
+                .collect::<Vec<&str>>();
             let content = match script_lines.len() {
                 0 => {
                     return Ok(None);
