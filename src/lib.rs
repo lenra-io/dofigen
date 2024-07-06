@@ -6,9 +6,11 @@
 mod dockerfile_struct;
 mod dofigen_struct;
 mod errors;
+#[cfg(feature = "permissive")]
 mod from_str;
 mod generator;
 mod script_runner;
+#[cfg(feature = "permissive")]
 mod serde_permissive;
 mod stage;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};

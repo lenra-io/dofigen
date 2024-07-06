@@ -1,9 +1,9 @@
-#[cfg(feature = "json_schema")]
-use schemars::JsonSchema;
-
+#[cfg(feature = "permissive")]
 use crate::serde_permissive::{
     deserialize_one_or_many, deserialize_optional_one_or_many, PermissiveStruct,
 };
+#[cfg(feature = "json_schema")]
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -20,45 +20,52 @@ pub struct Image {
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(
-        alias = "add",
-        alias = "adds",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "add", alias = "adds")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub copy: Option<Vec<CopyResources>>,
     pub root: Option<Root>,
-    #[serde(
-        alias = "script",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "script")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub run: Option<Vec<String>>,
-    #[serde(
-        alias = "caches",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "caches")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub cache: Option<Vec<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
+    )]
     pub context: Option<Vec<String>>,
-    #[serde(
-        alias = "ignores",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "ignores")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub ignore: Option<Vec<String>>,
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
+    )]
     pub entrypoint: Option<Vec<String>>,
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
+    )]
     pub cmd: Option<Vec<String>>,
-    #[serde(
-        alias = "port",
-        alias = "ports",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "port", alias = "ports")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub expose: Option<Vec<Port>>,
     pub healthcheck: Option<Healthcheck>,
@@ -76,24 +83,23 @@ pub struct Builder {
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(
-        alias = "add",
-        alias = "adds",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "add", alias = "adds")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub copy: Option<Vec<CopyResources>>,
     pub root: Option<Root>,
-    #[serde(
-        alias = "script",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "script")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub run: Option<Vec<String>>,
-    #[serde(
-        alias = "caches",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "caches")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub cache: Option<Vec<String>>,
     // Specific part
@@ -112,16 +118,16 @@ pub struct Artifact {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Root {
-    #[serde(
-        alias = "script",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "script")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub run: Option<Vec<String>>,
-    #[serde(
-        alias = "caches",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
+    #[serde(alias = "caches")]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
     )]
     pub cache: Option<Vec<String>>,
 }
@@ -137,7 +143,7 @@ pub struct Healthcheck {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "PermissiveStruct<ImageName>")]
+#[cfg_attr(feature = "permissive", serde(from = "PermissiveStruct<ImageName>"))]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ImageName {
     pub host: Option<String>,
@@ -154,7 +160,10 @@ pub enum ImageVersion {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(from = "PermissiveStruct<CopyResources>")]
+#[cfg_attr(
+    feature = "permissive",
+    serde(from = "PermissiveStruct<CopyResources>")
+)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum CopyResources {
     Copy(Copy),
@@ -167,7 +176,10 @@ pub enum CopyResources {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
-    #[serde(deserialize_with = "deserialize_one_or_many", default)]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_one_or_many", default)
+    )]
     pub paths: Vec<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
@@ -175,7 +187,10 @@ pub struct Copy {
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
+    )]
     pub exclude: Option<Vec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
     pub link: Option<bool>,
@@ -198,7 +213,10 @@ pub struct AddGitRepo {
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_optional_one_or_many", default)
+    )]
     pub exclude: Option<Vec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
     pub link: Option<bool>,
@@ -210,7 +228,10 @@ pub struct AddGitRepo {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Add {
-    #[serde(deserialize_with = "deserialize_one_or_many", default)]
+    #[cfg_attr(
+        feature = "permissive",
+        serde(deserialize_with = "deserialize_one_or_many", default)
+    )]
     pub paths: Vec<String>,
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
@@ -224,7 +245,7 @@ pub struct Add {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "PermissiveStruct<User>")]
+#[cfg_attr(feature = "permissive", serde(from = "PermissiveStruct<User>"))]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct User {
     pub user: String,
@@ -232,7 +253,7 @@ pub struct User {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "PermissiveStruct<Port>")]
+#[cfg_attr(feature = "permissive", serde(from = "PermissiveStruct<Port>"))]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Port {
     pub port: u16,
