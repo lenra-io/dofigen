@@ -464,8 +464,10 @@ impl DockerfileGenerator for Run {
     ) -> Result<Vec<DockerfileLine>> {
         let script = &self.run;
         if !script.is_empty() {
-            let script = script.join(" &&\n");
-            let script_lines = script.lines().collect::<Vec<&str>>();
+            let script_lines = script
+                .iter()
+                .flat_map(|command| command.lines())
+                .collect::<Vec<&str>>();
             let content = match script_lines.len() {
                 0 => {
                     return Ok(vec![]);
