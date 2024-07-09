@@ -36,8 +36,8 @@ pub struct InstructionOptionOption {
 impl InstructionOptionOption {
     pub fn new(name: &str, value: &str) -> Self {
         Self {
-            name: name.to_string(),
-            value: value.to_string(),
+            name: name.into(),
+            value: value.into(),
         }
     }
 }
@@ -51,7 +51,7 @@ impl DockerfileContent for DockerfileLine {
                 .map(|l| format!("# {}", l))
                 .collect::<Vec<String>>()
                 .join("\n"),
-            DockerfileLine::Empty => "".to_string(),
+            DockerfileLine::Empty => "".into(),
         }
     }
 }
@@ -103,11 +103,11 @@ mod test {
     #[test]
     fn test_generate_content_instruction() {
         let instruction = DockerfileInsctruction {
-            command: "RUN".to_string(),
-            content: "echo 'Hello, World!'".to_string(),
+            command: "RUN".into(),
+            content: "echo 'Hello, World!'".into(),
             options: vec![
-                InstructionOption::NameOnly("arg1".to_string()),
-                InstructionOption::WithValue("arg2".to_string(), "value2".to_string()),
+                InstructionOption::NameOnly("arg1".into()),
+                InstructionOption::WithValue("arg2".into(), "value2".into()),
             ],
         };
         assert_eq!(
@@ -118,7 +118,7 @@ mod test {
 
     #[test]
     fn test_generate_content_comment() {
-        let comment = DockerfileLine::Comment("This is a comment".to_string());
+        let comment = DockerfileLine::Comment("This is a comment".into());
         assert_eq!(comment.generate_content(), "# This is a comment");
     }
 
@@ -130,13 +130,13 @@ mod test {
 
     #[test]
     fn test_generate_content_name_only_option() {
-        let option = InstructionOption::NameOnly("arg1".to_string());
+        let option = InstructionOption::NameOnly("arg1".into());
         assert_eq!(option.generate_content(), "--arg1");
     }
 
     #[test]
     fn test_generate_content_with_value_option() {
-        let option = InstructionOption::WithValue("arg1".to_string(), "value1".to_string());
+        let option = InstructionOption::WithValue("arg1".into(), "value1".into());
         assert_eq!(option.generate_content(), "--arg1=value1");
     }
 
@@ -145,7 +145,7 @@ mod test {
         let sub_option1 = InstructionOptionOption::new("sub_arg1", "sub_value1");
         let sub_option2 = InstructionOptionOption::new("sub_arg2", "sub_value2");
         let options = vec![sub_option1, sub_option2];
-        let option = InstructionOption::WithOptions("arg1".to_string(), options);
+        let option = InstructionOption::WithOptions("arg1".into(), options);
         let expected = "--arg1=sub_arg1=sub_value1,sub_arg2=sub_value2";
         assert_eq!(option.generate_content(), expected);
     }

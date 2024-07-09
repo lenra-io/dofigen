@@ -23,6 +23,7 @@ path = "src/bin/main.rs"
 required-features = ["cli"]
 
 [features]
+# default = ["permissive"]
 cli = ["clap"]
 json_schema = ["schemars", "serde_json"]
 permissive = []

@@ -1,73 +1,97 @@
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{
-    de::{self, value::Error, Error as DeError, MapAccess, Visitor},
+    de::{self, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer, Serialize,
 };
-use std::{
-    fmt::{self},
-    str::FromStr,
-};
+use std::{fmt, ops::Deref, str::FromStr};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(untagged)]
-pub enum PermissiveStruct<T>
+pub struct ParsableStruct<T>(T)
 where
-    T: FromStr<Err = Error>,
-{
-    Int(isize),
-    Uint(usize),
-    String(String),
-    Struct(T),
+    T: FromStr + Sized;
+
+impl<T: FromStr + Sized> ParsableStruct<T> {
+    pub fn new(value: T) -> Self {
+        ParsableStruct(value)
+    }
 }
 
-pub fn deserialize_optional_one_or_many<'de, D, T>(
-    deserializer: D,
-) -> Result<Option<Vec<T>>, D::Error>
+impl<T: FromStr + Sized> Deref for ParsableStruct<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        &self.0
+    }
+}
+
+impl<'de, T> Deserialize<'de> for ParsableStruct<T>
 where
-    D: Deserializer<'de>,
-    T: Deserialize<'de>,
+    T: FromStr + Sized + Deserialize<'de>,
 {
-    struct OptionalOneOrManyVisitor<T>(Option<T>);
-
-    impl<'de, T> Visitor<'de> for OptionalOneOrManyVisitor<T>
+    fn deserialize<D>(deserializer: D) -> Result<ParsableStruct<T>, D::Error>
     where
-        T: Deserialize<'de>,
+        D: Deserializer<'de>,
     {
-        type Value = Option<Vec<T>>;
+        deserialize_permissive_struct(deserializer).map(ParsableStruct::new)
+    }
+}
 
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("an optional str, map or seq")
-        }
+impl<T: FromStr + Sized> From<T> for ParsableStruct<T> {
+    fn from(value: T) -> Self {
+        ParsableStruct::new(value)
+    }
+}
 
-        fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-        where
-            D: Deserializer<'de>,
-        {
-            let value: Vec<T> = deserialize_one_or_many(deserializer)?;
-            Ok(Some(value))
-        }
+#[derive(Serialize, Debug, Clone, Default, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct OneOrManyVec<T>(Vec<T>)
+where
+    T: Sized;
 
-        fn visit_none<E>(self) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Ok(None)
-        }
+impl<T: Sized + Clone> OneOrManyVec<T> {
+    pub fn new(value: Vec<T>) -> Self {
+        OneOrManyVec(value)
     }
 
-    let visitor: OptionalOneOrManyVisitor<T> = OptionalOneOrManyVisitor(None);
+    pub fn deref(&self) -> &Vec<T> {
+        &self.0
+    }
 
-    deserializer.deserialize_option(visitor)
+    pub fn to_vec(&self) -> Vec<T> {
+        self.deref().to_vec()
+    }
 }
 
-pub fn deserialize_one_or_many<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
+impl<T: Sized + Clone> From<Vec<T>> for OneOrManyVec<T> {
+    fn from(value: Vec<T>) -> Self {
+        OneOrManyVec::new(value)
+    }
+}
+
+impl<'de, T> Deserialize<'de> for OneOrManyVec<T>
+where
+    T: Sized + Clone + Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<OneOrManyVec<T>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserialize_one_or_many_vec(deserializer).map(OneOrManyVec::new)
+    }
+}
+
+fn deserialize_one_or_many_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
     T: Deserialize<'de>,
 {
     struct OneOrManyVisitor<T>(Option<T>);
+
+    fn map_vec<T>(value: T) -> Vec<T> {
+        vec![value]
+    }
 
     impl<'de, T> Visitor<'de> for OneOrManyVisitor<T>
     where
@@ -76,7 +100,121 @@ where
         type Value = Vec<T>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a number, a string, a map or a seq")
+            formatter.write_str("any type")
+        }
+
+        fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I8Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I16Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I32Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I128Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U8Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U16Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U32Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U128Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::StrDeserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+        where
+            A: MapAccess<'de>,
+        {
+            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map)).map(map_vec)
+        }
+
+        fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: de::SeqAccess<'de>,
+        {
+            Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))
+        }
+    }
+
+    let visitor: OneOrManyVisitor<T> = OneOrManyVisitor(None);
+
+    deserializer.deserialize_any(visitor)
+}
+
+fn deserialize_permissive_struct<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr + Sized + Deserialize<'de>,
+{
+    struct PermissiveStructVisitor<T>(Option<T>);
+
+    impl<'de, T> Visitor<'de> for PermissiveStructVisitor<T>
+    where
+        T: Deserialize<'de> + FromStr,
+    {
+        type Value = T;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a number, a string or a map")
         }
 
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
@@ -97,27 +235,20 @@ where
         where
             E: DeError,
         {
-            let value: T = Deserialize::deserialize(de::value::StrDeserializer::new(v))?;
-            Ok(vec![value])
+            // TODO: improve error management
+            v.parse()
+                .map_err(|_| E::custom("Error while parsing a permissive struct"))
         }
 
         fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
         where
             A: MapAccess<'de>,
         {
-            let value: T = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
-            Ok(vec![value])
-        }
-
-        fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
-        where
-            A: de::SeqAccess<'de>,
-        {
-            Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))
+            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
         }
     }
 
-    let visitor: OneOrManyVisitor<T> = OneOrManyVisitor(None);
+    let visitor: PermissiveStructVisitor<T> = PermissiveStructVisitor(None);
 
     deserializer.deserialize_any(visitor)
 }
@@ -131,8 +262,7 @@ mod test {
 
         #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
         struct TestStruct {
-            #[serde(deserialize_with = "deserialize_one_or_many")]
-            pub one_or_many: Vec<String>,
+            pub one_or_many: OneOrManyVec<String>,
         }
 
         #[test]
@@ -141,7 +271,7 @@ mod test {
             assert_eq!(
                 ret,
                 TestStruct {
-                    one_or_many: vec!["test".to_string()]
+                    one_or_many: OneOrManyVec::new(vec!["test".into()])
                 }
             )
         }
@@ -152,7 +282,7 @@ mod test {
             assert_eq!(
                 ret,
                 TestStruct {
-                    one_or_many: vec!["test".to_string()]
+                    one_or_many: OneOrManyVec::new(vec!["test".into()])
                 }
             )
         }
@@ -164,8 +294,7 @@ mod test {
         #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
         struct TestStruct {
             pub test: Option<String>,
-            #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
-            pub one_or_many: Option<Vec<String>>,
+            pub one_or_many: Option<OneOrManyVec<String>>,
         }
 
         #[test]
@@ -175,7 +304,7 @@ mod test {
                 ret,
                 TestStruct {
                     test: None,
-                    one_or_many: Some(vec!["test".to_string()])
+                    one_or_many: Some(vec!["test".into()].into())
                 }
             )
         }
@@ -187,7 +316,7 @@ mod test {
                 ret,
                 TestStruct {
                     test: None,
-                    one_or_many: Some(vec!["test".to_string()])
+                    one_or_many: Some(vec!["test".into()].into())
                 }
             )
         }
@@ -210,7 +339,7 @@ mod test {
             assert_eq!(
                 ret,
                 TestStruct {
-                    test: Some("test".to_string()),
+                    test: Some("test".into()),
                     one_or_many: None
                 }
             )
