@@ -38,7 +38,7 @@ docker buildx build --cache-to=type=local,dest=.dockercache --cache-from=type=lo
 ```
 
 A french DevOps said about it:
-> C'est une bouffée Dofigen dans ce monde de con...teneurs.
+> C'est une bouffée, Dofigen, dans ce monde de con...teneurs.
 
 [Report Bug](https://github.com/lenra-io/dofigen/issues)
 ·
@@ -58,7 +58,7 @@ First install Cargo, the Rust package manager: https://doc.rust-lang.org/cargo/g
 Then use the following command to install dofigen:
 
 ```bash
-cargo install dofigen -F cli
+cargo install dofigen -F cli -F permissive
 ```
 
 #### Download the binary
@@ -77,27 +77,32 @@ docker run --rm -it -v $(pwd):/app lenra/dofigen
 
 ### How to use it
 
-Use the help options to understand how to use it:
+To generate a Dockerfile, you need to create a Dofigen file `dofigen.yml` and run the next command:
 
 ```bash
-$ dofigen --help
-dofigen 0.0.0
-Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format
-
-USAGE:
-    dofigen [OPTIONS] [INPUT_FILE]
-
-ARGS:
-    <INPUT_FILE>    The input Dofigen file. Default reads stdin
-
-OPTIONS:
-    -d, --dockerfile <DOCKERFILE>    The output Dockerfile file [default: Dockerfile]
-    -f, --format <FORMAT>            The input format [default: yaml] [possible values: json, yaml]
-    -h, --help                       Print help information
-    -i, --ignorefile <IGNOREFILE>    The output .dockerignore file [default: .dockerignore]
-    -o, --output                     Writes the Dockerfile to the stdout
-    -V, --version                    Print version information
+dofigen gen
 ```
+
+Use the help options to understand how to override default behaviors:
+
+```bash
+$ dofigen gen --help
+Generate the Dockerfile and .dockerignore files
+
+Usage: dofigen generate [OPTIONS]
+
+Options:
+  -f, --file <FILE>      The input file Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json Define to - to read from stdin
+  -o, --output <OUTPUT>  The output Dockerfile file Define to - to write to stdout [default: Dockerfile]
+  -h, --help             Print help
+```
+
+To look further use the help command:
+
+```bash
+dofigen --help
+```
+
 
 ### Image descriptor
 
@@ -109,25 +114,25 @@ Here is an example to generate the Dofigen Dockerfile:
 ---
 builders:
 - name: builder
-  image: ekidd/rust-musl-builder
-  adds:
+  from: ekidd/rust-musl-builder
+  add:
   - "."
-  script:
+  run:
   # Build with musl to work with scratch
   - cargo build --release --target=x86_64-unknown-linux-musl
   # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
   - mv target/x86_64-unknown-linux-musl/release/dofigen ../
-  caches:
+  cache:
   # Cargo cache
   - /home/rust/.cargo
   # build cache
   - /home/rust/src/target
-image: scratch
+from: scratch
 workdir: /app
 artifacts:
 - builder: builder
   source: "/home/rust/dofigen"
-  destination: "/bin/"
+  target: "/bin/"
 entrypoint: 
 - /bin/dofigen
 cmd:
@@ -144,22 +149,22 @@ The image is the main element. It defines the runtime stage of the Dockerfile:
 
 | Field            | Alias            | Type             | Description                   |
 |------------------|------------------|------------------|-------------------------------|
-| `image`          | `from`           | String?          | The `FROM` Docker image       |
+| `from`           | `image`          | String?          | The `FROM` Docker image       |
 | `user`           |                  | String?          | The runtime user (default `1000`) |
 | `workdir`        |                  | String?          | The runtime work directory    |
-| `envs`           | `env`            | Map<String, String>? | The runtime environment variables |
+| `env`            | `envs`           | Map<String, String>? | The runtime environment variables |
 | `artifacts`      |                  | [Artifact](#artifact)[]? | Defines artifacts to copy from builders |
-| `adds`           | `add`            | String[]?        | Paths of elements to add at build time to the workdir |
+| `add`            | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
 | `root`           |                  | [Root](#root)?   | Actions made using the `root` user |
-| `script`         | `run`            | String[]?        | Script commands to execute    |
-| `caches`         | `cache`          | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+| `run`            | `script`         | String[]?        | Script commands to execute    |
+| `cache`          | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 | `builders`       |                  | [Builder](#builder)[]? | Build stages executed before the runtime stage and not in the final Docker image. Mostly to generate artifacts |
-| `ports`          |                  | int[]?           | The list of exposed ports of the Docker image |
+| `expose`         | `ports`          | int[]?           | The list of exposed ports of the Docker image |
 | `healthcheck`    |                  | [Healthcheck](#healthcheck)? | The Docker image healthcheck definition. |
 | `entrypoint`     |                  | String[]?        | The Docker image `ENTRYPOINT` parts |
 | `cmd`            |                  | String[]?        | The Docker image `CMD` parts  |
 | `context`        |                  | String[]?        | Paths of the elements to include in the Docker build context. They are used to generate the `.dockerignore` file |
-| `ignores`        | `ignore`         | String[]?        | Paths to generate the `.dockerignore` file |
+| `ignore`         | `ignores`        | String[]?        | Paths to generate the `.dockerignore` file |
 
 #### Builder
 
@@ -168,15 +173,15 @@ The builders are stages executed before the runtime stage and not in the final D
 | Field            | Alias            | Type             | Description                   |
 |------------------|------------------|------------------|-------------------------------|
 | `name`           |                  | String?          | The builder name. If not defined, a name is defined with the given pattern: `builder-<position in the builders list starting at 0>` |
-| `image`          | `from`           | String?          | The `FROM` Docker image of the builder |
+| `from`           | `image`          | String?          | The `FROM` Docker image of the builder |
 | `user`           |                  | String?          | The builder user              |
 | `workdir`        |                  | String?          | The builder work directory    |
-| `envs`           | `env`            | Map<String, String>? | The builder environment variables |
+| `env`            | `envs`           | Map<String, String>? | The builder environment variables |
 | `artifacts`      |                  | [Artifact](#artifact)[]? | Defines artifacts to copy from previous builders |
-| `adds`           | `add`            | String[]?        | Paths of elements to add at build time to the workdir |
+| `add`            | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
 | `root`           |                  | [Root](#root)?   | Actions made using the `root` user |
-| `script`         | `run`            | String[]?        | Script commands to execute    |
-| `caches`         | `cache`          | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+| `run`            | `script`         | String[]?        | Script commands to execute    |
+| `cache`          | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 
 #### Artifact
 
@@ -186,7 +191,7 @@ Artifacts are element copied from a previous build to the current stage :
 |------------------|------------------|------------------|-------------------------------|
 | `builder`        |                  | String           | The builder name from which the artifact will be copied |
 | `source`         |                  | String           | The source of the artifact in the given builder |
-| `destination`    | `target`         | String           | The destination path in the current stage |
+| `target`         | `destination`    | String           | The target path in the current stage |
 
 #### Root
 
@@ -194,8 +199,8 @@ Actions made using the `root` user :
 
 | Field            | Alias            | Type             | Description                   |
 |------------------|------------------|------------------|-------------------------------|
-| `script`         | `run`            | String[]?        | Script commands to execute    |
-| `caches`         | `cache`          | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+| `run`            | `script`         | String[]?        | Script commands to execute    |
+| `cache`          | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 
 #### Healthcheck
 
@@ -218,6 +223,22 @@ Contributions are what make the open source community such an amazing place to l
 
 If you have a suggestion that would make this better, please open an issue with the tag "enhancement" or "bug".
 Don't forget to give the project a star! Thanks again!
+
+### Tests
+
+To run the tests, use the following command:
+
+```bash
+cargo test --all-features
+```
+
+### Generate the JSON Schema
+
+To generate the JSON schema of the Dofigen file structure, use the following command:
+
+```bash
+cargo run -F cli -F json_schema -- schema
+```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
