@@ -9,6 +9,7 @@ mod errors;
 #[cfg(feature = "permissive")]
 mod from_str;
 mod generator;
+mod merge;
 mod script_runner;
 #[cfg(feature = "permissive")]
 mod serde_permissive;
@@ -51,7 +52,7 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///     image,
 ///     Image {
 ///         from: Some(ImageName {
-///             path: String::from("ubuntu"),
+///             path: Some(String::from("ubuntu")),
 ///             ..Default::default()
 ///         }.into()),
 ///         ..Default::default()
@@ -86,13 +87,13 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///     Image {
 ///         builders: Some(Vec::from([Builder {
 ///             name: Some(String::from("builder")),
-///             from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
-///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into()),
+///             from: Some(ImageName { path: Some("ekidd/rust-musl-builder".into()), ..Default::default() }.into()),
+///             copy: Some(vec![CopyResource::Copy(Copy{paths: Some(vec!["*".into()].into()), ..Default::default()}).into()].into()),
 ///             run: Some(vec!["cargo build --release".parse().unwrap()].into()),
 ///             ..Default::default()
 ///         }])),
 ///         from: Some(ImageName {
-///             path: "ubuntu".parse().unwrap(),
+///             path: Some("ubuntu".parse().unwrap()),
 ///             ..Default::default()
 ///         }.into()),
 ///         artifacts: Some(Vec::from([Artifact {
@@ -129,7 +130,7 @@ pub fn from(input: String) -> Result<Image> {
 ///     image,
 ///     Image {
 ///         from: Some(ImageName {
-///             path: String::from("ubuntu"),
+///             path: Some(String::from("ubuntu")),
 ///             ..Default::default()
 ///         }.into()),
 ///         ..Default::default()
@@ -164,13 +165,13 @@ pub fn from(input: String) -> Result<Image> {
 ///     Image {
 ///         builders: Some(Vec::from([Builder {
 ///             name: Some(String::from("builder")),
-///             from: ImageName{path: "ekidd/rust-musl-builder".into(), ..Default::default()}.into(),
-///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into()),
+///             from: Some(ImageName{path: Some("ekidd/rust-musl-builder".into()), ..Default::default()}.into()),
+///             copy: Some(vec![CopyResource::Copy(Copy{paths: Some(vec!["*".into()].into()), ..Default::default()}).into()].into()),
 ///             run: Some(vec!["cargo build --release".parse().unwrap()].into()),
 ///             ..Default::default()
 ///         }])),
 ///         from: Some(ImageName {
-///             path: String::from("ubuntu"),
+///             path: Some(String::from("ubuntu")),
 ///             ..Default::default()
 ///         }.into()),
 ///         artifacts: Some(Vec::from([Artifact {
@@ -216,7 +217,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
 ///
 /// let image = Image {
 ///     from: Some(ImageName {
-///         path: String::from("ubuntu"),
+///         path: Some(String::from("ubuntu")),
 ///         ..Default::default()
 ///     }.into()),
 ///     ..Default::default()
@@ -435,13 +436,13 @@ artifacts:
             Image {
                 builders: Some(vec![Builder {
                     name: Some(String::from("builder")),
-                    from: PermissiveStruct::new(ImageName {
-                        path: String::from("ekidd/rust-musl-builder"),
+                    from: Some(ImageName {
+                        path: Some(String::from("ekidd/rust-musl-builder")),
                         ..Default::default()
-                    }),
+                    }.into()),
                     copy: Some(PermissiveVec::new(vec![PermissiveStruct::new(
                         CopyResource::Copy(Copy {
-                            paths: vec![String::from("*")].into(),
+                            paths: Some(vec![String::from("*")].into()),
                             ..Default::default()
                         })
                     )])),

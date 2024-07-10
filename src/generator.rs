@@ -1,7 +1,7 @@
 use crate::{
     dockerfile_struct::{DockerfileInsctruction, DockerfileLine, InstructionOption},
     script_runner::ScriptRunner,
-    Add, AddGitRepo, Artifact, BaseStage, Copy, CopyOptions, CopyResource, Image, ImageName,
+    Add, AddGitRepo, Artifact, BaseStage, Copy, CopyOptions, CopyResource, Error, Image, ImageName,
     ImageVersion, Port, PortProtocol, Result, Stage, User, DOCKERFILE_VERSION,
 };
 
@@ -42,7 +42,7 @@ impl ToString for ImageName {
         }
         format!(
             "{registry}{path}{version}",
-            path = self.path,
+            path = self.path.as_ref().expect("Image name path is required"),
             registry = registry,
             version = version
         )
@@ -52,7 +52,7 @@ impl ToString for ImageName {
 impl ToString for User {
     fn to_string(&self) -> String {
         let mut chown = String::new();
-        chown.push_str(self.user.as_str());
+        chown.push_str(self.user.as_ref().expect("User name is required"));
         if let Some(group) = &self.group {
             chown.push_str(":");
             chown.push_str(group);
@@ -63,13 +63,10 @@ impl ToString for User {
 
 impl ToString for Port {
     fn to_string(&self) -> String {
+        let port = self.port.as_ref().expect("Port number is required");
         match &self.protocol {
-            Some(protocol) => format!(
-                "{port}/{protocol}",
-                port = self.port,
-                protocol = protocol.to_string()
-            ),
-            None => self.port.to_string(),
+            Some(protocol) => format!("{port}/{protocol}", protocol = protocol.to_string()),
+            None => port.to_string(),
         }
     }
 }
@@ -136,7 +133,13 @@ impl DockerfileGenerator for Copy {
         // }
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "COPY".into(),
-            content: copy_paths_into(self.paths.to_vec(), &self.options.target),
+            content: copy_paths_into(
+                self.paths
+                    .as_ref()
+                    .ok_or(Error::Custom("Copy paths is required".into()))?
+                    .to_vec(),
+                &self.options.target,
+            ),
             options,
         })])
     }
@@ -158,7 +161,13 @@ impl DockerfileGenerator for Add {
 
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "ADD".into(),
-            content: copy_paths_into(self.files.to_vec(), &self.options.target),
+            content: copy_paths_into(
+                self.files
+                    .as_ref()
+                    .ok_or(Error::Custom("Add files is required".into()))?
+                    .to_vec(),
+                &self.options.target,
+            ),
             options,
         })])
     }
@@ -187,7 +196,10 @@ impl DockerfileGenerator for AddGitRepo {
 
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "ADD".into(),
-            content: copy_paths_into(vec![self.repo.clone()], &self.options.target),
+            content: copy_paths_into(
+                vec![self.repo.clone().ok_or(Error::Custom("AddGitRepo repo is required".into()))?],
+                &self.options.target,
+            ),
             options,
         })])
     }
@@ -196,7 +208,7 @@ impl DockerfileGenerator for AddGitRepo {
 impl Artifact {
     fn to_copy(&self) -> Copy {
         Copy {
-            paths: vec![self.source.clone()].into(),
+            paths: Some(vec![self.source.clone()].into()),
             options: CopyOptions {
                 target: Some(self.target.clone()),
                 ..Default::default()
@@ -353,7 +365,7 @@ impl DockerfileGenerator for Image {
             }
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "HEALTHCHECK".into(),
-                content: format!("CMD {}", healthcheck.cmd),
+                content: format!("CMD {}", healthcheck.cmd.clone().ok_or(Error::Custom("Healthcheck cmd is required".into()))?),
                 options,
             }))
         }
@@ -436,7 +448,7 @@ mod test {
             assert_eq!(
                 user,
                 Some(User {
-                    user: "my-user".into(),
+                    user: Some("my-user".into()),
                     group: None
                 })
             );
@@ -459,7 +471,7 @@ mod test {
         fn test_image_name() {
             let image = Image {
                 from: Some(PermissiveStruct::new(ImageName {
-                    path: String::from("my-image"),
+                    path: Some(String::from("my-image")),
                     ..Default::default()
                 })),
                 ..Default::default()
@@ -476,7 +488,7 @@ mod test {
             let image = Image {
                 user: Some(PermissiveStruct::new(User::new_without_group("my-user"))),
                 from: Some(PermissiveStruct::new(ImageName {
-                    path: String::from("my-image"),
+                    path: Some(String::from("my-image")),
                     ..Default::default()
                 })),
                 ..Default::default()
@@ -485,7 +497,7 @@ mod test {
             assert_eq!(
                 user,
                 Some(User {
-                    user: String::from("my-user"),
+                    user: Some(String::from("my-user")),
                     group: None,
                 })
             );
@@ -495,7 +507,7 @@ mod test {
         fn test_image_user_without_user() {
             let image = Image {
                 from: Some(PermissiveStruct::new(ImageName {
-                    path: String::from("my-image"),
+                    path: Some(String::from("my-image")),
                     ..Default::default()
                 })),
                 ..Default::default()
@@ -504,7 +516,7 @@ mod test {
             assert_eq!(
                 user,
                 Some(User {
-                    user: String::from("1000"),
+                    user: Some(String::from("1000")),
                     group: Some(String::from("1000")),
                 })
             );

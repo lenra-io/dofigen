@@ -28,7 +28,11 @@ impl BaseStage for Builder {
         }
     }
     fn from(&self) -> ImageName {
-        self.from.deref().clone()
+        self.from
+            .as_ref()
+            .expect("Builder must have a from field")
+            .deref()
+            .clone()
     }
 
     fn user(&self) -> Option<User> {
@@ -45,7 +49,7 @@ impl BaseStage for Image {
             image_name.deref().clone()
         } else {
             ImageName {
-                path: String::from("scratch"),
+                path: Some(String::from("scratch")),
                 ..Default::default()
             }
         }
@@ -86,9 +90,27 @@ macro_rules! impl_Stage {
 
 impl_Stage!(for Builder, Image);
 
+impl Image {
+    pub fn merge_extensions(&self) -> Self {
+        if let Some(extends) = &self.extend {
+            let extends = extends.to_vec();
+            // TODO: load extends files
+            
+            // TODO: for each extends file, merge it with self
+            todo!()
+        } else {
+            self.clone()
+        }
+    }
+}
+
 impl User {
     pub fn uid(&self) -> Option<u16> {
-        self.user.parse::<u16>().ok()
+        self.user
+            .clone()
+            .expect("User user field is required")
+            .parse::<u16>()
+            .ok()
     }
 
     pub fn gid(&self) -> Option<u16> {
@@ -99,9 +121,10 @@ impl User {
     }
 
     pub fn into(&self) -> String {
+        let name = self.user.clone().expect("User user field is required");
         match &self.group {
-            Some(group) => format!("{}:{}", self.user, group),
-            None => self.user.clone(),
+            Some(group) => format!("{}:{}", name, group),
+            None => name,
         }
     }
 
@@ -109,14 +132,14 @@ impl User {
 
     pub fn new(user: &str) -> Self {
         Self {
-            user: user.into(),
+            user: Some(user.into()),
             group: Some(user.into()),
         }
     }
 
     pub fn new_without_group(user: &str) -> Self {
         Self {
-            user: user.into(),
+            user: Some(user.into()),
             group: None,
         }
     }
@@ -155,7 +178,7 @@ mod tests {
     fn test_builder_user_with_user() {
         let builder = Builder {
             user: Some(PermissiveStruct::new(User {
-                user: "my-user".into(),
+                user: Some("my-user".into()),
                 ..Default::default()
             })),
             ..Default::default()
@@ -164,7 +187,7 @@ mod tests {
         assert_eq!(
             user,
             Some(User {
-                user: "my-user".into(),
+                user: Some("my-user".into()),
                 ..Default::default()
             })
         );
@@ -181,7 +204,7 @@ mod tests {
     fn test_image_name() {
         let image = Image {
             from: Some(PermissiveStruct::new(ImageName {
-                path: String::from("my-image"),
+                path: Some(String::from("my-image")),
                 ..Default::default()
             })),
             ..Default::default()
@@ -197,11 +220,11 @@ mod tests {
     fn test_image_user_with_user() {
         let image = Image {
             user: Some(PermissiveStruct::new(User {
-                user: "my-user".into(),
+                user: Some("my-user".into()),
                 ..Default::default()
             })),
             from: Some(PermissiveStruct::new(ImageName {
-                path: String::from("my-image"),
+                path: Some(String::from("my-image")),
                 ..Default::default()
             })),
             ..Default::default()
@@ -210,7 +233,7 @@ mod tests {
         assert_eq!(
             user,
             Some(User {
-                user: "my-user".into(),
+                user: Some("my-user".into()),
                 ..Default::default()
             })
         );
@@ -220,7 +243,7 @@ mod tests {
     fn test_image_user_without_user() {
         let image = Image {
             from: Some(PermissiveStruct::new(ImageName {
-                path: String::from("my-image"),
+                path: Some(String::from("my-image")),
                 ..Default::default()
             })),
             ..Default::default()
@@ -229,7 +252,7 @@ mod tests {
         assert_eq!(
             user,
             Some(User {
-                user: "1000".into(),
+                user: Some("1000".into()),
                 group: Some("1000".into()),
             })
         );

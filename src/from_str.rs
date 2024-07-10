@@ -21,7 +21,7 @@ impl FromStr for ImageName {
         Ok(ImageName {
             host: captures.name("host").map(|m| m.as_str().into()),
             port: captures.name("port").map(|m| m.as_str().parse().unwrap()),
-            path: captures["path"].into(),
+            path: Some(captures["path"].into()),
             version: match (
                 captures.name("version_char").map(|m| m.as_str()),
                 captures.name("version_value"),
@@ -66,7 +66,7 @@ impl FromStr for Copy {
         let mut parts: Vec<String> = s.split(" ").map(|s| s.into()).collect();
         let target = if parts.len() > 1 { parts.pop() } else { None };
         Ok(Copy {
-            paths: parts.into(),
+            paths: Some(parts.into()),
             options: CopyOptions {
                 target: target,
                 ..Default::default()
@@ -86,7 +86,7 @@ impl FromStr for AddGitRepo {
             _ => return Err(Error::custom("Invalid add git repo format")),
         };
         Ok(AddGitRepo {
-            repo: repo,
+            repo: Some(repo),
             options: CopyOptions {
                 target: target,
                 ..Default::default()
@@ -103,7 +103,7 @@ impl FromStr for Add {
         let mut parts: Vec<String> = s.split(" ").map(|s| s.into()).collect();
         let target = if parts.len() > 1 { parts.pop() } else { None };
         Ok(Add {
-            files: parts.into(),
+            files: Some(parts.into()),
             options: CopyOptions {
                 target: target,
                 ..Default::default()
@@ -122,7 +122,7 @@ impl FromStr for User {
             return Err(Error::custom("Not matching chown pattern"));
         };
         Ok(User {
-            user: captures["user"].into(),
+            user: Some(captures["user"].into()),
             group: captures.name("group").map(|m| m.as_str().into()),
         })
     }
@@ -137,7 +137,7 @@ impl FromStr for Port {
             return Err(Error::custom("Not matching chown pattern"));
         };
         Ok(Port {
-            port: captures["port"].parse().map_err(Error::custom)?,
+            port: Some(captures["port"].parse().map_err(Error::custom)?),
             protocol: captures.name("protocol").map(|m| match m.as_str() {
                 "tcp" => PortProtocol::Tcp,
                 "udp" => PortProtocol::Udp,
@@ -159,7 +159,7 @@ mod test_from_str {
             let input = "example/image";
             let result = ImageName::from_str(input).unwrap();
             assert!(result.host.is_none());
-            assert_eq!(result.path, "example/image");
+            assert_eq!(result.path.unwrap(), "example/image");
             assert!(result.port.is_none());
             assert!(result.version.is_none());
         }
@@ -169,7 +169,7 @@ mod test_from_str {
             let input = "docker.io/example/image";
             let result = ImageName::from_str(input).unwrap();
             assert_eq!(result.host, Some("docker.io".into()));
-            assert_eq!(result.path, "example/image");
+            assert_eq!(result.path.unwrap(), "example/image");
             assert!(result.port.is_none());
             assert!(result.version.is_none());
         }
@@ -179,7 +179,7 @@ mod test_from_str {
             let input = "example/image:tag";
             let result = ImageName::from_str(input).unwrap();
             assert!(result.host.is_none());
-            assert_eq!(result.path, "example/image");
+            assert_eq!(result.path.unwrap(), "example/image");
             assert!(result.port.is_none());
             assert_eq!(result.version, Some(ImageVersion::Tag("tag".into())));
         }
@@ -189,7 +189,7 @@ mod test_from_str {
             let input = "example/image@sha256:my-sha";
             let result = ImageName::from_str(input).unwrap();
             assert!(result.host.is_none());
-            assert_eq!(result.path, "example/image");
+            assert_eq!(result.path.unwrap(), "example/image");
             assert!(result.port.is_none());
             assert_eq!(
                 result.version,
@@ -202,7 +202,7 @@ mod test_from_str {
             let input = "registry.my-host.io:5001/example/image:stable";
             let result = ImageName::from_str(input).unwrap();
             assert_eq!(result.host, Some("registry.my-host.io".into()));
-            assert_eq!(result.path, "example/image");
+            assert_eq!(result.path.unwrap(), "example/image");
             assert_eq!(result.port, Some(5001));
             assert_eq!(result.version, Some(ImageVersion::Tag("stable".into())));
         }
@@ -221,7 +221,7 @@ mod test_from_str {
         #[test]
         fn simple() {
             let result = Copy::from_str("src").unwrap();
-            assert_eq!(result.paths, vec!["src".into()].into());
+            assert_eq!(result.paths.unwrap(), vec!["src".into()].into());
             check_empty_copy_options(&result.options);
             assert!(result.exclude.is_none());
             assert!(result.parents.is_none());
@@ -231,7 +231,7 @@ mod test_from_str {
         #[test]
         fn with_target_option() {
             let result = Copy::from_str("src /app").unwrap();
-            assert_eq!(result.paths, vec!["src".into()].into());
+            assert_eq!(result.paths.unwrap(), vec!["src".into()].into());
             assert_eq!(result.options.target, Some("/app".into()));
             assert!(result.options.chown.is_none());
             assert!(result.options.chmod.is_none());
@@ -244,7 +244,7 @@ mod test_from_str {
         #[test]
         fn with_multiple_sources_and_target() {
             let result = Copy::from_str("src1 src2 /app").unwrap();
-            assert_eq!(result.paths, vec!["src1".into(), "src2".into()].into());
+            assert_eq!(result.paths.unwrap(), vec!["src1".into(), "src2".into()].into());
             assert_eq!(result.options.target, Some("/app".into()));
             assert!(result.options.chown.is_none());
             assert!(result.options.chmod.is_none());
@@ -261,7 +261,7 @@ mod test_from_str {
         #[test]
         fn ssh() {
             let result = AddGitRepo::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
-            assert_eq!(result.repo, "git@github.com:lenra-io/dofigen.git");
+            assert_eq!(result.repo.unwrap(), "git@github.com:lenra-io/dofigen.git");
             check_empty_copy_options(&result.options);
             assert!(result.exclude.is_none());
             assert!(result.keep_git_dir.is_none());
@@ -270,7 +270,7 @@ mod test_from_str {
         #[test]
         fn ssh_with_target() {
             let result = AddGitRepo::from_str("git@github.com:lenra-io/dofigen.git /app").unwrap();
-            assert_eq!(result.repo, "git@github.com:lenra-io/dofigen.git");
+            assert_eq!(result.repo.unwrap(), "git@github.com:lenra-io/dofigen.git");
             assert_eq!(result.options.target, Some("/app".into()));
             assert!(result.options.chown.is_none());
             assert!(result.options.chmod.is_none());
@@ -282,7 +282,7 @@ mod test_from_str {
         #[test]
         fn http() {
             let result = AddGitRepo::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
-            assert_eq!(result.repo, "https://github.com/lenra-io/dofigen.git");
+            assert_eq!(result.repo.unwrap(), "https://github.com/lenra-io/dofigen.git");
             check_empty_copy_options(&result.options);
             assert!(result.exclude.is_none());
             assert!(result.keep_git_dir.is_none());
@@ -292,7 +292,7 @@ mod test_from_str {
         fn http_with_target() {
             let result =
                 AddGitRepo::from_str("https://github.com/lenra-io/dofigen.git /app").unwrap();
-            assert_eq!(result.repo, "https://github.com/lenra-io/dofigen.git");
+            assert_eq!(result.repo.unwrap(), "https://github.com/lenra-io/dofigen.git");
             assert_eq!(result.options.target, Some("/app".into()));
             assert!(result.options.chown.is_none());
             assert!(result.options.chmod.is_none());
@@ -310,7 +310,7 @@ mod test_from_str {
             let result =
                 Add::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md").unwrap();
             assert_eq!(
-                result.files,
+                result.files.unwrap(),
                 vec!["https://github.com/lenra-io/dofigen/raw/main/README.md".into()].into()
             );
             check_empty_copy_options(&result.options);
@@ -322,7 +322,7 @@ mod test_from_str {
                 Add::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md /app")
                     .unwrap();
             assert_eq!(
-                result.files,
+                result.files.unwrap(),
                 vec!["https://github.com/lenra-io/dofigen/raw/main/README.md".into()].into()
             );
             assert_eq!(result.options.target, Some("/app".into()));
@@ -335,7 +335,7 @@ mod test_from_str {
         fn with_multiple_sources_and_target() {
             let result = Add::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md https://github.com/lenra-io/dofigen/raw/main/LICENSE /app").unwrap();
             assert_eq!(
-                result.files,
+                result.files.unwrap(),
                 vec![
                     "https://github.com/lenra-io/dofigen/raw/main/README.md".into(),
                     "https://github.com/lenra-io/dofigen/raw/main/LICENSE".into()
@@ -402,7 +402,7 @@ mod test_from_str {
         fn user() {
             let result = User::from_str("user").unwrap();
 
-            assert_eq!(result.user, "user");
+            assert_eq!(result.user.unwrap(), "user");
             assert!(result.group.is_none());
         }
 
@@ -410,7 +410,7 @@ mod test_from_str {
         fn with_group() {
             let result = User::from_str("user:group").unwrap();
 
-            assert_eq!(result.user, "user");
+            assert_eq!(result.user.unwrap(), "user");
             assert_eq!(result.group, Some("group".into()));
         }
 
@@ -418,7 +418,7 @@ mod test_from_str {
         fn uid() {
             let result = User::from_str("1000").unwrap();
 
-            assert_eq!(result.user, "1000");
+            assert_eq!(result.user.unwrap(), "1000");
             assert!(result.group.is_none());
         }
 
@@ -426,7 +426,7 @@ mod test_from_str {
         fn uid_with_gid() {
             let result = User::from_str("1000:1000").unwrap();
 
-            assert_eq!(result.user, "1000");
+            assert_eq!(result.user.unwrap(), "1000");
             assert_eq!(result.group, Some("1000".into()));
         }
 
@@ -445,7 +445,7 @@ mod test_from_str {
         fn simple() {
             let result = Port::from_str("80").unwrap();
 
-            assert_eq!(result.port, 80);
+            assert_eq!(result.port.unwrap(), 80);
             assert!(result.protocol.is_none());
         }
 
@@ -453,7 +453,7 @@ mod test_from_str {
         fn with_tcp_protocol() {
             let result = Port::from_str("80/tcp").unwrap();
 
-            assert_eq!(result.port, 80);
+            assert_eq!(result.port.unwrap(), 80);
             assert_eq!(result.protocol, Some(PortProtocol::Tcp));
         }
 
@@ -461,7 +461,7 @@ mod test_from_str {
         fn with_udp_protocol() {
             let result = Port::from_str("80/udp").unwrap();
 
-            assert_eq!(result.port, 80);
+            assert_eq!(result.port.unwrap(), 80);
             assert_eq!(result.protocol, Some(PortProtocol::Udp));
         }
 

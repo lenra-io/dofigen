@@ -36,6 +36,8 @@ pub struct Image {
     #[serde(alias = "caches")]
     pub cache: Option<PermissiveVec<String>>,
     // Specific part
+    #[serde(alias = "extends", default)]
+    pub extend: Option<PermissiveVec<String>>,
     pub builders: Option<Vec<Builder>>,
     pub context: Option<PermissiveVec<String>>,
     #[serde(alias = "ignores")]
@@ -53,7 +55,7 @@ pub struct Image {
 pub struct Builder {
     // Common part
     #[serde(alias = "image")]
-    pub from: PermissiveStruct<ImageName>,
+    pub from: Option<PermissiveStruct<ImageName>>,
     pub user: Option<PermissiveStruct<User>>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
@@ -91,7 +93,7 @@ pub struct Root {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Healthcheck {
-    pub cmd: String,
+    pub cmd: Option<String>,
     pub interval: Option<String>,
     pub timeout: Option<String>,
     pub start: Option<String>,
@@ -103,7 +105,7 @@ pub struct Healthcheck {
 pub struct ImageName {
     pub host: Option<String>,
     pub port: Option<u16>,
-    pub path: String,
+    pub path: Option<String>,
     pub version: Option<ImageVersion>,
 }
 
@@ -126,9 +128,10 @@ pub enum CopyResource {
 /// Represents the COPY instruction in a Dockerfile.
 /// See https://docs.docker.com/reference/dockerfile/#copy
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
-    pub paths: PermissiveVec<String>,
+    pub paths: Option<PermissiveVec<String>>,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
@@ -142,9 +145,10 @@ pub struct Copy {
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
 /// See https://docs.docker.com/reference/dockerfile/#adding-private-git-repositories
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct AddGitRepo {
-    pub repo: String,
+    pub repo: Option<String>,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
@@ -155,9 +159,10 @@ pub struct AddGitRepo {
 
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Add {
-    pub files: PermissiveVec<String>,
+    pub files: Option<PermissiveVec<String>>,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
@@ -180,14 +185,14 @@ pub struct CopyOptions {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct User {
-    pub user: String,
+    pub user: Option<String>,
     pub group: Option<String>,
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Port {
-    pub port: u16,
+    pub port: Option<u16>,
     pub protocol: Option<PortProtocol>,
 }
 
@@ -241,7 +246,7 @@ mod test {
                 assert_eq!(
                     user,
                     User {
-                        user: "test".into(),
+                        user: Some("test".into()),
                         group: Some("test".into())
                     }
                 );
@@ -273,11 +278,11 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::Copy(Copy {
-                        paths: vec!["file1.txt".into(), "file2.txt".into()].into(),
+                        paths: Some(vec!["file1.txt".into(), "file2.txt".into()].into()),
                         options: CopyOptions {
                             target: Some("destination/".into()),
                             chown: Some(User {
-                                user: "root".into(),
+                                user: Some("root".into()),
                                 group: Some("root".into())
                             }),
                             chmod: Some("755".into()),
@@ -303,7 +308,7 @@ mod test {
                 assert_eq!(
                     copy_resource.deref(),
                     &CopyResource::Copy(Copy {
-                        paths: vec!["file1.txt".into()].into(),
+                        paths: Some(vec!["file1.txt".into()].into()),
                         options: CopyOptions {
                             target: Some("destination/".into()),
                             ..Default::default()
@@ -333,11 +338,11 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::AddGitRepo(AddGitRepo {
-                        repo: "https://github.com/example/repo.git".into(),
+                        repo: Some("https://github.com/example/repo.git".into()),
                         options: CopyOptions {
                             target: Some("destination/".into()),
                             chown: Some(User {
-                                user: "root".into(),
+                                user: Some("root".into()),
                                 group: Some("root".into())
                             }),
                             chmod: Some("755".into()),
@@ -368,11 +373,11 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::Add(Add {
-                        files: vec!["file1.txt".into(), "file2.txt".into()].into(),
+                        files: Some(vec!["file1.txt".into(), "file2.txt".into()].into()),
                         options: CopyOptions {
                             target: Some("destination/".into()),
                             chown: Some(User {
-                                user: "root".into(),
+                                user: Some("root".into()),
                                 group: Some("root".into())
                             }),
                             chmod: Some("755".into()),
