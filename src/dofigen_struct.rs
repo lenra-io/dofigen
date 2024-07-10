@@ -30,11 +30,9 @@ pub struct Image {
     pub artifacts: Option<Vec<Artifact>>,
     #[serde(alias = "add", alias = "adds")]
     pub copy: Option<PermissiveVec<PermissiveStruct<CopyResource>>>,
-    pub root: Option<Root>,
-    #[serde(alias = "script")]
-    pub run: Option<PermissiveVec<String>>,
-    #[serde(alias = "caches")]
-    pub cache: Option<PermissiveVec<String>>,
+    pub root: Option<Run>,
+    #[serde(flatten, default)]
+    pub run: Run,
     // Specific part
     pub builders: Option<Vec<Builder>>,
     pub context: Option<PermissiveVec<String>>,
@@ -61,11 +59,9 @@ pub struct Builder {
     pub artifacts: Option<Vec<Artifact>>,
     #[serde(alias = "add", alias = "adds")]
     pub copy: Option<PermissiveVec<PermissiveStruct<CopyResource>>>,
-    pub root: Option<Root>,
-    #[serde(alias = "script")]
-    pub run: Option<PermissiveVec<String>>,
-    #[serde(alias = "caches")]
-    pub cache: Option<PermissiveVec<String>>,
+    pub root: Option<Run>,
+    #[serde(flatten, default)]
+    pub run: Run,
     // Specific part
     pub name: Option<String>,
 }
@@ -77,15 +73,6 @@ pub struct Artifact {
     pub source: String,
     #[serde(alias = "destination")]
     pub target: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct Root {
-    #[serde(alias = "script")]
-    pub run: Option<PermissiveVec<String>>,
-    #[serde(alias = "caches")]
-    pub cache: Option<PermissiveVec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -186,6 +173,27 @@ pub struct User {
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct Run {
+    #[serde(rename = "run", alias = "script")]
+    pub commands: PermissiveVec<String>,
+    #[serde(alias = "caches")]
+    pub cache: Option<PermissiveVec<String>>,
+    #[serde(alias = "binds")]
+    pub bind: Option<PermissiveVec<PermissiveStruct<Bind>>>,
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct Bind {
+    pub target: String,
+    pub from: Option<String>,
+    pub source: Option<String>,
+    #[serde(default = "bool::default")]
+    pub readwrite: bool,
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Port {
     pub port: u16,
     pub protocol: Option<PortProtocol>,
@@ -253,7 +261,7 @@ mod test {
             use super::*;
 
             #[test]
-            fn deserialize_copy() {
+            fn copy() {
                 let json_data = r#"{
     "paths": ["file1.txt", "file2.txt"],
     "target": "destination/",
@@ -292,7 +300,7 @@ mod test {
 
             #[cfg(feature = "permissive")]
             #[test]
-            fn deserialize_copy_from_str() {
+            fn copy_from_str() {
                 use std::ops::Deref;
 
                 let json_data = "file1.txt destination/";
@@ -314,7 +322,7 @@ mod test {
             }
 
             #[test]
-            fn deserialize_add_git_repo() {
+            fn add_git_repo() {
                 let json_data = r#"{
             "repo": "https://github.com/example/repo.git",
             "target": "destination/",
@@ -350,7 +358,7 @@ mod test {
             }
 
             #[test]
-            fn deserialize_add() {
+            fn add() {
                 let json_data = r#"{
             "files": ["file1.txt", "file2.txt"],
             "target": "destination/",
@@ -380,6 +388,55 @@ mod test {
                         },
                         checksum: Some("sha256:abcdef123456".into()),
                     })
+                );
+            }
+        }
+
+        mod builder {
+            use super::*;
+
+            #[test]
+            fn with_bind() {
+                let json_data = r#"
+from:
+  path: clux/muslrust:stable
+workdir: /app
+bind:
+  - target: /app
+run:
+  - cargo build --release -F cli -F permissive
+  - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
+"#;
+
+                let builder: Builder = serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq!(
+                    builder,
+                    Builder {
+                        from: ImageName {
+                            path: "clux/muslrust:stable".into(),
+                            ..Default::default()
+                        }
+                        .into(),
+                        workdir: Some("/app".into()),
+                        run: Run {
+                            bind: Some(
+                                vec![Bind {
+                                    target: "/app".into(),
+                                    ..Default::default()
+                                }
+                                .into()]
+                                .into()
+                            ),
+                            commands: vec![
+                                "cargo build --release -F cli -F permissive".into(),
+                                "mv target/x86_64-unknown-linux-musl/release/dofigen /app/".into()
+                            ]
+                            .into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
                 );
             }
         }

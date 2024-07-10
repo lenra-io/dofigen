@@ -1,6 +1,6 @@
 use crate::{
-    Add, AddGitRepo, Copy, CopyOptions, CopyResource, ImageName, ImageVersion, Port, PortProtocol,
-    User,
+    Add, AddGitRepo, Bind, Copy, CopyOptions, CopyResource, ImageName, ImageVersion, Port,
+    PortProtocol, User,
 };
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
@@ -143,6 +143,22 @@ impl FromStr for Port {
                 "udp" => PortProtocol::Udp,
                 _ => unreachable!(),
             }),
+        })
+    }
+}
+
+impl FromStr for Bind {
+    type Err = Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let regex = Regex::new(r"^(?:(?P<source>[^:]+):)?(?P<target>[^:]+)$").unwrap();
+        let Some(captures) = regex.captures(s) else {
+            return Err(Error::custom("Not matching bind pattern"));
+        };
+        Ok(Bind {
+            source: captures.name("source").map(|m| m.as_str().into()),
+            target: captures["target"].into(),
+            ..Default::default()
         })
     }
 }

@@ -3,11 +3,10 @@ use std::{collections::HashMap, ops::Deref};
 use crate::{
     dofigen_struct::{Builder, Image},
     generator::GenerationContext,
-    script_runner::ScriptRunner,
-    Artifact, CopyResource, ImageName, PermissiveStruct, Root, User,
+    Artifact, CopyResource, ImageName, PermissiveStruct, Run, User,
 };
 
-pub trait BaseStage: ScriptRunner {
+pub trait BaseStage /*ScriptRunner*/ {
     fn name(&self, context: &GenerationContext) -> String;
     fn from(&self) -> ImageName;
     fn user(&self) -> Option<User>;
@@ -17,7 +16,8 @@ pub trait Stage: BaseStage {
     fn env(&self) -> Option<&HashMap<String, String>>;
     fn copy(&self) -> Option<&Vec<PermissiveStruct<CopyResource>>>;
     fn artifacts(&self) -> Option<&Vec<Artifact>>;
-    fn root(&self) -> Option<&Root>;
+    fn root(&self) -> Option<Run>;
+    fn run(&self) -> &Run;
 }
 
 impl BaseStage for Builder {
@@ -77,8 +77,12 @@ macro_rules! impl_Stage {
                 self.artifacts.as_ref()
             }
 
-            fn root(&self) -> Option<&Root> {
-                self.root.as_ref()
+            fn root(&self) -> Option<Run> {
+                self.root.as_ref().map(|run|run.deref().clone())
+            }
+
+            fn run(&self) -> &Run {
+                &self.run
             }
         })*
     }
