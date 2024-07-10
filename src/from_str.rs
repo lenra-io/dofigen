@@ -188,6 +188,20 @@ impl_parsable_patch!(Port, PortPatch, s, {
     })
 });
 
+impl_parsable_patch!(Bind, BindPatch, s, {
+    let regex =
+        Regex::new(r"^(?:(?:(?P<from>[^:]+):)?(?P<source>\S+) )?(?P<target>[^:]+)$").unwrap();
+    let Some(captures) = regex.captures(s) else {
+        return Err(Error::custom("Not matching bind pattern"));
+    };
+    Ok(Self {
+        source: Some(captures.name("source").map(|m| m.as_str().into())),
+        target: Some(captures["target"].into()),
+        from: Some(captures.name("from").map(|m| m.as_str().into())),
+        ..Default::default()
+    })
+});
+
 #[cfg(test)]
 mod test_from_str {
     use super::*;

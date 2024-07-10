@@ -463,44 +463,65 @@ impl DockerfileGenerator for Run {
         context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let script = &self.run;
-        if !script.is_empty() {
-            let script = script.join(" &&\n");
-            let script_lines = script.lines().collect::<Vec<&str>>();
-            let content = match script_lines.len() {
-                0 => {
-                    return Ok(vec![]);
-                }
-                1 => script_lines[0].into(),
-                _ => script_lines.join(LINE_SEPARATOR),
-                // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
-            };
-            let mut options = vec![];
-            self.cache.iter().for_each(|cache| {
-                let mut cache_options = vec![
-                    InstructionOptionOption::new("type", "cache"),
-                    InstructionOptionOption::new("target", cache),
-                    InstructionOptionOption::new("sharing", "locked"),
-                ];
-                if let Some(user) = &context.user {
-                    if let Some(uid) = user.uid() {
-                        cache_options.push(InstructionOptionOption::new("uid", &uid.to_string()));
-                    }
-                    if let Some(gid) = user.gid() {
-                        cache_options.push(InstructionOptionOption::new("gid", &gid.to_string()));
-                    }
-                }
-                options.push(InstructionOption::WithOptions(
-                    "mount".into(),
-                    cache_options,
-                ));
-            });
-            return Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
-                command: "RUN".into(),
-                content,
-                options,
-            })]);
+        if script.is_empty() {
+            return Ok(vec![]);
         }
-        Ok(vec![])
+        let script = script.join(" &&\n");
+        let script_lines = script.lines().collect::<Vec<&str>>();
+        let content = match script_lines.len() {
+            0 => {
+                return Ok(vec![]);
+            }
+            1 => script_lines[0].into(),
+            _ => script_lines.join(LINE_SEPARATOR),
+            // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
+        };
+        let mut options = vec![];
+        
+        // Mount binds
+        self.bind.iter().for_each(|bind| {
+            let mut bind_options = vec![
+                InstructionOptionOption::new("type", "bind"),
+                InstructionOptionOption::new("target", bind.target.as_str()),
+            ];
+            if let Some(from) = bind.from.as_ref() {
+                bind_options.push(InstructionOptionOption::new("from", from));
+            }
+            if let Some(source) = bind.source.as_ref() {
+                bind_options.push(InstructionOptionOption::new("source", source));
+            }
+            if bind.readwrite {
+                bind_options.push(InstructionOptionOption::new("readwrite", "true"));
+            }
+            options.push(InstructionOption::WithOptions("mount".into(), bind_options));
+        });
+
+        // Mount caches
+        self.cache.iter().for_each(|cache| {
+            let mut cache_options = vec![
+                InstructionOptionOption::new("type", "cache"),
+                InstructionOptionOption::new("target", cache),
+                InstructionOptionOption::new("sharing", "locked"),
+            ];
+            if let Some(user) = &context.user {
+                if let Some(uid) = user.uid() {
+                    cache_options.push(InstructionOptionOption::new("uid", &uid.to_string()));
+                }
+                if let Some(gid) = user.gid() {
+                    cache_options.push(InstructionOptionOption::new("gid", &gid.to_string()));
+                }
+            }
+            options.push(InstructionOption::WithOptions(
+                "mount".into(),
+                cache_options,
+            ));
+        });
+
+        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+            command: "RUN".into(),
+            content,
+            options,
+        })])
     }
 }
 

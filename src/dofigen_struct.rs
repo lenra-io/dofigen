@@ -157,6 +157,24 @@ pub struct Run {
     #[patch(attribute(serde(alias = "caches")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<String>,
+
+    #[patch(name = "VecDeepPatch<Bind, BindPatch>")]
+    #[patch(attribute(serde(alias = "binds")))]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub bind: Vec<Bind>,
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
+pub struct Bind {
+    pub target: String,
+    pub from: Option<String>,
+    pub source: Option<String>,
+    pub readwrite: bool,
 }
 
 /// Represents the Dockerfile healthcheck instruction
@@ -543,7 +561,7 @@ mod test {
             use super::*;
 
             #[test]
-            fn deserialize_copy() {
+            fn copy() {
                 let json_data = r#"{
     "paths": ["file1.txt", "file2.txt"],
     "target": "destination/",
@@ -604,7 +622,7 @@ mod test {
             }
 
             #[test]
-            fn deserialize_add_git_repo() {
+            fn add_git_repo() {
                 let json_data = r#"{
             "repo": "https://github.com/example/repo.git",
             "target": "destination/",
@@ -641,7 +659,7 @@ mod test {
             }
 
             #[test]
-            fn deserialize_add() {
+            fn add() {
                 let json_data = r#"{
             "files": ["file1.txt", "file2.txt"],
             "target": "destination/",
@@ -676,6 +694,50 @@ mod test {
                         },
                         checksum: Some("sha256:abcdef123456".into()),
                     })
+                );
+            }
+        }
+
+        mod builder {
+            use super::*;
+
+            #[test]
+            fn with_bind() {
+                let json_data = r#"
+from:
+  path: clux/muslrust:stable
+workdir: /app
+bind:
+  - target: /app
+run:
+  - cargo build --release -F cli -F permissive
+  - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
+"#;
+
+                let builder: Stage = serde_yaml::from_str::<StagePatch>(json_data).unwrap().into();
+
+                assert_eq!(
+                    builder,
+                    Stage {
+                        from: ImageName {
+                            path: "clux/muslrust:stable".into(),
+                            ..Default::default()
+                        }
+                        .into(),
+                        workdir: Some("/app".into()),
+                        run: Run {
+                            bind: vec![Bind {
+                                target: "/app".into(),
+                                ..Default::default()
+                            }],
+                            run: vec![
+                                "cargo build --release -F cli -F permissive".into(),
+                                "mv target/x86_64-unknown-linux-musl/release/dofigen /app/".into()
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
                 );
             }
         }

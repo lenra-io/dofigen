@@ -3,7 +3,7 @@ builders:
   - name: builder
     from: clux/muslrust:stable
     workdir: /app
-    add: "."
+    bind: "."
     run:
       # Build with musl to work with scratch
       - cargo build --release -F cli -F permissive
