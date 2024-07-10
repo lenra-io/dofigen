@@ -1,27 +1,10 @@
 use crate::{
-    serde_permissive::PermissiveStruct, Add, AddGitRepo, Copy, CopyResources, ImageName,
-    ImageVersion, Port, PortProtocol, User,
+    Add, AddGitRepo, Copy, CopyOptions, CopyResource, ImageName, ImageVersion, Port, PortProtocol,
+    User,
 };
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
 use std::str::FromStr;
-
-macro_rules! impl_PermissiveStruct {
-    (for $($t:ty),+) => {
-        $(impl From<PermissiveStruct<$t>> for $t {
-            fn from(s: PermissiveStruct<$t>) -> Self {
-                match s {
-                    PermissiveStruct::Int(s) => s.to_string().parse().unwrap(),
-                    PermissiveStruct::Uint(s) => s.to_string().parse().unwrap(),
-                    PermissiveStruct::String(s) => s.parse().unwrap(),
-                    PermissiveStruct::Struct(s) => s,
-                }
-            }
-        })*
-    }
-}
-
-impl_PermissiveStruct!(for ImageName, CopyResources, Copy, User, Port);
 
 const GIT_HTTP_REPO_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.git(?:#[a-zA-Z0-9_/.-]*(?::[a-zA-Z0-9_/-]+)?)?";
 const GIT_SSH_REPO_REGEX: &str = "[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+:[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:#[a-zA-Z0-9_/.-]+)?(?::[a-zA-Z0-9_/-]+)?";
@@ -36,9 +19,9 @@ impl FromStr for ImageName {
             return Err(Error::custom("Not matching image name pattern"));
         };
         Ok(ImageName {
-            host: captures.name("host").map(|m| m.as_str().to_string()),
+            host: captures.name("host").map(|m| m.as_str().into()),
             port: captures.name("port").map(|m| m.as_str().parse().unwrap()),
-            path: captures["path"].to_string(),
+            path: captures["path"].into(),
             version: match (
                 captures.name("version_char").map(|m| m.as_str()),
                 captures.name("version_value"),
@@ -52,7 +35,7 @@ impl FromStr for ImageName {
     }
 }
 
-impl FromStr for CopyResources {
+impl FromStr for CopyResource {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
@@ -67,12 +50,12 @@ impl FromStr for CopyResources {
             return Err(Error::custom("Not matching copy resources pattern"));
         };
         if captures.name("git").is_some() {
-            return Ok(CopyResources::AddGitRepo(s.parse().unwrap()));
+            return Ok(CopyResource::AddGitRepo(s.parse().unwrap()));
         }
         if captures.name("url").is_some() {
-            return Ok(CopyResources::Add(s.parse().unwrap()));
+            return Ok(CopyResource::Add(s.parse().unwrap()));
         }
-        Ok(CopyResources::Copy(s.parse().unwrap()))
+        Ok(CopyResource::Copy(s.parse().unwrap()))
     }
 }
 
@@ -80,11 +63,14 @@ impl FromStr for Copy {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let mut parts: Vec<String> = s.split(" ").map(|s| s.to_string()).collect();
+        let mut parts: Vec<String> = s.split(" ").map(|s| s.into()).collect();
         let target = if parts.len() > 1 { parts.pop() } else { None };
         Ok(Copy {
-            paths: parts.clone(),
-            target: target,
+            paths: parts.into(),
+            options: CopyOptions {
+                target: target,
+                ..Default::default()
+            },
             ..Default::default()
         })
     }
@@ -101,7 +87,10 @@ impl FromStr for AddGitRepo {
         };
         Ok(AddGitRepo {
             repo: repo,
-            target: target,
+            options: CopyOptions {
+                target: target,
+                ..Default::default()
+            },
             ..Default::default()
         })
     }
@@ -111,11 +100,14 @@ impl FromStr for Add {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let mut parts: Vec<String> = s.split(" ").map(|s| s.to_string()).collect();
+        let mut parts: Vec<String> = s.split(" ").map(|s| s.into()).collect();
         let target = if parts.len() > 1 { parts.pop() } else { None };
         Ok(Add {
-            paths: parts,
-            target: target,
+            files: parts.into(),
+            options: CopyOptions {
+                target: target,
+                ..Default::default()
+            },
             ..Default::default()
         })
     }
@@ -216,18 +208,22 @@ mod test_from_str {
         }
     }
 
+    fn check_empty_copy_options(options: &CopyOptions) {
+        assert!(options.target.is_none());
+        assert!(options.chown.is_none());
+        assert!(options.chmod.is_none());
+        assert!(options.link.is_none());
+    }
+
     mod copy {
         use super::*;
 
         #[test]
         fn simple() {
             let result = Copy::from_str("src").unwrap();
-            assert_eq!(result.paths, vec!["src".to_string()]);
-            assert!(result.target.is_none());
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
+            assert_eq!(result.paths, vec!["src".into()].into());
+            check_empty_copy_options(&result.options);
             assert!(result.exclude.is_none());
-            assert!(result.link.is_none());
             assert!(result.parents.is_none());
             assert!(result.from.is_none());
         }
@@ -235,12 +231,12 @@ mod test_from_str {
         #[test]
         fn with_target_option() {
             let result = Copy::from_str("src /app").unwrap();
-            assert_eq!(result.paths, vec!["src".to_string()]);
-            assert_eq!(result.target, Some("/app".to_string()));
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
+            assert_eq!(result.paths, vec!["src".into()].into());
+            assert_eq!(result.options.target, Some("/app".into()));
+            assert!(result.options.chown.is_none());
+            assert!(result.options.chmod.is_none());
+            assert!(result.options.link.is_none());
             assert!(result.exclude.is_none());
-            assert!(result.link.is_none());
             assert!(result.parents.is_none());
             assert!(result.from.is_none());
         }
@@ -248,12 +244,12 @@ mod test_from_str {
         #[test]
         fn with_multiple_sources_and_target() {
             let result = Copy::from_str("src1 src2 /app").unwrap();
-            assert_eq!(result.paths, vec!["src1".to_string(), "src2".to_string()]);
-            assert_eq!(result.target, Some("/app".to_string()));
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
+            assert_eq!(result.paths, vec!["src1".into(), "src2".into()].into());
+            assert_eq!(result.options.target, Some("/app".into()));
+            assert!(result.options.chown.is_none());
+            assert!(result.options.chmod.is_none());
+            assert!(result.options.link.is_none());
             assert!(result.exclude.is_none());
-            assert!(result.link.is_none());
             assert!(result.parents.is_none());
             assert!(result.from.is_none());
         }
@@ -266,11 +262,8 @@ mod test_from_str {
         fn ssh() {
             let result = AddGitRepo::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
             assert_eq!(result.repo, "git@github.com:lenra-io/dofigen.git");
-            assert!(result.target.is_none());
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
+            check_empty_copy_options(&result.options);
             assert!(result.exclude.is_none());
-            assert!(result.link.is_none());
             assert!(result.keep_git_dir.is_none());
         }
 
@@ -278,11 +271,11 @@ mod test_from_str {
         fn ssh_with_target() {
             let result = AddGitRepo::from_str("git@github.com:lenra-io/dofigen.git /app").unwrap();
             assert_eq!(result.repo, "git@github.com:lenra-io/dofigen.git");
-            assert_eq!(result.target, Some("/app".to_string()));
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
+            assert_eq!(result.options.target, Some("/app".into()));
+            assert!(result.options.chown.is_none());
+            assert!(result.options.chmod.is_none());
+            assert!(result.options.link.is_none());
             assert!(result.exclude.is_none());
-            assert!(result.link.is_none());
             assert!(result.keep_git_dir.is_none());
         }
 
@@ -290,11 +283,8 @@ mod test_from_str {
         fn http() {
             let result = AddGitRepo::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
             assert_eq!(result.repo, "https://github.com/lenra-io/dofigen.git");
-            assert!(result.target.is_none());
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
+            check_empty_copy_options(&result.options);
             assert!(result.exclude.is_none());
-            assert!(result.link.is_none());
             assert!(result.keep_git_dir.is_none());
         }
 
@@ -303,11 +293,11 @@ mod test_from_str {
             let result =
                 AddGitRepo::from_str("https://github.com/lenra-io/dofigen.git /app").unwrap();
             assert_eq!(result.repo, "https://github.com/lenra-io/dofigen.git");
-            assert_eq!(result.target, Some("/app".to_string()));
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
+            assert_eq!(result.options.target, Some("/app".into()));
+            assert!(result.options.chown.is_none());
+            assert!(result.options.chmod.is_none());
+            assert!(result.options.link.is_none());
             assert!(result.exclude.is_none());
-            assert!(result.link.is_none());
             assert!(result.keep_git_dir.is_none());
         }
     }
@@ -320,13 +310,10 @@ mod test_from_str {
             let result =
                 Add::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md").unwrap();
             assert_eq!(
-                result.paths,
-                vec!["https://github.com/lenra-io/dofigen/raw/main/README.md".to_string()]
+                result.files,
+                vec!["https://github.com/lenra-io/dofigen/raw/main/README.md".into()].into()
             );
-            assert!(result.target.is_none());
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
-            assert!(result.link.is_none());
+            check_empty_copy_options(&result.options);
         }
 
         #[test]
@@ -335,29 +322,30 @@ mod test_from_str {
                 Add::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md /app")
                     .unwrap();
             assert_eq!(
-                result.paths,
-                vec!["https://github.com/lenra-io/dofigen/raw/main/README.md".to_string()]
+                result.files,
+                vec!["https://github.com/lenra-io/dofigen/raw/main/README.md".into()].into()
             );
-            assert_eq!(result.target, Some("/app".to_string()));
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
-            assert!(result.link.is_none());
+            assert_eq!(result.options.target, Some("/app".into()));
+            assert!(result.options.chown.is_none());
+            assert!(result.options.chmod.is_none());
+            assert!(result.options.link.is_none());
         }
 
         #[test]
         fn with_multiple_sources_and_target() {
             let result = Add::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md https://github.com/lenra-io/dofigen/raw/main/LICENSE /app").unwrap();
             assert_eq!(
-                result.paths,
+                result.files,
                 vec![
-                    "https://github.com/lenra-io/dofigen/raw/main/README.md".to_string(),
-                    "https://github.com/lenra-io/dofigen/raw/main/LICENSE".to_string()
+                    "https://github.com/lenra-io/dofigen/raw/main/README.md".into(),
+                    "https://github.com/lenra-io/dofigen/raw/main/LICENSE".into()
                 ]
+                .into()
             );
-            assert_eq!(result.target, Some("/app".to_string()));
-            assert!(result.chown.is_none());
-            assert!(result.chmod.is_none());
-            assert!(result.link.is_none());
+            assert_eq!(result.options.target, Some("/app".into()));
+            assert!(result.options.chown.is_none());
+            assert!(result.options.chmod.is_none());
+            assert!(result.options.link.is_none());
         }
     }
 
@@ -366,16 +354,16 @@ mod test_from_str {
 
         #[test]
         fn copy() {
-            let result = CopyResources::from_str("src").unwrap();
-            assert_eq!(result, CopyResources::Copy(Copy::from_str("src").unwrap()));
+            let result = CopyResource::from_str("src").unwrap();
+            assert_eq!(result, CopyResource::Copy(Copy::from_str("src").unwrap()));
         }
 
         #[test]
         fn add_git_repo_ssh() {
-            let result = CopyResources::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
+            let result = CopyResource::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
             assert_eq!(
                 result,
-                CopyResources::AddGitRepo(
+                CopyResource::AddGitRepo(
                     AddGitRepo::from_str("git@github.com:lenra-io/dofigen.git").unwrap()
                 )
             );
@@ -383,11 +371,10 @@ mod test_from_str {
 
         #[test]
         fn add_git_repo_http() {
-            let result =
-                CopyResources::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
+            let result = CopyResource::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
             assert_eq!(
                 result,
-                CopyResources::AddGitRepo(
+                CopyResource::AddGitRepo(
                     AddGitRepo::from_str("https://github.com/lenra-io/dofigen.git").unwrap()
                 )
             );
@@ -396,11 +383,11 @@ mod test_from_str {
         #[test]
         fn add() {
             let result =
-                CopyResources::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
+                CopyResource::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
                     .unwrap();
             assert_eq!(
                 result,
-                CopyResources::Add(
+                CopyResource::Add(
                     Add::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
                         .unwrap()
                 )

@@ -63,7 +63,13 @@ jobs:
         command: build
         args: --verbose
 
-    - name: Test
+    - name: Test base
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose
+
+    - name: Test all features
       uses: actions-rs/cargo@v1
       with:
         command: test
@@ -134,7 +140,7 @@ jobs:
       with:
         use-cross: true
         command: build
-        args: --release -F cli --target ${{ matrix.target }}
+        args: --release -F cli -F permissive --target ${{ matrix.target }}
 
     - name: Zip
       if: ${{ matrix.os == 'windows' }}

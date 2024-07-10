@@ -58,7 +58,7 @@ First install Cargo, the Rust package manager: https://doc.rust-lang.org/cargo/g
 Then use the following command to install dofigen:
 
 ```bash
-cargo install dofigen -F cli
+cargo install dofigen -F cli -F permissive
 ```
 
 #### Download the binary
