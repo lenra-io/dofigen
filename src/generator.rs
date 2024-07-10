@@ -104,16 +104,10 @@ fn add_copy_options(
     context: &GenerationContext,
 ) {
     if let Some(chown) = copy_options.chown.as_ref().or(context.user.as_ref()) {
-        inst_options.push(InstructionOption::WithValue(
-            "chown".into(),
-            chown.into(),
-        ));
+        inst_options.push(InstructionOption::WithValue("chown".into(), chown.into()));
     }
     if let Some(chmod) = &copy_options.chmod {
-        inst_options.push(InstructionOption::WithValue(
-            "chmod".into(),
-            chmod.into(),
-        ));
+        inst_options.push(InstructionOption::WithValue("chmod".into(), chmod.into()));
     }
     if copy_options.link.unwrap_or(true) {
         inst_options.push(InstructionOption::NameOnly("link".into()));
@@ -127,10 +121,7 @@ impl DockerfileGenerator for Copy {
     ) -> Result<Vec<DockerfileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
         if let Some(from) = &self.from {
-            options.push(InstructionOption::WithValue(
-                "from".into(),
-                from.into(),
-            ));
+            options.push(InstructionOption::WithValue("from".into(), from.into()));
         }
         add_copy_options(&mut options, &self.options, context);
         // excludes are not supported yet: minimal version 1.7-labs
@@ -474,11 +465,7 @@ mod test {
                 ..Default::default()
             };
             let name = image.name(&GenerationContext {
-                previous_builders: vec![
-                    "builder-0".into(),
-                    "builder-1".into(),
-                    "builder-2".into(),
-                ],
+                previous_builders: vec!["builder-0".into(), "builder-1".into(), "builder-2".into()],
                 ..Default::default()
             });
             assert_eq!(name, "runtime");

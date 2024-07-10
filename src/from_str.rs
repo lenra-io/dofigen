@@ -339,7 +339,8 @@ mod test_from_str {
                 vec![
                     "https://github.com/lenra-io/dofigen/raw/main/README.md".into(),
                     "https://github.com/lenra-io/dofigen/raw/main/LICENSE".into()
-                ].into()
+                ]
+                .into()
             );
             assert_eq!(result.options.target, Some("/app".into()));
             assert!(result.options.chown.is_none());

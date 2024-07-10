@@ -187,11 +187,7 @@ mod tests {
             ..Default::default()
         };
         let name = image.name(&GenerationContext {
-            previous_builders: vec![
-                "builder-0".into(),
-                "bob".into(),
-                "john".into(),
-            ],
+            previous_builders: vec!["builder-0".into(), "bob".into(), "john".into()],
             ..Default::default()
         });
         assert_eq!(name, "runtime");
