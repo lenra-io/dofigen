@@ -6,9 +6,11 @@
 mod dockerfile_struct;
 mod dofigen_struct;
 mod errors;
+#[cfg(feature = "permissive")]
 mod from_str;
 mod generator;
 mod script_runner;
+#[cfg(feature = "permissive")]
 mod serde_permissive;
 mod stage;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};
@@ -41,16 +43,17 @@ const FILE_HEADER_LINES: [&str; 3] = [
 /// use dofigen_lib::*;
 ///
 /// let yaml = "
-/// image: ubuntu
+/// image:
+///   path: ubuntu
 /// ";
-/// let image: Image = from(yaml.to_string()).unwrap();
+/// let image: Image = from(yaml.into()).unwrap();
 /// assert_eq!(
 ///     image,
 ///     Image {
 ///         from: Some(ImageName {
 ///             path: String::from("ubuntu"),
 ///             ..Default::default()
-///         }),
+///         }.into()),
 ///         ..Default::default()
 ///     }
 /// );
@@ -59,37 +62,39 @@ const FILE_HEADER_LINES: [&str; 3] = [
 /// Basic parsing
 ///
 /// ```
-/// use dofigen_lib::{from, Image, Builder, Artifact, ImageName};
+/// use dofigen_lib::*;
 ///
 /// let yaml = r#"
 /// builders:
 ///   - name: builder
-///     from: ekidd/rust-musl-builder
+///     from:
+///       path: ekidd/rust-musl-builder
 ///     add:
-///       - "*"
+///       - paths: ["*"]
 ///     run:
 ///       - cargo build --release
-/// from: ubuntu
+/// from:
+///   path: ubuntu
 /// artifacts:
 ///   - builder: builder
 ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
 ///     target: /app
 /// "#;
-/// let image: Image = from(yaml.to_string()).unwrap();
+/// let image: Image = from(yaml.into()).unwrap();
 /// assert_eq!(
 ///     image,
 ///     Image {
 ///         builders: Some(Vec::from([Builder {
 ///             name: Some(String::from("builder")),
-///             from: "ekidd/rust-musl-builder".parse().unwrap(),
-///             copy: Some(Vec::from(["*".parse().unwrap()])),
-///             run: Some(Vec::from(["cargo build --release".parse().unwrap()])),
+///             from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
+///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into()),
+///             run: Some(vec!["cargo build --release".parse().unwrap()].into()),
 ///             ..Default::default()
 ///         }])),
 ///         from: Some(ImageName {
 ///             path: "ubuntu".parse().unwrap(),
 ///             ..Default::default()
-///         }),
+///         }.into()),
 ///         artifacts: Some(Vec::from([Artifact {
 ///             builder: String::from("builder"),
 ///             source: String::from(
@@ -116,7 +121,8 @@ pub fn from(input: String) -> Result<Image> {
 /// use dofigen_lib::*;
 ///
 /// let yaml = "
-/// image: ubuntu
+/// image:
+///   path: ubuntu
 /// ";
 /// let image: Image = from_reader(yaml.as_bytes()).unwrap();
 /// assert_eq!(
@@ -125,7 +131,7 @@ pub fn from(input: String) -> Result<Image> {
 ///         from: Some(ImageName {
 ///             path: String::from("ubuntu"),
 ///             ..Default::default()
-///         }),
+///         }.into()),
 ///         ..Default::default()
 ///     }
 /// );
@@ -139,12 +145,14 @@ pub fn from(input: String) -> Result<Image> {
 /// let yaml = r#"
 /// builders:
 ///   - name: builder
-///     from: ekidd/rust-musl-builder
+///     from:
+///       path: ekidd/rust-musl-builder
 ///     add:
-///       - "*"
+///       - paths: ["*"]
 ///     run:
 ///       - cargo build --release
-/// from: ubuntu
+/// from:
+///     path: ubuntu
 /// artifacts:
 ///   - builder: builder
 ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
@@ -156,15 +164,15 @@ pub fn from(input: String) -> Result<Image> {
 ///     Image {
 ///         builders: Some(Vec::from([Builder {
 ///             name: Some(String::from("builder")),
-///             from: "ekidd/rust-musl-builder".parse().unwrap(),
-///             copy: Some(Vec::from(["*".parse().unwrap()])),
-///             run: Some(Vec::from(["cargo build --release".parse().unwrap()])),
+///             from: ImageName{path: "ekidd/rust-musl-builder".into(), ..Default::default()}.into(),
+///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into()),
+///             run: Some(vec!["cargo build --release".parse().unwrap()].into()),
 ///             ..Default::default()
 ///         }])),
 ///         from: Some(ImageName {
 ///             path: String::from("ubuntu"),
 ///             ..Default::default()
-///         }),
+///         }.into()),
 ///         artifacts: Some(Vec::from([Artifact {
 ///             builder: String::from("builder"),
 ///             source: String::from(
@@ -210,7 +218,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
 ///     from: Some(ImageName {
 ///         path: String::from("ubuntu"),
 ///         ..Default::default()
-///     }),
+///     }.into()),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerfile(&image).unwrap();
@@ -242,7 +250,7 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
 /// let image = Image {
-///     context: Some(Vec::from([String::from("/src")])),
+///     context: Some(vec![String::from("/src")].into()),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
@@ -258,7 +266,7 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
 /// let image = Image {
-///     ignore: Some(Vec::from([String::from("target")])),
+///     ignore: Some(vec![String::from("target")].into()),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
@@ -274,8 +282,8 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 /// use dofigen_lib::{generate_dockerignore, Image};
 ///
 /// let image = Image {
-///     context: Some(Vec::from([String::from("/src")])),
-///     ignore: Some(Vec::from([String::from("/src/*.test.rs")])),
+///     context: Some(vec![String::from("/src")].into()),
+///     ignore: Some(vec![String::from("/src/*.test.rs")].into()),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
@@ -315,6 +323,7 @@ pub fn generate_json_schema() -> String {
     serde_json::to_string_pretty(&schema).unwrap()
 }
 
+#[cfg(feature = "permissive")]
 #[cfg(test)]
 mod test {
     use super::*;
@@ -353,7 +362,7 @@ mod test {
         - test
         "#;
 
-        let image: Image = from(yaml.to_string()).map_err(Error::from).unwrap();
+        let image: Image = from(yaml.into()).map_err(Error::from).unwrap();
         let dockerfile: String = generate_dockerfile(&image).unwrap();
 
         assert_eq!(
@@ -420,21 +429,25 @@ artifacts:
   source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
   destination: /app
 "#;
-        let image: Image = from(yaml.to_string()).unwrap();
+        let image: Image = from(yaml.into()).unwrap();
         assert_eq!(
             image,
             Image {
                 builders: Some(vec![Builder {
                     name: Some(String::from("builder")),
-                    from: ImageName {
+                    from: PermissiveStruct::new(ImageName {
                         path: String::from("ekidd/rust-musl-builder"),
                         ..Default::default()
-                    },
-                    copy: Some(vec![CopyResources::Copy(Copy {
-                        paths: vec![String::from("*")],
-                        ..Default::default()
-                    })]),
-                    run: Some(vec![String::from("cargo build --release")]),
+                    }),
+                    copy: Some(PermissiveVec::new(vec![PermissiveStruct::new(
+                        CopyResource::Copy(Copy {
+                            paths: vec![String::from("*")].into(),
+                            ..Default::default()
+                        })
+                    )])),
+                    run: Some(PermissiveVec::new(vec![String::from(
+                        "cargo build --release"
+                    )])),
                     ..Default::default()
                 }]),
                 artifacts: Some(Vec::from([Artifact {
@@ -460,7 +473,7 @@ run:
       echo "Test"
     fi
 "#;
-        let image: Image = from(yaml.to_string()).unwrap();
+        let image: Image = from(yaml.into()).unwrap();
         let dockerfile: String = generate_dockerfile(&image).unwrap();
 
         assert_eq!(
@@ -487,7 +500,7 @@ RUN \
 image: scratch
 from: alpine
 "#;
-        let result = from(yaml.to_string());
+        let result = from(yaml.into());
         assert!(
             result.is_err(),
             "The parsing must fail since from and image are not compatible"
@@ -500,7 +513,7 @@ from: alpine
 from: alpine
 test: Fake value
 "#;
-        let result = from(yaml.to_string());
+        let result = from(yaml.into());
         assert!(
             result.is_err(),
             "The parsing must fail since 'test' is not a valid field"
@@ -548,7 +561,7 @@ ignore:
 - test
 "#;
 
-        from(yaml.to_string())?;
+        from(yaml.into())?;
         Ok(())
     }
 
@@ -571,7 +584,7 @@ ignore:
         cache: /tmp
         "#;
 
-        let image: Image = from(yaml.to_string()).unwrap();
+        let image: Image = from(yaml.into()).unwrap();
         let dockerfile: String = generate_dockerfile(&image).unwrap();
 
         assert_eq!(

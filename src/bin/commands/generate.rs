@@ -52,7 +52,7 @@ impl CliCommand for Generate {
                 eprintln!("No Dofigen file found");
                 std::process::exit(1);
             }
-            &files[0].to_string()
+            &files[0].into()
         };
         let image = if file == "-" {
             from_reader(std::io::stdin())
