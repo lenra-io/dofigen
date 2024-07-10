@@ -25,6 +25,7 @@ required-features = ["cli"]
 [features]
 cli = ["clap"]
 json_schema = ["schemars", "serde_json"]
+permissive = []
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

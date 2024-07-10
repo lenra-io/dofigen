@@ -1,11 +1,19 @@
+#[cfg(feature = "permissive")]
+use crate::serde_permissive::{OneOrManyVec, ParsableStruct};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
-
-use crate::serde_permissive::{
-    deserialize_one_or_many, deserialize_optional_one_or_many, PermissiveStruct,
-};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+#[cfg(feature = "permissive")]
+pub type PermissiveStruct<T> = ParsableStruct<T>;
+#[cfg(not(feature = "permissive"))]
+pub type PermissiveStruct<T> = Box<T>;
+
+#[cfg(feature = "permissive")]
+pub type PermissiveVec<T> = OneOrManyVec<T>;
+#[cfg(not(feature = "permissive"))]
+pub type PermissiveVec<T> = Box<Vec<T>>;
 
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -14,53 +22,28 @@ use std::collections::HashMap;
 pub struct Image {
     // Common part
     #[serde(alias = "image")]
-    pub from: Option<ImageName>,
-    pub user: Option<User>,
+    pub from: Option<PermissiveStruct<ImageName>>,
+    pub user: Option<PermissiveStruct<User>>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(
-        alias = "add",
-        alias = "adds",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub copy: Option<Vec<CopyResources>>,
+    #[serde(alias = "add", alias = "adds")]
+    pub copy: Option<PermissiveVec<PermissiveStruct<CopyResource>>>,
     pub root: Option<Root>,
-    #[serde(
-        alias = "script",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub run: Option<Vec<String>>,
-    #[serde(
-        alias = "caches",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub cache: Option<Vec<String>>,
+    #[serde(alias = "script")]
+    pub run: Option<PermissiveVec<String>>,
+    #[serde(alias = "caches")]
+    pub cache: Option<PermissiveVec<String>>,
     // Specific part
     pub builders: Option<Vec<Builder>>,
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
-    pub context: Option<Vec<String>>,
-    #[serde(
-        alias = "ignores",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub ignore: Option<Vec<String>>,
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
-    pub entrypoint: Option<Vec<String>>,
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
-    pub cmd: Option<Vec<String>>,
-    #[serde(
-        alias = "port",
-        alias = "ports",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub expose: Option<Vec<Port>>,
+    pub context: Option<PermissiveVec<String>>,
+    #[serde(alias = "ignores")]
+    pub ignore: Option<PermissiveVec<String>>,
+    pub entrypoint: Option<PermissiveVec<String>>,
+    pub cmd: Option<PermissiveVec<String>>,
+    #[serde(alias = "port", alias = "ports")]
+    pub expose: Option<PermissiveVec<PermissiveStruct<Port>>>,
     pub healthcheck: Option<Healthcheck>,
 }
 
@@ -70,32 +53,19 @@ pub struct Image {
 pub struct Builder {
     // Common part
     #[serde(alias = "image")]
-    pub from: ImageName,
-    pub user: Option<User>,
+    pub from: PermissiveStruct<ImageName>,
+    pub user: Option<PermissiveStruct<User>>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Option<Vec<Artifact>>,
-    #[serde(
-        alias = "add",
-        alias = "adds",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub copy: Option<Vec<CopyResources>>,
+    #[serde(alias = "add", alias = "adds")]
+    pub copy: Option<PermissiveVec<PermissiveStruct<CopyResource>>>,
     pub root: Option<Root>,
-    #[serde(
-        alias = "script",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub run: Option<Vec<String>>,
-    #[serde(
-        alias = "caches",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub cache: Option<Vec<String>>,
+    #[serde(alias = "script")]
+    pub run: Option<PermissiveVec<String>>,
+    #[serde(alias = "caches")]
+    pub cache: Option<PermissiveVec<String>>,
     // Specific part
     pub name: Option<String>,
 }
@@ -112,18 +82,10 @@ pub struct Artifact {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Root {
-    #[serde(
-        alias = "script",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub run: Option<Vec<String>>,
-    #[serde(
-        alias = "caches",
-        deserialize_with = "deserialize_optional_one_or_many",
-        default
-    )]
-    pub cache: Option<Vec<String>>,
+    #[serde(alias = "script")]
+    pub run: Option<PermissiveVec<String>>,
+    #[serde(alias = "caches")]
+    pub cache: Option<PermissiveVec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -136,8 +98,7 @@ pub struct Healthcheck {
     pub retries: Option<u16>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "PermissiveStruct<ImageName>")]
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ImageName {
     pub host: Option<String>,
@@ -153,10 +114,10 @@ pub enum ImageVersion {
     Digest(String),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(from = "PermissiveStruct<CopyResources>")]
+#[derive(Serialize, Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum CopyResources {
+pub enum CopyResource {
     Copy(Copy),
     AddGitRepo(AddGitRepo),
     Add(Add),
@@ -164,21 +125,14 @@ pub enum CopyResources {
 
 /// Represents the COPY instruction in a Dockerfile.
 /// See https://docs.docker.com/reference/dockerfile/#copy
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
-    #[serde(deserialize_with = "deserialize_one_or_many", default)]
-    pub paths: Vec<String>,
-    pub target: Option<String>,
-    /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chown: Option<User>,
-    /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chmod: Option<String>,
+    pub paths: PermissiveVec<String>,
+    #[serde(flatten)]
+    pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
-    pub exclude: Option<Vec<String>>,
-    /// See https://docs.docker.com/reference/dockerfile/#copy---link
-    pub link: Option<bool>,
+    pub exclude: Option<PermissiveVec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---parents
     pub parents: Option<bool>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---from
@@ -187,34 +141,34 @@ pub struct Copy {
 
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
 /// See https://docs.docker.com/reference/dockerfile/#adding-private-git-repositories
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct AddGitRepo {
     pub repo: String,
-    // pub repo: GitRepo,
-    pub target: Option<String>,
-    /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chown: Option<User>,
-    /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chmod: Option<String>,
+    #[serde(flatten)]
+    pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[serde(deserialize_with = "deserialize_optional_one_or_many", default)]
-    pub exclude: Option<Vec<String>>,
-    /// See https://docs.docker.com/reference/dockerfile/#copy---link
-    pub link: Option<bool>,
+    pub exclude: Option<PermissiveVec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
     pub keep_git_dir: Option<bool>,
 }
 
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Add {
-    #[serde(deserialize_with = "deserialize_one_or_many", default)]
-    pub paths: Vec<String>,
-    pub target: Option<String>,
+    pub files: PermissiveVec<String>,
+    #[serde(flatten)]
+    pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
     pub checksum: Option<String>,
+}
+
+/// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct CopyOptions {
+    pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chown: Option<User>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
@@ -223,16 +177,14 @@ pub struct Add {
     pub link: Option<bool>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "PermissiveStruct<User>")]
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct User {
     pub user: String,
     pub group: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(from = "PermissiveStruct<Port>")]
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Port {
     pub port: u16,
@@ -267,3 +219,169 @@ pub enum PortProtocol {
 //     pub url: String,
 //     pub user: String,
 // }
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    mod deserialize {
+        use super::*;
+
+        mod user {
+            use super::*;
+
+            #[test]
+            fn name_and_group() {
+                let json_data = r#"{
+    "user": "test",
+    "group": "test"
+}"#;
+
+                let user: User = serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq!(
+                    user,
+                    User {
+                        user: "test".into(),
+                        group: Some("test".into())
+                    }
+                );
+            }
+        }
+
+        mod copy_resource {
+
+            use super::*;
+
+            #[test]
+            fn deserialize_copy() {
+                let json_data = r#"{
+    "paths": ["file1.txt", "file2.txt"],
+    "target": "destination/",
+    "chown": {
+        "user": "root",
+        "group": "root"
+    },
+    "chmod": "755",
+    "exclude": ["file3.txt"],
+    "link": true,
+    "parents": true,
+    "from": "source/"
+}"#;
+
+                let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq!(
+                    copy_resource,
+                    CopyResource::Copy(Copy {
+                        paths: vec!["file1.txt".into(), "file2.txt".into()].into(),
+                        options: CopyOptions {
+                            target: Some("destination/".into()),
+                            chown: Some(User {
+                                user: "root".into(),
+                                group: Some("root".into())
+                            }),
+                            chmod: Some("755".into()),
+                            link: Some(true),
+                        },
+                        exclude: Some(vec!["file3.txt".into()].into()),
+                        parents: Some(true),
+                        from: Some("source/".into())
+                    })
+                );
+            }
+
+            #[cfg(feature = "permissive")]
+            #[test]
+            fn deserialize_copy_from_str() {
+                use std::ops::Deref;
+
+                let json_data = "file1.txt destination/";
+
+                let copy_resource: PermissiveStruct<CopyResource> =
+                    serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq!(
+                    copy_resource.deref(),
+                    &CopyResource::Copy(Copy {
+                        paths: vec!["file1.txt".into()].into(),
+                        options: CopyOptions {
+                            target: Some("destination/".into()),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                );
+            }
+
+            #[test]
+            fn deserialize_add_git_repo() {
+                let json_data = r#"{
+            "repo": "https://github.com/example/repo.git",
+            "target": "destination/",
+            "chown": {
+                "user": "root",
+                "group": "root"
+            },
+            "chmod": "755",
+            "exclude": ["file3.txt"],
+            "link": true,
+            "keep_git_dir": true
+        }"#;
+
+                let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq!(
+                    copy_resource,
+                    CopyResource::AddGitRepo(AddGitRepo {
+                        repo: "https://github.com/example/repo.git".into(),
+                        options: CopyOptions {
+                            target: Some("destination/".into()),
+                            chown: Some(User {
+                                user: "root".into(),
+                                group: Some("root".into())
+                            }),
+                            chmod: Some("755".into()),
+                            link: Some(true),
+                        },
+                        exclude: Some(vec!["file3.txt".into()].into()),
+                        keep_git_dir: Some(true)
+                    })
+                );
+            }
+
+            #[test]
+            fn deserialize_add() {
+                let json_data = r#"{
+            "files": ["file1.txt", "file2.txt"],
+            "target": "destination/",
+            "checksum": "sha256:abcdef123456",
+            "chown": {
+                "user": "root",
+                "group": "root"
+            },
+            "chmod": "755",
+            "link": true
+        }"#;
+
+                let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq!(
+                    copy_resource,
+                    CopyResource::Add(Add {
+                        files: vec!["file1.txt".into(), "file2.txt".into()].into(),
+                        options: CopyOptions {
+                            target: Some("destination/".into()),
+                            chown: Some(User {
+                                user: "root".into(),
+                                group: Some("root".into())
+                            }),
+                            chmod: Some("755".into()),
+                            link: Some(true),
+                        },
+                        checksum: Some("sha256:abcdef123456".into()),
+                    })
+                );
+            }
+        }
+    }
+}
