@@ -6,8 +6,8 @@ use crate::{
 };
 
 pub trait ScriptRunner {
-    fn script(&self) -> Option<&Vec<String>>;
-    fn caches(&self) -> Option<&Vec<String>>;
+    fn script(&self) -> Option<Vec<String>>;
+    fn caches(&self) -> Option<Vec<String>>;
 
     fn to_run_inscruction(
         &self,
@@ -20,7 +20,7 @@ pub trait ScriptRunner {
                 0 => {
                     return Ok(None);
                 }
-                1 => script_lines[0].to_string(),
+                1 => script_lines[0].into(),
                 _ => script_lines.join(LINE_SEPARATOR),
                 // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
             };
@@ -43,13 +43,13 @@ pub trait ScriptRunner {
                         }
                     }
                     options.push(InstructionOption::WithOptions(
-                        "mount".to_string(),
+                        "mount".into(),
                         cache_options,
                     ));
                 });
             }
             return Ok(Some(DockerfileInsctruction {
-                command: "RUN".to_string(),
+                command: "RUN".into(),
                 content,
                 options,
             }));
@@ -61,11 +61,11 @@ pub trait ScriptRunner {
 macro_rules! impl_ScriptRunner {
     (for $($t:ty),+) => {
         $(impl ScriptRunner for $t {
-            fn script(&self) -> Option<&Vec<String>> {
-                self.run.as_ref()
+            fn script(&self) -> Option<Vec<String>> {
+                self.run.as_ref().map(|v|v.to_vec())
             }
-            fn caches(&self) -> Option<&Vec<String>> {
-                self.cache.as_ref()
+            fn caches(&self) -> Option<Vec<String>> {
+                self.cache.as_ref().map(|v|v.to_vec())
             }
         })*
     }
@@ -76,12 +76,12 @@ impl_ScriptRunner!(for Builder, Image, Root);
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::User;
+    use crate::{PermissiveVec, User};
 
     #[test]
     fn to_run_inscruction_with_script() {
         let builder = Builder {
-            run: Some(vec!["echo Hello".to_string()]),
+            run: Some(PermissiveVec::new(vec!["echo Hello".into()])),
             ..Default::default()
         };
         assert_eq!(
@@ -89,8 +89,8 @@ mod test {
                 .to_run_inscruction(&GenerationContext::default())
                 .unwrap(),
             Some(DockerfileInsctruction {
-                command: "RUN".to_string(),
-                content: "echo Hello".to_string(),
+                command: "RUN".into(),
+                content: "echo Hello".into(),
                 options: vec![],
             })
         );
@@ -112,7 +112,7 @@ mod test {
     #[test]
     fn to_run_inscruction_with_empty_script() {
         let builder = Builder {
-            run: Some(vec![]),
+            run: Some(PermissiveVec::new(vec![])),
             ..Default::default()
         };
         assert_eq!(
@@ -126,8 +126,8 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_named_user() {
         let builder = Builder {
-            run: Some(vec!["echo Hello".to_string()]),
-            cache: Some(vec!["/path/to/cache".to_string()]),
+            run: Some(PermissiveVec::new(vec!["echo Hello".into()])),
+            cache: Some(PermissiveVec::new(vec!["/path/to/cache".into()])),
             ..Default::default()
         };
         let context = GenerationContext {
@@ -137,10 +137,10 @@ mod test {
         assert_eq!(
             builder.to_run_inscruction(&context).unwrap(),
             Some(DockerfileInsctruction {
-                command: "RUN".to_string(),
-                content: "echo Hello".to_string(),
+                command: "RUN".into(),
+                content: "echo Hello".into(),
                 options: vec![InstructionOption::WithOptions(
-                    "mount".to_string(),
+                    "mount".into(),
                     vec![
                         InstructionOptionOption::new("type", "cache"),
                         InstructionOptionOption::new("target", "/path/to/cache"),
@@ -154,8 +154,8 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user() {
         let builder = Builder {
-            run: Some(vec!["echo Hello".to_string()]),
-            cache: Some(vec!["/path/to/cache".to_string()]),
+            run: Some(PermissiveVec::new(vec!["echo Hello".into()])),
+            cache: Some(PermissiveVec::new(vec!["/path/to/cache".into()])),
             ..Default::default()
         };
         let context = GenerationContext {
@@ -165,10 +165,10 @@ mod test {
         assert_eq!(
             builder.to_run_inscruction(&context).unwrap(),
             Some(DockerfileInsctruction {
-                command: "RUN".to_string(),
-                content: "echo Hello".to_string(),
+                command: "RUN".into(),
+                content: "echo Hello".into(),
                 options: vec![InstructionOption::WithOptions(
-                    "mount".to_string(),
+                    "mount".into(),
                     vec![
                         InstructionOptionOption::new("type", "cache"),
                         InstructionOptionOption::new("target", "/path/to/cache"),
@@ -184,8 +184,8 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user_without_group() {
         let builder = Builder {
-            run: Some(vec!["echo Hello".to_string()]),
-            cache: Some(vec!["/path/to/cache".to_string()]),
+            run: Some(PermissiveVec::new(vec!["echo Hello".into()])),
+            cache: Some(PermissiveVec::new(vec!["/path/to/cache".into()])),
             ..Default::default()
         };
         let context = GenerationContext {
@@ -195,10 +195,10 @@ mod test {
         assert_eq!(
             builder.to_run_inscruction(&context).unwrap(),
             Some(DockerfileInsctruction {
-                command: "RUN".to_string(),
-                content: "echo Hello".to_string(),
+                command: "RUN".into(),
+                content: "echo Hello".into(),
                 options: vec![InstructionOption::WithOptions(
-                    "mount".to_string(),
+                    "mount".into(),
                     vec![
                         InstructionOptionOption::new("type", "cache"),
                         InstructionOptionOption::new("target", "/path/to/cache"),
