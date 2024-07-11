@@ -48,6 +48,7 @@ pub struct Image {
 /** Represents a Dockerfile builder stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(deny_unknown_fields)]
 pub struct Builder {
     // Common part
     #[serde(alias = "image")]
@@ -174,7 +175,7 @@ pub struct User {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Run {
-    #[serde(rename = "run", alias = "script")]
+    #[serde(rename = "run", alias = "script", default)]
     pub commands: PermissiveVec<String>,
     #[serde(alias = "caches")]
     pub cache: Option<PermissiveVec<String>>,

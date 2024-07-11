@@ -88,10 +88,10 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///             name: Some(String::from("builder")),
 ///             from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
 ///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into()),
-///             run: Some(Run {
+///             run: Run {
 ///                 commands: vec!["cargo build --release".parse().unwrap()].into(),
 ///                 ..Default::default()
-///            }.into()),
+///            }.into(),
 ///             ..Default::default()
 ///         }])),
 ///         from: Some(ImageName {
@@ -169,10 +169,10 @@ pub fn from(input: String) -> Result<Image> {
 ///             name: Some(String::from("builder")),
 ///             from: ImageName{path: "ekidd/rust-musl-builder".into(), ..Default::default()}.into(),
 ///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into()),
-///             run: Some(Run{
+///             run: Run{
 ///                 commands: vec!["cargo build --release".parse().unwrap()].into(),
 ///                 ..Default::default()
-///             }.into()),
+///             }.into(),
 ///             ..Default::default()
 ///         }])),
 ///         from: Some(ImageName {

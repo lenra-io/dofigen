@@ -302,12 +302,18 @@ builders:
   - name: builder
     from: clux/muslrust:stable
     workdir: /app
-    bind: "."
+    bind:
+      - source: Cargo.toml
+        target: Cargo.toml
+      - source: Cargo.lock
+        target: Cargo.lock
+      - source: src/
+        target: src/
     run:
     # Build with musl to work with scratch
     - cargo build --release -F cli -F permissive
     # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
-    - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
+    - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
     cache:
     # Cargo cache
     - /home/rust/.cargo
@@ -316,7 +322,7 @@ builders:
 workdir: /app
 artifacts:
   - builder: builder
-    source: "/app/dofigen"
+    source: "/tmp/dofigen"
     target: "/bin/"
 entrypoint: /bin/dofigen
 cmd: --help
@@ -339,11 +345,13 @@ context:
 FROM clux/muslrust:stable AS builder
 WORKDIR /app
 RUN \
-    --mount=type=bind,target="." \
+    --mount=type=bind,target=Cargo.toml,source=Cargo.toml \
+    --mount=type=bind,target=Cargo.lock,source=Cargo.lock \
+    --mount=type=bind,target=src/,source=src/ \
     --mount=type=cache,target=/home/rust/.cargo,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
-    cargo build --release -F cli && \
-    mv target/x86_64-unknown-linux-musl/release/dofigen /app/
+    cargo build --release -F cli -F permissive && \
+    mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
 
 # runtime
 FROM scratch AS runtime
@@ -352,7 +360,7 @@ COPY \
     --from=builder \
     --chown=1000:1000 \
     --link \
-    "/app/dofigen" "/bin/"
+    "/tmp/dofigen" "/bin/"
 USER 1000:1000
 ENTRYPOINT ["/bin/dofigen"]
 CMD ["--help"]
