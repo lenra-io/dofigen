@@ -10,7 +10,6 @@
 			"group": "test",
 			"label": "rust: test coverage",
 			"env": {
-				"CARGO_INCREMENTAL": "0",
 				"RUSTFLAGS": "-Cinstrument-coverage",
 				"LLVM_PROFILE_FILE": "target/coverage/profiles/cargo-test-%p-%m.profraw"
 			}
@@ -51,7 +50,6 @@
 			"group": "test",
 			"label": "rust: test coverage all-features",
 			"env": {
-				"CARGO_INCREMENTAL": "0",
 				"RUSTFLAGS": "-Cinstrument-coverage",
 				"LLVM_PROFILE_FILE": "target/coverage/profiles/cargo-test-%p-%m.profraw"
 			}

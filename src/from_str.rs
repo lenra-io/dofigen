@@ -155,9 +155,13 @@ impl FromStr for Bind {
         let Some(captures) = regex.captures(s) else {
             return Err(Error::custom("Not matching bind pattern"));
         };
+        let target = captures["target"].to_string();
         Ok(Bind {
-            source: captures.name("source").map(|m| m.as_str().into()),
-            target: captures["target"].into(),
+            source: captures
+                .name("source")
+                .map(|m| m.as_str().into())
+                .or(Some(target.clone())),
+            target: target,
             ..Default::default()
         })
     }

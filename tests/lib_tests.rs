@@ -483,12 +483,9 @@ builders:
     from: clux/muslrust:stable
     workdir: /app
     bind:
-      - source: Cargo.toml
-        target: Cargo.toml
-      - source: Cargo.lock
-        target: Cargo.lock
-      - source: src/
-        target: src/
+      - Cargo.toml
+      - Cargo.lock
+      - src/:src/
     run:
       # Build with musl to work with scratch
       - cargo build --release -F cli -F permissive
