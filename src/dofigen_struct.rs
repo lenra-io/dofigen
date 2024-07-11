@@ -274,7 +274,7 @@ pub struct Copy {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
+    attribute(serde(deny_unknown_fields, default, rename_all = "camelCase")),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 pub struct AddGitRepo {
@@ -633,7 +633,7 @@ mod test {
             "chmod": "755",
             "exclude": ["file3.txt"],
             "link": true,
-            "keep_git_dir": true
+            "keepGitDir": true
         }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();

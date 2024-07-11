@@ -33,35 +33,34 @@ USER 1000:1000
 #[cfg(feature = "permissive")]
 fn yaml_to_dockerfile_complexe() {
     let yaml = r#"
-        image: scratch
-        builders:
-        - name: builder
-          from: ekidd/rust-musl-builder
-          user: rust
-          add: "."
-          run:
-          - ls -al
-          - cargo build --release
-          cache: /usr/local/cargo/registry
-        - name: watchdog
-          from: ghcr.io/openfaas/of-watchdog:0.9.6
-        env:
-          fprocess: /app
-        artifacts:
-        - builder: builder
-          source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-          target: /app
-        - builder: builder
-          source: /fwatchdog
-          target: /fwatchdog
-        expose: 8080
-        healthcheck:
-          interval: 3s
-          cmd: "[ -e /tmp/.lock ] || exit 1"
-        cmd: "/fwatchdog"
-        ignores:
-        - target
-        - test
+builders:
+  - name: builder
+    from: ekidd/rust-musl-builder
+    user: rust
+    add: "."
+    run:
+    - ls -al
+    - cargo build --release
+    cache: /usr/local/cargo/registry
+  - name: watchdog
+    from: ghcr.io/openfaas/of-watchdog:0.9.6
+env:
+  fprocess: /app
+artifacts:
+  - builder: builder
+    source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    target: /app
+  - builder: builder
+    source: /fwatchdog
+    target: /fwatchdog
+expose: 8080
+healthcheck:
+  interval: 3s
+  cmd: "[ -e /tmp/.lock ] || exit 1"
+cmd: "/fwatchdog"
+ignores:
+  - target
+  - test
         "#;
 
     let image: Image = from(yaml.into()).map_err(Error::from).unwrap();
@@ -119,6 +118,24 @@ CMD ["/fwatchdog"]
 #[test]
 #[cfg(feature = "permissive")]
 fn using_dockerfile_overlap_aliases() {
+  #[cfg(not(feature = "permissive"))]
+  let yaml = r#"
+builders:
+  - name: builder
+    image: 
+      path: ekidd/rust-musl-builder
+    adds:
+      - paths:
+        - "*"
+    script:
+      - cargo build --release
+artifacts:
+  - builder: builder
+    source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    destination: /app
+"#;
+
+  #[cfg(feature = "permissive")]
     let yaml = r#"
 builders:
 - name: builder
@@ -178,14 +195,14 @@ artifacts:
 #[test]
 #[cfg(feature = "permissive")]
 fn multiline_run_field() {
-    let yaml = r#"
-from: scratch
+  let yaml = r#"
 run:
   - |
     if [ "test" = "test" ]; then
       echo "Test"
     fi
 "#;
+
     let image: Image = from(yaml.into()).unwrap();
     let dockerfile: String = generate_dockerfile(&image).unwrap();
 
@@ -212,6 +229,15 @@ RUN \
 #[test]
 #[cfg(feature = "permissive")]
 fn combine_field_and_aliases() {
+  #[cfg(not(feature = "permissive"))]
+  let yaml = r#"
+image: 
+  path: scratch
+from:
+  path: alpine
+"#;
+
+  #[cfg(feature = "permissive")]
     let yaml = r#"
 image: scratch
 from: alpine
@@ -227,6 +253,14 @@ from: alpine
 #[test]
 #[cfg(feature = "permissive")]
 fn fail_on_unknow_field() {
+    #[cfg(not(feature = "permissive"))]
+    let yaml = r#"
+from:
+  path: alpine
+test: Fake value
+"#;
+
+    #[cfg(feature = "permissive")]
     let yaml = r#"
 from: alpine
 test: Fake value
@@ -251,34 +285,70 @@ test: Fake value
 #[test]
 #[cfg(feature = "permissive")]
 fn manage_plural_aliases() -> Result<()> {
+    #[cfg(not(feature = "permissive"))]
     let yaml = r#"
-from: scratch
 builders:
-- name: builder
-  from: ekidd/rust-musl-builder
-  user: rust
-  adds: 
-  - "."
-  run:
-  - cargo build --release
-  caches:
-  - /usr/local/cargo/registry
-- name: watchdog
-  from: ghcr.io/openfaas/of-watchdog:0.9.6
+  - name: builder
+    from:
+      path: ekidd/rust-musl-builder
+    user:
+      user: rust
+    adds: 
+      - paths:
+          - "."
+    run:
+      - cargo build --release
+    caches:
+      - /usr/local/cargo/registry
+  - name: watchdog
+    from: 
+      host: ghcr.io
+      path: openfaas/of-watchdog
+      tag: 0.9.6
 envs:
   fprocess: /app
 artifacts:
-- builder: builder
-  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-  target: /app
-- builder: builder
-  source: /fwatchdog
-  target: /fwatchdog
+  - builder: builder
+    source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    target: /app
+  - builder: builder
+    source: /fwatchdog
+    target: /fwatchdog
 ports:
-- 8080
+  - port: 8080
 ignore:
-- target
-- test
+  - target
+  - test
+"#;
+
+    #[cfg(feature = "permissive")]
+    let yaml = r#"
+builders:
+  - name: builder
+    from: ekidd/rust-musl-builder
+    user: rust
+    adds: 
+    - "."
+    run:
+    - cargo build --release
+    caches:
+    - /usr/local/cargo/registry
+  - name: watchdog
+    from: ghcr.io/openfaas/of-watchdog:0.9.6
+envs:
+  fprocess: /app
+artifacts:
+  - builder: builder
+    source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    target: /app
+  - builder: builder
+    source: /fwatchdog
+    target: /fwatchdog
+ports:
+  - 8080
+ignore:
+  - target
+  - test
 "#;
 
     from(yaml.into())?;
@@ -288,22 +358,49 @@ ignore:
 #[test]
 #[cfg(feature = "permissive")]
 fn artifact_copy_custom_user() {
+    #[cfg(not(feature = "permissive"))]
     let yaml = r#"
-        builders:
-        - name: builder
-          from: ekidd/rust-musl-builder
-          user: rust
-          add: "."
-          run: cargo build --release
-          cache: /usr/local/cargo/registry
-        user: 1001
-        artifacts:
-        - builder: builder
-          source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-          target: /app
-        run: echo "coucou"
-        cache: /tmp
-        "#;
+builders:
+- name: builder
+  from:
+    path: ekidd/rust-musl-builder
+  user:
+    user: rust
+  copy:
+    - paths: ["."]
+  run:
+    - cargo build --release
+  cache:
+    - /usr/local/cargo/registry
+user:
+  user: 1001
+artifacts:
+- builder: builder
+  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+  target: /app
+run:
+  - echo "coucou"
+cache:
+  - /tmp
+"#;
+
+    #[cfg(feature = "permissive")]
+    let yaml = r#"
+builders:
+- name: builder
+  from: ekidd/rust-musl-builder
+  user: rust
+  add: "."
+  run: cargo build --release
+  cache: /usr/local/cargo/registry
+user: 1001
+artifacts:
+- builder: builder
+  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+  target: /app
+run: echo "coucou"
+cache: /tmp
+"#;
 
     let image: Image = from(yaml.into()).unwrap();
     let dockerfile: String = generate_dockerfile(&image).unwrap();
@@ -343,8 +440,47 @@ RUN \
 
 #[test]
 fn bind_instead_of_copy() {
+    #[cfg(not(feature = "permissive"))]
     let yaml = r#"
----
+builders:
+  - name: builder
+    from:
+      path: clux/muslrust
+      tag: stable
+    workdir: /app
+    bind:
+      - source: Cargo.toml
+        target: Cargo.toml
+      - source: Cargo.lock
+        target: Cargo.lock
+      - source: src/
+        target: src/
+    run:
+      # Build with musl to work with scratch
+      - cargo build --release -F cli -F permissive
+      # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
+      - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
+    cache:
+      # Cargo cache
+      - /home/rust/.cargo
+      # build cache
+      - /app/target
+workdir: /app
+artifacts:
+  - builder: builder
+    source: "/tmp/dofigen"
+    target: "/bin/"
+entrypoint:
+  - /bin/dofigen
+cmd:
+  - --help
+context:
+  - "/src"
+  - "/Cargo.*"
+"#;
+
+    #[cfg(feature = "permissive")]
+    let yaml = r#"
 builders:
   - name: builder
     from: clux/muslrust:stable
@@ -357,15 +493,15 @@ builders:
       - source: src/
         target: src/
     run:
-    # Build with musl to work with scratch
-    - cargo build --release -F cli -F permissive
-    # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
-    - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
+      # Build with musl to work with scratch
+      - cargo build --release -F cli -F permissive
+      # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
+      - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
     cache:
-    # Cargo cache
-    - /home/rust/.cargo
-    # build cache
-    - /app/target
+      # Cargo cache
+      - /home/rust/.cargo
+      # build cache
+      - /app/target
 workdir: /app
 artifacts:
   - builder: builder
@@ -374,9 +510,9 @@ artifacts:
 entrypoint: /bin/dofigen
 cmd: --help
 context:
-- "/src"
-- "/Cargo.*"
-        "#;
+  - "/src"
+  - "/Cargo.*"
+"#;
 
     let image: Image = from(yaml.into()).unwrap();
     let dockerfile: String = generate_dockerfile(&image).unwrap();
