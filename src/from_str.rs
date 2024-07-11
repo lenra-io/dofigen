@@ -1,10 +1,11 @@
 use crate::{
     Add, AddGitRepo, Copy, CopyOptions, CopyResource, ImageName, ImageVersion, Port, PortProtocol,
-    User,
+    Resource, User,
 };
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
 use std::str::FromStr;
+use url::Url;
 
 const GIT_HTTP_REPO_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.git(?:#[a-zA-Z0-9_/.-]*(?::[a-zA-Z0-9_/-]+)?)?";
 const GIT_SSH_REPO_REGEX: &str = "[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+:[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:#[a-zA-Z0-9_/.-]+)?(?::[a-zA-Z0-9_/-]+)?";
@@ -100,8 +101,21 @@ impl FromStr for Add {
     type Err = Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let mut parts: Vec<String> = s.split(" ").map(|s| s.into()).collect();
-        let target = if parts.len() > 1 { parts.pop() } else { None };
+        let mut parts: Vec<_> = s.split(" ").collect();
+        let target = if parts.len() > 1 {
+            parts.pop().map(str::to_string)
+        } else {
+            None
+        };
+        let parts: Vec<_> = parts
+            .iter()
+            .map(|s| {
+                Url::parse(s)
+                    .map(Resource::Url)
+                    .ok()
+                    .unwrap_or(Resource::File(s.into()))
+            })
+            .collect();
         Ok(Add {
             files: Some(parts.into()),
             options: CopyOptions {
@@ -244,7 +258,10 @@ mod test_from_str {
         #[test]
         fn with_multiple_sources_and_target() {
             let result = Copy::from_str("src1 src2 /app").unwrap();
-            assert_eq!(result.paths.unwrap(), vec!["src1".into(), "src2".into()].into());
+            assert_eq!(
+                result.paths.unwrap(),
+                vec!["src1".into(), "src2".into()].into()
+            );
             assert_eq!(result.options.target, Some("/app".into()));
             assert!(result.options.chown.is_none());
             assert!(result.options.chmod.is_none());
@@ -282,7 +299,10 @@ mod test_from_str {
         #[test]
         fn http() {
             let result = AddGitRepo::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
-            assert_eq!(result.repo.unwrap(), "https://github.com/lenra-io/dofigen.git");
+            assert_eq!(
+                result.repo.unwrap(),
+                "https://github.com/lenra-io/dofigen.git"
+            );
             check_empty_copy_options(&result.options);
             assert!(result.exclude.is_none());
             assert!(result.keep_git_dir.is_none());
@@ -292,7 +312,10 @@ mod test_from_str {
         fn http_with_target() {
             let result =
                 AddGitRepo::from_str("https://github.com/lenra-io/dofigen.git /app").unwrap();
-            assert_eq!(result.repo.unwrap(), "https://github.com/lenra-io/dofigen.git");
+            assert_eq!(
+                result.repo.unwrap(),
+                "https://github.com/lenra-io/dofigen.git"
+            );
             assert_eq!(result.options.target, Some("/app".into()));
             assert!(result.options.chown.is_none());
             assert!(result.options.chmod.is_none());
@@ -303,6 +326,8 @@ mod test_from_str {
     }
 
     mod add {
+        use crate::Resource;
+
         use super::*;
 
         #[test]
@@ -311,7 +336,12 @@ mod test_from_str {
                 Add::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md").unwrap();
             assert_eq!(
                 result.files.unwrap(),
-                vec!["https://github.com/lenra-io/dofigen/raw/main/README.md".into()].into()
+                vec![Resource::Url(
+                    "https://github.com/lenra-io/dofigen/raw/main/README.md"
+                        .parse()
+                        .unwrap()
+                )]
+                .into()
             );
             check_empty_copy_options(&result.options);
         }
@@ -323,7 +353,12 @@ mod test_from_str {
                     .unwrap();
             assert_eq!(
                 result.files.unwrap(),
-                vec!["https://github.com/lenra-io/dofigen/raw/main/README.md".into()].into()
+                vec![Resource::Url(
+                    "https://github.com/lenra-io/dofigen/raw/main/README.md"
+                        .parse()
+                        .unwrap()
+                )]
+                .into()
             );
             assert_eq!(result.options.target, Some("/app".into()));
             assert!(result.options.chown.is_none());
@@ -337,8 +372,16 @@ mod test_from_str {
             assert_eq!(
                 result.files.unwrap(),
                 vec![
-                    "https://github.com/lenra-io/dofigen/raw/main/README.md".into(),
-                    "https://github.com/lenra-io/dofigen/raw/main/LICENSE".into()
+                    Resource::Url(
+                        "https://github.com/lenra-io/dofigen/raw/main/README.md"
+                            .parse()
+                            .unwrap()
+                    ),
+                    Resource::Url(
+                        "https://github.com/lenra-io/dofigen/raw/main/LICENSE"
+                            .parse()
+                            .unwrap()
+                    )
                 ]
                 .into()
             );

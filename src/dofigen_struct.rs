@@ -3,7 +3,8 @@ use crate::serde_permissive::{OneOrManyVec, ParsableStruct};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
+use url::Url;
 
 #[cfg(feature = "permissive")]
 pub type PermissiveStruct<T> = ParsableStruct<T>;
@@ -37,7 +38,7 @@ pub struct Image {
     pub cache: Option<PermissiveVec<String>>,
     // Specific part
     #[serde(alias = "extends", default)]
-    pub extend: Option<PermissiveVec<String>>,
+    pub extend: Option<PermissiveVec<Resource>>,
     pub builders: Option<Vec<Builder>>,
     pub context: Option<PermissiveVec<String>>,
     #[serde(alias = "ignores")]
@@ -162,7 +163,7 @@ pub struct AddGitRepo {
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Add {
-    pub files: Option<PermissiveVec<String>>,
+    pub files: Option<PermissiveVec<Resource>>,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
@@ -203,27 +204,30 @@ pub enum PortProtocol {
     Udp,
 }
 
-// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(untagged)]
 // #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-// pub enum GitRepo {
-//     Http(HttpGitRepo),
-//     Ssh(SshGitRepo),
-// }
+pub enum Resource {
+    File(PathBuf),
+    Url(Url),
+}
 
-// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-// pub struct HttpGitRepo {
-//     pub url: String,
-//     /// The branch or tag to checkout
-//     pub reference: Option<String>,
-// }
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(untagged)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum GitRepo {
+    Http(Url),
+    Ssh(SshGitRepo),
+}
 
-// #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-// pub struct SshGitRepo {
-//     pub url: String,
-//     pub user: String,
-// }
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct SshGitRepo {
+    pub user: String,
+    pub host: String,
+    pub path: String,
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -373,7 +377,13 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::Add(Add {
-                        files: Some(vec!["file1.txt".into(), "file2.txt".into()].into()),
+                        files: Some(
+                            vec![
+                                Resource::File("file1.txt".into()),
+                                Resource::File("file2.txt".into())
+                            ]
+                            .into()
+                        ),
                         options: CopyOptions {
                             target: Some("destination/".into()),
                             chown: Some(User {

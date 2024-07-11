@@ -91,7 +91,7 @@ macro_rules! impl_Stage {
 impl_Stage!(for Builder, Image);
 
 impl Image {
-    pub fn merge_extensions(&self) -> Self {
+    pub fn apply_extends(&self) -> &Self {
         if let Some(extends) = &self.extend {
             let extends = extends.to_vec();
             // TODO: load extends files
@@ -99,7 +99,7 @@ impl Image {
             // TODO: for each extends file, merge it with self
             todo!()
         } else {
-            self.clone()
+            self
         }
     }
 }

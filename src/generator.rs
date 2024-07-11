@@ -2,7 +2,7 @@ use crate::{
     dockerfile_struct::{DockerfileInsctruction, DockerfileLine, InstructionOption},
     script_runner::ScriptRunner,
     Add, AddGitRepo, Artifact, BaseStage, Copy, CopyOptions, CopyResource, Error, Image, ImageName,
-    ImageVersion, Port, PortProtocol, Result, Stage, User, DOCKERFILE_VERSION,
+    ImageVersion, Port, PortProtocol, Resource, Result, Stage, User, DOCKERFILE_VERSION,
 };
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
@@ -76,6 +76,15 @@ impl ToString for PortProtocol {
         match self {
             PortProtocol::Tcp => "tcp".into(),
             PortProtocol::Udp => "udp".into(),
+        }
+    }
+}
+
+impl ToString for Resource {
+    fn to_string(&self) -> String {
+        match self {
+            Resource::File(file) => file.to_string_lossy().to_string(),
+            Resource::Url(url) => url.to_string(),
         }
     }
 }
@@ -165,7 +174,9 @@ impl DockerfileGenerator for Add {
                 self.files
                     .as_ref()
                     .ok_or(Error::Custom("Add files is required".into()))?
-                    .to_vec(),
+                    .iter()
+                    .map(|file| file.to_string())
+                    .collect::<Vec<String>>(),
                 &self.options.target,
             ),
             options,
@@ -197,7 +208,10 @@ impl DockerfileGenerator for AddGitRepo {
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "ADD".into(),
             content: copy_paths_into(
-                vec![self.repo.clone().ok_or(Error::Custom("AddGitRepo repo is required".into()))?],
+                vec![self
+                    .repo
+                    .clone()
+                    .ok_or(Error::Custom("AddGitRepo repo is required".into()))?],
                 &self.options.target,
             ),
             options,
@@ -365,7 +379,13 @@ impl DockerfileGenerator for Image {
             }
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "HEALTHCHECK".into(),
-                content: format!("CMD {}", healthcheck.cmd.clone().ok_or(Error::Custom("Healthcheck cmd is required".into()))?),
+                content: format!(
+                    "CMD {}",
+                    healthcheck
+                        .cmd
+                        .clone()
+                        .ok_or(Error::Custom("Healthcheck cmd is required".into()))?
+                ),
                 options,
             }))
         }

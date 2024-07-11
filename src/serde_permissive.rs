@@ -55,12 +55,24 @@ impl<T: Sized + Clone> OneOrManyVec<T> {
         OneOrManyVec(value)
     }
 
-    pub fn deref(&self) -> &Vec<T> {
-        &self.0
-    }
+    // pub fn deref(&self) -> &Vec<T> {
+    //     &self.0
+    // }
 
-    pub fn to_vec(&self) -> Vec<T> {
-        self.deref().to_vec()
+    // pub fn to_vec(&self) -> Vec<T> {
+    //     self.deref().to_vec()
+    // }
+
+    // pub fn is_empty(&self) -> bool {
+    //     self.deref().is_empty()
+    // }
+}
+
+impl<T: Sized + Clone> Deref for OneOrManyVec<T> {
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Vec<T> {
+        &self.0
     }
 }
 

@@ -1,10 +1,23 @@
-use serde_yaml::Value;
-
 use crate::dofigen_struct::*;
+#[cfg(feature = "json_schema")]
+use schemars::JsonSchema;
+use serde::{
+    de::{self, Error as DeError, MapAccess, Visitor},
+    Deserialize, Deserializer, Serialize,
+};
+use serde_yaml::Value;
+use std::{fmt, ops::Deref, str::FromStr};
 
 pub trait Merge {
     fn merge(&self, other: Self) -> Self;
 }
+
+// TODO: to merge properly, we need to save the original keys present in the file structure.
+// Maybe defining a box that saves the original keys and then deserialize the struct.
+// This would permit to remove the Option<> from the required fields.
+
+// Another solution would be to have a different structure for deserializing and the final one.
+// This would also remove the permissive structs in the final one.
 
 impl Merge for Value {
     fn merge(&self, other: Self) -> Self {

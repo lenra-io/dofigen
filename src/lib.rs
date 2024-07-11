@@ -3,6 +3,7 @@
 //! `dofigen_lib` help creating Dockerfile with a simplified structure and made to cache the build with Buildkit.
 //! You also can parse the structure from YAML or JSON.
 
+mod deserialize_struct;
 mod dockerfile_struct;
 mod dofigen_struct;
 mod errors;
@@ -436,10 +437,13 @@ artifacts:
             Image {
                 builders: Some(vec![Builder {
                     name: Some(String::from("builder")),
-                    from: Some(ImageName {
-                        path: Some(String::from("ekidd/rust-musl-builder")),
-                        ..Default::default()
-                    }.into()),
+                    from: Some(
+                        ImageName {
+                            path: Some(String::from("ekidd/rust-musl-builder")),
+                            ..Default::default()
+                        }
+                        .into()
+                    ),
                     copy: Some(PermissiveVec::new(vec![PermissiveStruct::new(
                         CopyResource::Copy(Copy {
                             paths: Some(vec![String::from("*")].into()),
