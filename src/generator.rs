@@ -477,7 +477,7 @@ impl DockerfileGenerator for Run {
             // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
         };
         let mut options = vec![];
-        
+
         // Mount binds
         self.bind.iter().for_each(|bind| {
             let mut bind_options = vec![

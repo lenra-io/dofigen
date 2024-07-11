@@ -118,8 +118,8 @@ CMD ["/fwatchdog"]
 #[test]
 #[cfg(feature = "permissive")]
 fn using_dockerfile_overlap_aliases() {
-  #[cfg(not(feature = "permissive"))]
-  let yaml = r#"
+    #[cfg(not(feature = "permissive"))]
+    let yaml = r#"
 builders:
   - name: builder
     image: 
@@ -135,7 +135,7 @@ artifacts:
     destination: /app
 "#;
 
-  #[cfg(feature = "permissive")]
+    #[cfg(feature = "permissive")]
     let yaml = r#"
 builders:
 - name: builder
@@ -195,7 +195,7 @@ artifacts:
 #[test]
 #[cfg(feature = "permissive")]
 fn multiline_run_field() {
-  let yaml = r#"
+    let yaml = r#"
 run:
   - |
     if [ "test" = "test" ]; then
@@ -229,15 +229,15 @@ RUN \
 #[test]
 #[cfg(feature = "permissive")]
 fn combine_field_and_aliases() {
-  #[cfg(not(feature = "permissive"))]
-  let yaml = r#"
+    #[cfg(not(feature = "permissive"))]
+    let yaml = r#"
 image: 
   path: scratch
 from:
   path: alpine
 "#;
 
-  #[cfg(feature = "permissive")]
+    #[cfg(feature = "permissive")]
     let yaml = r#"
 image: scratch
 from: alpine

@@ -714,7 +714,9 @@ run:
   - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
 "#;
 
-                let builder: Stage = serde_yaml::from_str::<StagePatch>(json_data).unwrap().into();
+                let builder: Stage = serde_yaml::from_str::<StagePatch>(json_data)
+                    .unwrap()
+                    .into();
 
                 assert_eq!(
                     builder,
