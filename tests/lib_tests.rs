@@ -2,8 +2,8 @@ use dofigen_lib::*;
 
 #[test]
 fn yaml_to_dockerfile() {
-  #[cfg(not(feature = "permissive"))]
-  let yaml = r#"
+    #[cfg(not(feature = "permissive"))]
+    let yaml = r#"
 builders:
   - name: builder
     from: 
@@ -44,7 +44,7 @@ ignores:
   - test
 "#;
 
-  #[cfg(feature = "permissive")]
+    #[cfg(feature = "permissive")]
     let yaml = r#"
 builders:
   - name: builder
@@ -130,8 +130,8 @@ CMD ["/fwatchdog"]
 
 #[test]
 fn using_dockerfile_overlap_aliases() {
-  #[cfg(not(feature = "permissive"))]
-  let yaml = r#"
+    #[cfg(not(feature = "permissive"))]
+    let yaml = r#"
 builders:
   - name: builder
     image: 
@@ -147,7 +147,7 @@ artifacts:
     destination: /app
 "#;
 
-  #[cfg(feature = "permissive")]
+    #[cfg(feature = "permissive")]
     let yaml = r#"
 builders:
 - name: builder
@@ -199,7 +199,7 @@ artifacts:
 
 #[test]
 fn multiline_run_field() {
-  let yaml = r#"
+    let yaml = r#"
 run:
   - |
     if [ "test" = "test" ]; then
@@ -230,15 +230,15 @@ RUN \
 
 #[test]
 fn combine_field_and_aliases() {
-  #[cfg(not(feature = "permissive"))]
-  let yaml = r#"
+    #[cfg(not(feature = "permissive"))]
+    let yaml = r#"
 image: 
   path: scratch
 from:
   path: alpine
 "#;
 
-  #[cfg(feature = "permissive")]
+    #[cfg(feature = "permissive")]
     let yaml = r#"
 image: scratch
 from: alpine

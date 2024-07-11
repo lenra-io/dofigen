@@ -1,0 +1,80 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "test",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "test",
+			"label": "rust: test coverage",
+			"env": {
+				"CARGO_INCREMENTAL": "0",
+				"RUSTFLAGS": "-Cinstrument-coverage",
+				"LLVM_PROFILE_FILE": "target/coverage/profiles/cargo-test-%p-%m.profraw"
+			}
+		},
+		{
+			"label": "generate coverage report",
+			"type": "shell",
+			"command": "grcov",
+			"args": [
+				"target/coverage/profiles/",
+				"--binary-path",
+				"./target/debug/deps/",
+				"-s",
+				".",
+				"-t",
+				"lcov",
+				"--branch",
+				"--ignore-not-existing",
+				"--ignore",
+				"../*",
+				"--ignore",
+				"/*",
+				"-o",
+				"target/coverage/lcov.info"
+			],
+			"problemMatcher": [],
+			"dependsOn": "rust: test coverage"
+		},
+		{
+			"type": "cargo",
+			"command": "test",
+			"args": [
+				"--all-features"
+			],
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "test",
+			"label": "rust: test coverage all-features",
+			"env": {
+				"CARGO_INCREMENTAL": "0",
+				"RUSTFLAGS": "-Cinstrument-coverage",
+				"LLVM_PROFILE_FILE": "target/coverage/profiles/cargo-test-%p-%m.profraw"
+			}
+		},
+		{
+			"label": "generate coverage report all-features",
+			"type": "shell",
+			"command": "grcov",
+			"args": [
+				"target/coverage/profiles/",
+				"--binary-path",
+				"./target/debug/deps/",
+				"-s",
+				".",
+				"-t",
+				"lcov",
+				"--branch",
+				"--ignore-not-existing",
+				"-o",
+				"target/coverage/lcov.info"
+			],
+			"problemMatcher": [],
+			"dependsOn": "rust: test coverage all-features"
+		}
+	]
+}
