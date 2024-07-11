@@ -158,7 +158,14 @@ pub struct Run {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<String>,
 
-    #[patch(name = "VecDeepPatch<Bind, BindPatch>")]
+    #[cfg_attr(
+        feature = "permissive",
+        patch(name = "VecDeepPatch<Bind, ParsableStruct<BindPatch>>")
+    )]
+    #[cfg_attr(
+        not(feature = "permissive"),
+        patch(name = "VecDeepPatch<Bind, BindPatch>")
+    )]
     #[patch(attribute(serde(alias = "binds")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub bind: Vec<Bind>,

@@ -17,12 +17,11 @@ RUN \
 
 # runtime
 FROM scratch AS runtime
-WORKDIR /app
 COPY \
     --from=builder \
     --chown=1000:1000 \
     --link \
     "/tmp/dofigen" "/bin/"
 USER 1000:1000
-ENTRYPOINT ["/bin/dofigen"]
+ENTRYPOINT ["dofigen"]
 CMD ["--help"]

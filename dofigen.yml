@@ -4,12 +4,9 @@ builders:
     from: clux/muslrust:stable
     workdir: /app
     bind:
-      - source: Cargo.toml
-        target: Cargo.toml
-      - source: Cargo.lock
-        target: Cargo.lock
-      - source: src/
-        target: src/
+      - Cargo.toml
+      - Cargo.lock
+      - src/
     run:
       # Build with musl to work with scratch
       - cargo build --release -F cli -F permissive
@@ -20,12 +17,14 @@ builders:
       - /home/rust/.cargo
       # build cache
       - /app/target
+
+# Runtime
 workdir: /app
 artifacts:
   - builder: builder
     source: "/tmp/dofigen"
     target: "/bin/"
-entrypoint: /bin/dofigen
+entrypoint: dofigen
 cmd: --help
 context:
   - "/src"
