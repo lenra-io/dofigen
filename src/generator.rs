@@ -1,8 +1,22 @@
 use crate::{
     dockerfile_struct::{DockerfileInsctruction, DockerfileLine, InstructionOption},
-    script_runner::ScriptRunner,
-    Add, AddGitRepo, Artifact, BaseStage, Copy, CopyOptions, CopyResource, Image, ImageName,
-    ImageVersion, Port, PortProtocol, Result, Stage, User, DOCKERFILE_VERSION,
+    // script_runner::ScriptRunner,
+    Add,
+    AddGitRepo,
+    Artifact,
+    BaseStage,
+    Copy,
+    CopyOptions,
+    CopyResource,
+    Image,
+    ImageName,
+    ImageVersion,
+    Port,
+    PortProtocol,
+    Result,
+    Stage,
+    User,
+    DOCKERFILE_VERSION,
 };
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
@@ -286,8 +300,8 @@ impl DockerfileGenerator for dyn Stage {
                 options: vec![],
             }));
         }
-        if let Some(run) = self.to_run_inscruction(&context)? {
-            lines.push(DockerfileLine::Instruction(run));
+        if let Some(instruction) = self.run().to_run_inscruction(&context)? {
+            lines.push(DockerfileLine::Instruction(instruction));
         }
         Ok(lines)
     }

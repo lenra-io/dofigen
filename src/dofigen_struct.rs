@@ -18,7 +18,7 @@ pub type PermissiveVec<T> = Box<Vec<T>>;
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Image {
     // Common part
     #[serde(alias = "image")]
@@ -30,11 +30,9 @@ pub struct Image {
     pub artifacts: Option<Vec<Artifact>>,
     #[serde(alias = "add", alias = "adds")]
     pub copy: Option<PermissiveVec<PermissiveStruct<CopyResource>>>,
-    pub root: Option<Root>,
-    #[serde(alias = "script")]
-    pub run: Option<PermissiveVec<String>>,
-    #[serde(alias = "caches")]
-    pub cache: Option<PermissiveVec<String>>,
+    pub root: Option<Run>,
+    #[serde(flatten, default)]
+    pub run: Run,
     // Specific part
     pub builders: Option<Vec<Builder>>,
     pub context: Option<PermissiveVec<String>>,
@@ -50,6 +48,7 @@ pub struct Image {
 /** Represents a Dockerfile builder stage */
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Builder {
     // Common part
     #[serde(alias = "image")]
@@ -61,17 +60,16 @@ pub struct Builder {
     pub artifacts: Option<Vec<Artifact>>,
     #[serde(alias = "add", alias = "adds")]
     pub copy: Option<PermissiveVec<PermissiveStruct<CopyResource>>>,
-    pub root: Option<Root>,
-    #[serde(alias = "script")]
-    pub run: Option<PermissiveVec<String>>,
-    #[serde(alias = "caches")]
-    pub cache: Option<PermissiveVec<String>>,
+    pub root: Option<Run>,
+    #[serde(flatten, default)]
+    pub run: Run,
     // Specific part
     pub name: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Artifact {
     pub builder: String,
     pub source: String,
@@ -81,15 +79,7 @@ pub struct Artifact {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct Root {
-    #[serde(alias = "script")]
-    pub run: Option<PermissiveVec<String>>,
-    #[serde(alias = "caches")]
-    pub cache: Option<PermissiveVec<String>>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Healthcheck {
     pub cmd: String,
     pub interval: Option<String>,
@@ -100,15 +90,18 @@ pub struct Healthcheck {
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct ImageName {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub path: String,
+    #[serde(flatten, default)]
     pub version: Option<ImageVersion>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum ImageVersion {
     Tag(String),
     Digest(String),
@@ -127,6 +120,7 @@ pub enum CopyResource {
 /// See https://docs.docker.com/reference/dockerfile/#copy
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Copy {
     pub paths: PermissiveVec<String>,
     #[serde(flatten)]
@@ -143,6 +137,7 @@ pub struct Copy {
 /// See https://docs.docker.com/reference/dockerfile/#adding-private-git-repositories
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AddGitRepo {
     pub repo: String,
     #[serde(flatten)]
@@ -156,6 +151,7 @@ pub struct AddGitRepo {
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Add {
     pub files: PermissiveVec<String>,
     #[serde(flatten)]
@@ -179,6 +175,7 @@ pub struct CopyOptions {
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct User {
     pub user: String,
     pub group: Option<String>,
@@ -186,6 +183,30 @@ pub struct User {
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Run {
+    #[serde(rename = "run", alias = "script", default)]
+    pub commands: PermissiveVec<String>,
+    #[serde(alias = "caches")]
+    pub cache: Option<PermissiveVec<String>>,
+    #[serde(alias = "binds")]
+    pub bind: Option<PermissiveVec<PermissiveStruct<Bind>>>,
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct Bind {
+    pub target: String,
+    pub from: Option<String>,
+    pub source: Option<String>,
+    #[serde(default = "bool::default")]
+    pub readwrite: bool,
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Port {
     pub port: u16,
     pub protocol: Option<PortProtocol>,
@@ -193,6 +214,7 @@ pub struct Port {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(rename_all = "camelCase")]
 pub enum PortProtocol {
     Tcp,
     Udp,
@@ -253,7 +275,7 @@ mod test {
             use super::*;
 
             #[test]
-            fn deserialize_copy() {
+            fn copy() {
                 let json_data = r#"{
     "paths": ["file1.txt", "file2.txt"],
     "target": "destination/",
@@ -292,7 +314,7 @@ mod test {
 
             #[cfg(feature = "permissive")]
             #[test]
-            fn deserialize_copy_from_str() {
+            fn copy_from_str() {
                 use std::ops::Deref;
 
                 let json_data = "file1.txt destination/";
@@ -314,7 +336,7 @@ mod test {
             }
 
             #[test]
-            fn deserialize_add_git_repo() {
+            fn add_git_repo() {
                 let json_data = r#"{
             "repo": "https://github.com/example/repo.git",
             "target": "destination/",
@@ -325,7 +347,7 @@ mod test {
             "chmod": "755",
             "exclude": ["file3.txt"],
             "link": true,
-            "keep_git_dir": true
+            "keepGitDir": true
         }"#;
 
                 let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
@@ -350,7 +372,7 @@ mod test {
             }
 
             #[test]
-            fn deserialize_add() {
+            fn add() {
                 let json_data = r#"{
             "files": ["file1.txt", "file2.txt"],
             "target": "destination/",
@@ -380,6 +402,55 @@ mod test {
                         },
                         checksum: Some("sha256:abcdef123456".into()),
                     })
+                );
+            }
+        }
+
+        mod builder {
+            use super::*;
+
+            #[test]
+            fn with_bind() {
+                let json_data = r#"
+from:
+  path: clux/muslrust:stable
+workdir: /app
+bind:
+  - target: /app
+run:
+  - cargo build --release -F cli -F permissive
+  - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
+"#;
+
+                let builder: Builder = serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq!(
+                    builder,
+                    Builder {
+                        from: ImageName {
+                            path: "clux/muslrust:stable".into(),
+                            ..Default::default()
+                        }
+                        .into(),
+                        workdir: Some("/app".into()),
+                        run: Run {
+                            bind: Some(
+                                vec![Bind {
+                                    target: "/app".into(),
+                                    ..Default::default()
+                                }
+                                .into()]
+                                .into()
+                            ),
+                            commands: vec![
+                                "cargo build --release -F cli -F permissive".into(),
+                                "mv target/x86_64-unknown-linux-musl/release/dofigen /app/".into()
+                            ]
+                            .into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
                 );
             }
         }

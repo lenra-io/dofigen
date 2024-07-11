@@ -92,7 +92,11 @@ impl DockerfileContent for InstructionOption {
 
 impl DockerfileContent for InstructionOptionOption {
     fn generate_content(&self) -> String {
-        format!("{}={}", self.name, self.value)
+        if self.value.contains(" ") {
+            format!("{}='{}'", self.name, self.value)
+        } else {
+            format!("{}={}", self.name, self.value)
+        }
     }
 }
 
