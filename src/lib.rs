@@ -13,6 +13,7 @@ mod script_runner;
 #[cfg(feature = "permissive")]
 mod serde_permissive;
 mod stage;
+mod version_locker;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};
 pub use dofigen_struct::*;
 pub use errors::*;

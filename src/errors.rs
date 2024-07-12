@@ -10,6 +10,8 @@ pub enum Error {
     #[error("{0}")]
     Format(#[from] std::fmt::Error),
     #[error("{0}")]
+    Reqwest(#[from] reqwest::Error),
+    #[error("{0}")]
     Custom(String),
 }
 
