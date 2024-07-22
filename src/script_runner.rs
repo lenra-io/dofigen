@@ -1,8 +1,5 @@
 use crate::{
-    dockerfile_struct::{DockerfileInsctruction, InstructionOption, InstructionOptionOption},
-    dofigen_struct::{Builder, Image, Root},
-    generator::{GenerationContext, LINE_SEPARATOR},
-    Result,
+    dockerfile_struct::{DockerfileInsctruction, InstructionOption, InstructionOptionOption}, dofigen_struct::{Builder, Image, Root}, generator::{GenerationContext, LINE_SEPARATOR}, merge::OptionalField, Result
 };
 
 pub trait ScriptRunner {
@@ -32,7 +29,7 @@ pub trait ScriptRunner {
                         InstructionOptionOption::new("target", cache),
                         InstructionOptionOption::new("sharing", "locked"),
                     ];
-                    if let Some(user) = &context.user {
+                    if let OptionalField::Present(user) = &context.user {
                         if let Some(uid) = user.uid() {
                             cache_options
                                 .push(InstructionOptionOption::new("uid", &uid.to_string()));
@@ -62,10 +59,10 @@ macro_rules! impl_ScriptRunner {
     (for $($t:ty),+) => {
         $(impl ScriptRunner for $t {
             fn script(&self) -> Option<Vec<String>> {
-                self.run.as_ref().map(|v|v.to_vec())
+                self.run.as_ref().to_option().map(|v|v.to_vec())
             }
             fn caches(&self) -> Option<Vec<String>> {
-                self.cache.as_ref().map(|v|v.to_vec())
+                self.cache.as_ref().to_option().map(|v|v.to_vec())
             }
         })*
     }
@@ -81,7 +78,7 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script() {
         let builder = Builder {
-            run: Some(PermissiveVec::new(vec!["echo Hello".into()])),
+            run: OptionalField::Present(PermissiveVec::new(vec!["echo Hello".into()])),
             ..Default::default()
         };
         assert_eq!(
@@ -112,7 +109,7 @@ mod test {
     #[test]
     fn to_run_inscruction_with_empty_script() {
         let builder = Builder {
-            run: Some(PermissiveVec::new(vec![])),
+            run: OptionalField::Present(PermissiveVec::new(vec![])),
             ..Default::default()
         };
         assert_eq!(
@@ -126,12 +123,12 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_named_user() {
         let builder = Builder {
-            run: Some(PermissiveVec::new(vec!["echo Hello".into()])),
-            cache: Some(PermissiveVec::new(vec!["/path/to/cache".into()])),
+            run: OptionalField::Present(PermissiveVec::new(vec!["echo Hello".into()])),
+            cache: OptionalField::Present(PermissiveVec::new(vec!["/path/to/cache".into()])),
             ..Default::default()
         };
         let context = GenerationContext {
-            user: Some(User::new("test")),
+            user: OptionalField::Present(User::new("test")),
             ..Default::default()
         };
         assert_eq!(
@@ -154,12 +151,12 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user() {
         let builder = Builder {
-            run: Some(PermissiveVec::new(vec!["echo Hello".into()])),
-            cache: Some(PermissiveVec::new(vec!["/path/to/cache".into()])),
+            run: OptionalField::Present(PermissiveVec::new(vec!["echo Hello".into()])),
+            cache: OptionalField::Present(PermissiveVec::new(vec!["/path/to/cache".into()])),
             ..Default::default()
         };
         let context = GenerationContext {
-            user: Some(User::new("1000")),
+            user: OptionalField::Present(User::new("1000")),
             ..Default::default()
         };
         assert_eq!(
@@ -184,12 +181,12 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user_without_group() {
         let builder = Builder {
-            run: Some(PermissiveVec::new(vec!["echo Hello".into()])),
-            cache: Some(PermissiveVec::new(vec!["/path/to/cache".into()])),
+            run: OptionalField::Present(PermissiveVec::new(vec!["echo Hello".into()])),
+            cache: OptionalField::Present(PermissiveVec::new(vec!["/path/to/cache".into()])),
             ..Default::default()
         };
         let context = GenerationContext {
-            user: Some(User::new_without_group("1000")),
+            user: OptionalField::Present(User::new_without_group("1000")),
             ..Default::default()
         };
         assert_eq!(

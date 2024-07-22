@@ -22,6 +22,7 @@ use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]
 use schemars::schema_for;
 pub use stage::*;
+pub use merge::*;
 use std::{fs, io::Read};
 
 pub const DOCKERFILE_VERSION: &str = "1.7";
@@ -52,8 +53,8 @@ const FILE_HEADER_LINES: [&str; 3] = [
 /// assert_eq!(
 ///     image,
 ///     Image {
-///         from: Some(ImageName {
-///             path: Some(String::from("ubuntu")),
+///         from: OptionalField::Present(ImageName {
+///             path: OptionalField::Present(String::from("ubuntu")),
 ///             ..Default::default()
 ///         }.into()),
 ///         ..Default::default()
@@ -86,18 +87,18 @@ const FILE_HEADER_LINES: [&str; 3] = [
 /// assert_eq!(
 ///     image,
 ///     Image {
-///         builders: Some(Vec::from([Builder {
-///             name: Some(String::from("builder")),
-///             from: Some(ImageName { path: Some("ekidd/rust-musl-builder".into()), ..Default::default() }.into()),
-///             copy: Some(vec![CopyResource::Copy(Copy{paths: Some(vec!["*".into()].into()), ..Default::default()}).into()].into()),
-///             run: Some(vec!["cargo build --release".parse().unwrap()].into()),
+///         builders: OptionalField::Present(Vec::from([Builder {
+///             name: OptionalField::Present(String::from("builder")),
+///             from: OptionalField::Present(ImageName { path: OptionalField::Present("ekidd/rust-musl-builder".into()), ..Default::default() }.into()),
+///             copy: OptionalField::Present(vec![CopyResource::Copy(Copy{paths: OptionalField::Present(vec!["*".into()].into()), ..Default::default()}).into()].into()),
+///             run: OptionalField::Present(vec!["cargo build --release".parse().unwrap()].into()),
 ///             ..Default::default()
 ///         }])),
-///         from: Some(ImageName {
-///             path: Some("ubuntu".parse().unwrap()),
+///         from: OptionalField::Present(ImageName {
+///             path: OptionalField::Present("ubuntu".parse().unwrap()),
 ///             ..Default::default()
 ///         }.into()),
-///         artifacts: Some(Vec::from([Artifact {
+///         artifacts: OptionalField::Present(Vec::from([Artifact {
 ///             builder: String::from("builder"),
 ///             source: String::from(
 ///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
@@ -130,8 +131,8 @@ pub fn from(input: String) -> Result<Image> {
 /// assert_eq!(
 ///     image,
 ///     Image {
-///         from: Some(ImageName {
-///             path: Some(String::from("ubuntu")),
+///         from: OptionalField::Present(ImageName {
+///             path: OptionalField::Present(String::from("ubuntu")),
 ///             ..Default::default()
 ///         }.into()),
 ///         ..Default::default()
@@ -164,18 +165,18 @@ pub fn from(input: String) -> Result<Image> {
 /// assert_eq!(
 ///     image,
 ///     Image {
-///         builders: Some(Vec::from([Builder {
-///             name: Some(String::from("builder")),
-///             from: Some(ImageName{path: Some("ekidd/rust-musl-builder".into()), ..Default::default()}.into()),
-///             copy: Some(vec![CopyResource::Copy(Copy{paths: Some(vec!["*".into()].into()), ..Default::default()}).into()].into()),
-///             run: Some(vec!["cargo build --release".parse().unwrap()].into()),
+///         builders: OptionalField::Present(Vec::from([Builder {
+///             name: OptionalField::Present(String::from("builder")),
+///             from: OptionalField::Present(ImageName{path: OptionalField::Present("ekidd/rust-musl-builder".into()), ..Default::default()}.into()),
+///             copy: OptionalField::Present(vec![CopyResource::Copy(Copy{paths: OptionalField::Present(vec!["*".into()].into()), ..Default::default()}).into()].into()),
+///             run: OptionalField::Present(vec!["cargo build --release".parse().unwrap()].into()),
 ///             ..Default::default()
 ///         }])),
-///         from: Some(ImageName {
-///             path: Some(String::from("ubuntu")),
+///         from: OptionalField::Present(ImageName {
+///             path: OptionalField::Present(String::from("ubuntu")),
 ///             ..Default::default()
 ///         }.into()),
-///         artifacts: Some(Vec::from([Artifact {
+///         artifacts: OptionalField::Present(Vec::from([Artifact {
 ///             builder: String::from("builder"),
 ///             source: String::from(
 ///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
@@ -214,11 +215,11 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
 /// # Examples
 ///
 /// ```
-/// use dofigen_lib::{generate_dockerfile, Image, ImageName};
+/// use dofigen_lib::*;
 ///
 /// let image = Image {
-///     from: Some(ImageName {
-///         path: Some(String::from("ubuntu")),
+///     from: OptionalField::Present(ImageName {
+///         path: OptionalField::Present(String::from("ubuntu")),
 ///         ..Default::default()
 ///     }.into()),
 ///     ..Default::default()
@@ -249,10 +250,10 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 /// ## Define the build context
 ///
 /// ```
-/// use dofigen_lib::{generate_dockerignore, Image};
+/// use dofigen_lib::*;
 ///
 /// let image = Image {
-///     context: Some(vec![String::from("/src")].into()),
+///     context: OptionalField::Present(vec![String::from("/src")].into()),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
@@ -265,10 +266,10 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 /// ## Ignore a path
 ///
 /// ```
-/// use dofigen_lib::{generate_dockerignore, Image};
+/// use dofigen_lib::*;
 ///
 /// let image = Image {
-///     ignore: Some(vec![String::from("target")].into()),
+///     ignore: OptionalField::Present(vec![String::from("target")].into()),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
@@ -281,11 +282,11 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 /// ## Define context ignoring a specific files
 ///
 /// ```
-/// use dofigen_lib::{generate_dockerignore, Image};
+/// use dofigen_lib::*;
 ///
 /// let image = Image {
-///     context: Some(vec![String::from("/src")].into()),
-///     ignore: Some(vec![String::from("/src/*.test.rs")].into()),
+///     context: OptionalField::Present(vec![String::from("/src")].into()),
+///     ignore: OptionalField::Present(vec![String::from("/src/*.test.rs")].into()),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
@@ -300,7 +301,7 @@ pub fn generate_dockerignore(image: &Image) -> String {
     content.push_str(FILE_HEADER_LINES.join("\n").as_str());
     content.push_str("\n");
 
-    if let Some(context) = image.context.clone() {
+    if let OptionalField::Present(context) = image.context.clone() {
         content.push_str("**\n");
         context.to_vec().iter().for_each(|path| {
             content.push_str("!");
@@ -308,7 +309,7 @@ pub fn generate_dockerignore(image: &Image) -> String {
             content.push_str("\n");
         });
     }
-    if let Some(ignore) = image.ignore.clone() {
+    if let OptionalField::Present(ignore) = image.ignore.clone() {
         ignore.to_vec().iter().for_each(|path| {
             content.push_str(path);
             content.push_str("\n");
@@ -435,27 +436,27 @@ artifacts:
         assert_eq!(
             image,
             Image {
-                builders: Some(vec![Builder {
-                    name: Some(String::from("builder")),
-                    from: Some(
+                builders: OptionalField::Present(vec![Builder {
+                    name: OptionalField::Present(String::from("builder")),
+                    from: OptionalField::Present(
                         ImageName {
-                            path: Some(String::from("ekidd/rust-musl-builder")),
+                            path: OptionalField::Present(String::from("ekidd/rust-musl-builder")),
                             ..Default::default()
                         }
                         .into()
                     ),
-                    copy: Some(PermissiveVec::new(vec![PermissiveStruct::new(
+                    copy: OptionalField::Present(PermissiveVec::new(vec![PermissiveStruct::new(
                         CopyResource::Copy(Copy {
-                            paths: Some(vec![String::from("*")].into()),
+                            paths: OptionalField::Present(vec![String::from("*")].into()),
                             ..Default::default()
                         })
                     )])),
-                    run: Some(PermissiveVec::new(vec![String::from(
+                    run: OptionalField::Present(PermissiveVec::new(vec![String::from(
                         "cargo build --release"
                     )])),
                     ..Default::default()
                 }]),
-                artifacts: Some(Vec::from([Artifact {
+                artifacts: OptionalField::Present(Vec::from([Artifact {
                     builder: String::from("builder"),
                     source: String::from(
                         "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"

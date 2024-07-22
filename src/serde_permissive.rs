@@ -6,6 +6,8 @@ use serde::{
 };
 use std::{fmt, ops::Deref, str::FromStr};
 
+
+
 #[derive(Serialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ParsableStruct<T>(T)
@@ -54,18 +56,6 @@ impl<T: Sized + Clone> OneOrManyVec<T> {
     pub fn new(value: Vec<T>) -> Self {
         OneOrManyVec(value)
     }
-
-    // pub fn deref(&self) -> &Vec<T> {
-    //     &self.0
-    // }
-
-    // pub fn to_vec(&self) -> Vec<T> {
-    //     self.deref().to_vec()
-    // }
-
-    // pub fn is_empty(&self) -> bool {
-    //     self.deref().is_empty()
-    // }
 }
 
 impl<T: Sized + Clone> Deref for OneOrManyVec<T> {

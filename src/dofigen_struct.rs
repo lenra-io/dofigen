@@ -1,3 +1,4 @@
+use crate::merge::OptionalField;
 #[cfg(feature = "permissive")]
 use crate::serde_permissive::{OneOrManyVec, ParsableStruct};
 #[cfg(feature = "json_schema")]
@@ -23,31 +24,31 @@ pub type PermissiveVec<T> = Box<Vec<T>>;
 pub struct Image {
     // Common part
     #[serde(alias = "image")]
-    pub from: Option<PermissiveStruct<ImageName>>,
-    pub user: Option<PermissiveStruct<User>>,
-    pub workdir: Option<String>,
+    pub from: OptionalField<PermissiveStruct<ImageName>>,
+    pub user: OptionalField<PermissiveStruct<User>>,
+    pub workdir: OptionalField<String>,
     #[serde(alias = "envs")]
-    pub env: Option<HashMap<String, String>>,
-    pub artifacts: Option<Vec<Artifact>>,
+    pub env: OptionalField<HashMap<String, String>>,
+    pub artifacts: OptionalField<Vec<Artifact>>,
     #[serde(alias = "add", alias = "adds")]
-    pub copy: Option<PermissiveVec<PermissiveStruct<CopyResource>>>,
-    pub root: Option<Root>,
+    pub copy: OptionalField<PermissiveVec<PermissiveStruct<CopyResource>>>,
+    pub root: OptionalField<Root>,
     #[serde(alias = "script")]
-    pub run: Option<PermissiveVec<String>>,
+    pub run: OptionalField<PermissiveVec<String>>,
     #[serde(alias = "caches")]
-    pub cache: Option<PermissiveVec<String>>,
+    pub cache: OptionalField<PermissiveVec<String>>,
     // Specific part
-    #[serde(alias = "extends", default)]
-    pub extend: Option<PermissiveVec<Resource>>,
-    pub builders: Option<Vec<Builder>>,
-    pub context: Option<PermissiveVec<String>>,
+    #[serde(alias = "extends")]
+    pub extend: OptionalField<PermissiveVec<Resource>>,
+    pub builders: OptionalField<Vec<Builder>>,
+    pub context: OptionalField<PermissiveVec<String>>,
     #[serde(alias = "ignores")]
-    pub ignore: Option<PermissiveVec<String>>,
-    pub entrypoint: Option<PermissiveVec<String>>,
-    pub cmd: Option<PermissiveVec<String>>,
+    pub ignore: OptionalField<PermissiveVec<String>>,
+    pub entrypoint: OptionalField<PermissiveVec<String>>,
+    pub cmd: OptionalField<PermissiveVec<String>>,
     #[serde(alias = "port", alias = "ports")]
-    pub expose: Option<PermissiveVec<PermissiveStruct<Port>>>,
-    pub healthcheck: Option<Healthcheck>,
+    pub expose: OptionalField<PermissiveVec<PermissiveStruct<Port>>>,
+    pub healthcheck: OptionalField<Healthcheck>,
 }
 
 /** Represents a Dockerfile builder stage */
@@ -56,21 +57,21 @@ pub struct Image {
 pub struct Builder {
     // Common part
     #[serde(alias = "image")]
-    pub from: Option<PermissiveStruct<ImageName>>,
-    pub user: Option<PermissiveStruct<User>>,
-    pub workdir: Option<String>,
+    pub from: OptionalField<PermissiveStruct<ImageName>>,
+    pub user: OptionalField<PermissiveStruct<User>>,
+    pub workdir: OptionalField<String>,
     #[serde(alias = "envs")]
-    pub env: Option<HashMap<String, String>>,
-    pub artifacts: Option<Vec<Artifact>>,
+    pub env: OptionalField<HashMap<String, String>>,
+    pub artifacts: OptionalField<Vec<Artifact>>,
     #[serde(alias = "add", alias = "adds")]
-    pub copy: Option<PermissiveVec<PermissiveStruct<CopyResource>>>,
-    pub root: Option<Root>,
+    pub copy: OptionalField<PermissiveVec<PermissiveStruct<CopyResource>>>,
+    pub root: OptionalField<Root>,
     #[serde(alias = "script")]
-    pub run: Option<PermissiveVec<String>>,
+    pub run: OptionalField<PermissiveVec<String>>,
     #[serde(alias = "caches")]
-    pub cache: Option<PermissiveVec<String>>,
+    pub cache: OptionalField<PermissiveVec<String>>,
     // Specific part
-    pub name: Option<String>,
+    pub name: OptionalField<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
@@ -86,28 +87,28 @@ pub struct Artifact {
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Root {
     #[serde(alias = "script")]
-    pub run: Option<PermissiveVec<String>>,
+    pub run: OptionalField<PermissiveVec<String>>,
     #[serde(alias = "caches")]
-    pub cache: Option<PermissiveVec<String>>,
+    pub cache: OptionalField<PermissiveVec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Healthcheck {
-    pub cmd: Option<String>,
-    pub interval: Option<String>,
-    pub timeout: Option<String>,
-    pub start: Option<String>,
-    pub retries: Option<u16>,
+    pub cmd: OptionalField<String>,
+    pub interval: OptionalField<String>,
+    pub timeout: OptionalField<String>,
+    pub start: OptionalField<String>,
+    pub retries: OptionalField<u16>,
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ImageName {
-    pub host: Option<String>,
-    pub port: Option<u16>,
-    pub path: Option<String>,
-    pub version: Option<ImageVersion>,
+    pub host: OptionalField<String>,
+    pub port: OptionalField<u16>,
+    pub path: OptionalField<String>,
+    pub version: OptionalField<ImageVersion>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -132,15 +133,15 @@ pub enum CopyResource {
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
-    pub paths: Option<PermissiveVec<String>>,
+    pub paths: OptionalField<PermissiveVec<String>>,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    pub exclude: Option<PermissiveVec<String>>,
+    pub exclude: OptionalField<PermissiveVec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---parents
-    pub parents: Option<bool>,
+    pub parents: OptionalField<bool>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---from
-    pub from: Option<String>,
+    pub from: OptionalField<String>,
 }
 
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
@@ -149,13 +150,13 @@ pub struct Copy {
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct AddGitRepo {
-    pub repo: Option<String>,
+    pub repo: OptionalField<String>,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    pub exclude: Option<PermissiveVec<String>>,
+    pub exclude: OptionalField<PermissiveVec<String>>,
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
-    pub keep_git_dir: Option<bool>,
+    pub keep_git_dir: OptionalField<bool>,
 }
 
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
@@ -163,38 +164,38 @@ pub struct AddGitRepo {
 #[serde(deny_unknown_fields)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Add {
-    pub files: Option<PermissiveVec<Resource>>,
+    pub files: OptionalField<PermissiveVec<Resource>>,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
-    pub checksum: Option<String>,
+    pub checksum: OptionalField<String>,
 }
 
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct CopyOptions {
-    pub target: Option<String>,
+    pub target: OptionalField<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chown: Option<User>,
+    pub chown: OptionalField<User>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chmod: Option<String>,
+    pub chmod: OptionalField<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
-    pub link: Option<bool>,
+    pub link: OptionalField<bool>,
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct User {
-    pub user: Option<String>,
-    pub group: Option<String>,
+    pub user: OptionalField<String>,
+    pub group: OptionalField<String>,
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Port {
-    pub port: Option<u16>,
-    pub protocol: Option<PortProtocol>,
+    pub port: OptionalField<u16>,
+    pub protocol: OptionalField<PortProtocol>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -250,8 +251,8 @@ mod test {
                 assert_eq!(
                     user,
                     User {
-                        user: Some("test".into()),
-                        group: Some("test".into())
+                        user: OptionalField::Present("test".into()),
+                        group: OptionalField::Present("test".into())
                     }
                 );
             }
@@ -282,19 +283,19 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::Copy(Copy {
-                        paths: Some(vec!["file1.txt".into(), "file2.txt".into()].into()),
+                        paths: OptionalField::Present(vec!["file1.txt".into(), "file2.txt".into()].into()),
                         options: CopyOptions {
-                            target: Some("destination/".into()),
-                            chown: Some(User {
-                                user: Some("root".into()),
-                                group: Some("root".into())
+                            target: OptionalField::Present("destination/".into()),
+                            chown: OptionalField::Present(User {
+                                user: OptionalField::Present("root".into()),
+                                group: OptionalField::Present("root".into())
                             }),
-                            chmod: Some("755".into()),
-                            link: Some(true),
+                            chmod: OptionalField::Present("755".into()),
+                            link: OptionalField::Present(true),
                         },
-                        exclude: Some(vec!["file3.txt".into()].into()),
-                        parents: Some(true),
-                        from: Some("source/".into())
+                        exclude: OptionalField::Present(vec!["file3.txt".into()].into()),
+                        parents: OptionalField::Present(true),
+                        from: OptionalField::Present("source/".into())
                     })
                 );
             }
@@ -312,9 +313,9 @@ mod test {
                 assert_eq!(
                     copy_resource.deref(),
                     &CopyResource::Copy(Copy {
-                        paths: Some(vec!["file1.txt".into()].into()),
+                        paths: OptionalField::Present(vec!["file1.txt".into()].into()),
                         options: CopyOptions {
-                            target: Some("destination/".into()),
+                            target: OptionalField::Present("destination/".into()),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -342,18 +343,18 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::AddGitRepo(AddGitRepo {
-                        repo: Some("https://github.com/example/repo.git".into()),
+                        repo: OptionalField::Present("https://github.com/example/repo.git".into()),
                         options: CopyOptions {
-                            target: Some("destination/".into()),
-                            chown: Some(User {
-                                user: Some("root".into()),
-                                group: Some("root".into())
+                            target: OptionalField::Present("destination/".into()),
+                            chown: OptionalField::Present(User {
+                                user: OptionalField::Present("root".into()),
+                                group: OptionalField::Present("root".into())
                             }),
-                            chmod: Some("755".into()),
-                            link: Some(true),
+                            chmod: OptionalField::Present("755".into()),
+                            link: OptionalField::Present(true),
                         },
-                        exclude: Some(vec!["file3.txt".into()].into()),
-                        keep_git_dir: Some(true)
+                        exclude: OptionalField::Present(vec!["file3.txt".into()].into()),
+                        keep_git_dir: OptionalField::Present(true)
                     })
                 );
             }
@@ -377,7 +378,7 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::Add(Add {
-                        files: Some(
+                        files: OptionalField::Present(
                             vec![
                                 Resource::File("file1.txt".into()),
                                 Resource::File("file2.txt".into())
@@ -385,15 +386,15 @@ mod test {
                             .into()
                         ),
                         options: CopyOptions {
-                            target: Some("destination/".into()),
-                            chown: Some(User {
-                                user: Some("root".into()),
-                                group: Some("root".into())
+                            target: OptionalField::Present("destination/".into()),
+                            chown: OptionalField::Present(User {
+                                user: OptionalField::Present("root".into()),
+                                group: OptionalField::Present("root".into())
                             }),
-                            chmod: Some("755".into()),
-                            link: Some(true),
+                            chmod: OptionalField::Present("755".into()),
+                            link: OptionalField::Present(true),
                         },
-                        checksum: Some("sha256:abcdef123456".into()),
+                        checksum: OptionalField::Present("sha256:abcdef123456".into()),
                     })
                 );
             }
