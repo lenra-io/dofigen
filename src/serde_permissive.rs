@@ -2,13 +2,11 @@
 use schemars::JsonSchema;
 use serde::{
     de::{self, Error as DeError, MapAccess, Visitor},
-    Deserialize, Deserializer, Serialize,
+    Deserialize, Deserializer,
 };
 use std::{fmt, ops::Deref, str::FromStr};
 
-
-
-#[derive(Serialize, Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ParsableStruct<T>(T)
 where
@@ -46,7 +44,7 @@ impl<T: FromStr + Sized> From<T> for ParsableStruct<T> {
     }
 }
 
-#[derive(Serialize, Debug, Clone, Default, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct OneOrManyVec<T>(Vec<T>)
 where
@@ -55,6 +53,15 @@ where
 impl<T: Sized + Clone> OneOrManyVec<T> {
     pub fn new(value: Vec<T>) -> Self {
         OneOrManyVec(value)
+    }
+}
+
+impl<T> Default for OneOrManyVec<T>
+where
+    T: Sized,
+{
+    fn default() -> Self {
+        OneOrManyVec(Vec::new())
     }
 }
 
@@ -69,6 +76,18 @@ impl<T: Sized + Clone> Deref for OneOrManyVec<T> {
 impl<T: Sized + Clone> From<Vec<T>> for OneOrManyVec<T> {
     fn from(value: Vec<T>) -> Self {
         OneOrManyVec::new(value)
+    }
+}
+
+impl<T> IntoIterator for OneOrManyVec<T>
+where
+    T: Sized + Clone,
+{
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -262,7 +281,7 @@ mod test {
     mod deserialize_one_or_many {
         use super::*;
 
-        #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+        #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
         struct TestStruct {
             pub one_or_many: OneOrManyVec<String>,
         }
@@ -293,7 +312,7 @@ mod test {
     mod deserialize_optional_one_or_many {
         use super::*;
 
-        #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+        #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
         struct TestStruct {
             pub test: Option<String>,
             pub one_or_many: Option<OneOrManyVec<String>>,

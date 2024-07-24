@@ -1,8 +1,8 @@
-use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Deserializer};
 use serde_yaml::Value;
 use std::ops::Deref;
 
-#[derive(Serialize, Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct DeserializableStruct<T>
 where
     T: Sized,
@@ -64,8 +64,8 @@ where
 // 								pub $field_name : $field_type,
 // 						)*
 // 				}
-				
-// 				#[derive(Debug, Clone, serde::Serialize)]
+
+// 				#[derive(Debug, Clone, serde::)]
 // 				#[serde(rename_all = "camelCase")]
 // 				pub struct concat_idents!($name, Deserializable)
 // 				{
@@ -84,4 +84,3 @@ where
 // 				field2: u32,
 // 		}
 // }
-

@@ -1,8 +1,7 @@
 use crate::{
     dockerfile_struct::{DockerfileInsctruction, DockerfileLine, InstructionOption},
-    merge::OptionalField,
     script_runner::ScriptRunner,
-    Add, AddGitRepo, Artifact, BaseStage, Copy, CopyOptions, CopyResource, Error, Image, ImageName,
+    Add, AddGitRepo, Artifact, BaseStage, Copy, CopyOptions, CopyResource, Image, ImageName,
     ImageVersion, Port, PortProtocol, Resource, Result, Stage, User, DOCKERFILE_VERSION,
 };
 
@@ -10,7 +9,7 @@ pub const LINE_SEPARATOR: &str = " \\\n    ";
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GenerationContext {
-    pub user: OptionalField<User>,
+    pub user: Option<User>,
     pub previous_builders: Vec<String>,
 }
 pub trait DockerfileGenerator {
@@ -21,9 +20,9 @@ pub trait DockerfileGenerator {
 impl ToString for ImageName {
     fn to_string(&self) -> String {
         let mut registry = String::new();
-        if let OptionalField::Present(host) = &self.host {
+        if let Some(host) = &self.host {
             registry.push_str(host);
-            if let OptionalField::Present(port) = self.port.clone() {
+            if let Some(port) = self.port.clone() {
                 registry.push_str(":");
                 registry.push_str(port.to_string().as_str());
             }
@@ -31,11 +30,11 @@ impl ToString for ImageName {
         }
         let mut version = String::new();
         match &self.version {
-            OptionalField::Present(ImageVersion::Tag(tag)) => {
+            Some(ImageVersion::Tag(tag)) => {
                 version.push_str(":");
                 version.push_str(tag);
             }
-            OptionalField::Present(ImageVersion::Digest(digest)) => {
+            Some(ImageVersion::Digest(digest)) => {
                 version.push_str("@");
                 version.push_str(digest);
             }
@@ -43,7 +42,7 @@ impl ToString for ImageName {
         }
         format!(
             "{registry}{path}{version}",
-            path = self.path.as_ref().expect("Image name path is required"),
+            path = self.path,
             registry = registry,
             version = version
         )
@@ -53,8 +52,8 @@ impl ToString for ImageName {
 impl ToString for User {
     fn to_string(&self) -> String {
         let mut chown = String::new();
-        chown.push_str(self.user.as_ref().expect("User name is required"));
-        if let OptionalField::Present(group) = &self.group {
+        chown.push_str(self.user.as_str());
+        if let Some(group) = &self.group {
             chown.push_str(":");
             chown.push_str(group);
         }
@@ -64,12 +63,15 @@ impl ToString for User {
 
 impl ToString for Port {
     fn to_string(&self) -> String {
-        let port = self.port.as_ref().expect("Port number is required");
         match &self.protocol {
-            OptionalField::Present(protocol) => {
-                format!("{port}/{protocol}", protocol = protocol.to_string())
+            Some(protocol) => {
+                format!(
+                    "{port}/{protocol}",
+                    port = self.port,
+                    protocol = protocol.to_string()
+                )
             }
-            _ => port.to_string(),
+            _ => self.port.to_string(),
         }
     }
 }
@@ -112,10 +114,10 @@ fn add_copy_options(
     copy_options: &CopyOptions,
     context: &GenerationContext,
 ) {
-    if let OptionalField::Present(chown) = copy_options.chown.as_ref().or(context.user.as_ref().into()) {
+    if let Some(chown) = copy_options.chown.as_ref().or(context.user.as_ref().into()) {
         inst_options.push(InstructionOption::WithValue("chown".into(), chown.into()));
     }
-    if let OptionalField::Present(chmod) = &copy_options.chmod {
+    if let Some(chmod) = &copy_options.chmod {
         inst_options.push(InstructionOption::WithValue("chmod".into(), chmod.into()));
     }
     if *copy_options.link.as_ref().unwrap_or(&true) {
@@ -129,7 +131,7 @@ impl DockerfileGenerator for Copy {
         context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
-        if let OptionalField::Present(from) = &self.from {
+        if let Some(from) = &self.from {
             options.push(InstructionOption::WithValue("from".into(), from.into()));
         }
         add_copy_options(&mut options, &self.options, context);
@@ -145,13 +147,7 @@ impl DockerfileGenerator for Copy {
         // }
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "COPY".into(),
-            content: copy_paths_into(
-                self.paths
-                    .as_ref()
-                    .ok_or(Error::Custom("Copy paths is required".into()))?
-                    .to_vec(),
-                &self.options.target,
-            ),
+            content: copy_paths_into(self.paths.to_vec(), &self.options.target),
             options,
         })])
     }
@@ -163,7 +159,7 @@ impl DockerfileGenerator for Add {
         context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
-        if let OptionalField::Present(checksum) = &self.checksum {
+        if let Some(checksum) = &self.checksum {
             options.push(InstructionOption::WithValue(
                 "checksum".into(),
                 checksum.into(),
@@ -175,8 +171,6 @@ impl DockerfileGenerator for Add {
             command: "ADD".into(),
             content: copy_paths_into(
                 self.files
-                    .as_ref()
-                    .ok_or(Error::Custom("Add files is required".into()))?
                     .iter()
                     .map(|file| file.to_string())
                     .collect::<Vec<String>>(),
@@ -201,7 +195,7 @@ impl DockerfileGenerator for AddGitRepo {
         //         options.push(InstructionOption::WithValue("exclude".into(), path));
         //     }
         // }
-        if let OptionalField::Present(keep_git_dir) = &self.keep_git_dir {
+        if let Some(keep_git_dir) = &self.keep_git_dir {
             options.push(InstructionOption::WithValue(
                 "keep-git-dir".into(),
                 keep_git_dir.to_string(),
@@ -210,13 +204,7 @@ impl DockerfileGenerator for AddGitRepo {
 
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "ADD".into(),
-            content: copy_paths_into(
-                vec![self
-                    .repo
-                    .clone()
-                    .ok_or(Error::Custom("AddGitRepo repo is required".into()))?],
-                &self.options.target,
-            ),
+            content: copy_paths_into(vec![self.repo.clone()], &self.options.target),
             options,
         })])
     }
@@ -225,12 +213,12 @@ impl DockerfileGenerator for AddGitRepo {
 impl Artifact {
     fn to_copy(&self) -> Copy {
         Copy {
-            paths: OptionalField::Present(vec![self.source.clone()].into()),
+            paths: vec![self.source.clone()].into(),
             options: CopyOptions {
-                target: OptionalField::Present(self.target.clone()),
+                target: Some(self.target.clone()),
                 ..Default::default()
             },
-            from: OptionalField::Present(self.builder.clone()),
+            from: Some(self.builder.clone()),
             ..Default::default()
         }
     }
@@ -266,7 +254,7 @@ impl DockerfileGenerator for dyn Stage {
                 options: vec![],
             }),
         ];
-        if let OptionalField::Present(env) = self.env() {
+        if let Some(env) = self.env() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "ENV".into(),
                 content: env
@@ -277,26 +265,22 @@ impl DockerfileGenerator for dyn Stage {
                 options: vec![],
             }));
         }
-        if let OptionalField::Present(workdir) = self.workdir() {
+        if let Some(workdir) = self.workdir() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "WORKDIR".into(),
                 content: workdir.clone(),
                 options: vec![],
             }));
         }
-        if let OptionalField::Present(copies) = self.copy() {
-            for copy in copies {
-                lines.append(&mut copy.generate_dockerfile_lines(&context)?);
-            }
+        for copy in self.copy().iter() {
+            lines.append(&mut copy.generate_dockerfile_lines(&context)?);
         }
-        if let OptionalField::Present(artifacts) = self.artifacts() {
-            for artifact in artifacts {
-                lines.append(&mut artifact.generate_dockerfile_lines(&context)?);
-            }
+        for artifact in self.artifacts().iter() {
+            lines.append(&mut artifact.generate_dockerfile_lines(&context)?);
         }
-        if let OptionalField::Present(root) = self.root() {
+        if let Some(root) = self.root() {
             let root_context = GenerationContext {
-                user: OptionalField::Present(User::new("0")),
+                user: Some(User::new("0")),
                 previous_builders: context.previous_builders.clone(),
             };
             if let Some(instruction) = root.to_run_inscruction(&root_context)? {
@@ -335,46 +319,42 @@ impl DockerfileGenerator for Image {
             DockerfileLine::Comment(format!("syntax=docker/dockerfile:{}", DOCKERFILE_VERSION)),
             DockerfileLine::Empty,
         ];
-        if let OptionalField::Present(builders) = self.builders.as_ref() {
-            for builder in builders {
-                lines.append(&mut <dyn Stage>::generate_dockerfile_lines(
-                    builder, &context,
-                )?);
-                lines.push(DockerfileLine::Empty);
-                context.previous_builders.push(builder.name(&context));
-            }
+        for builder in self.builders.iter() {
+            lines.append(&mut <dyn Stage>::generate_dockerfile_lines(
+                builder, &context,
+            )?);
+            lines.push(DockerfileLine::Empty);
+            context.previous_builders.push(builder.name(&context));
         }
         lines.append(&mut <dyn Stage>::generate_dockerfile_lines(self, &context)?);
-        if let OptionalField::Present(expose) = &self.expose {
-            expose.to_vec().iter().for_each(|port| {
-                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
-                    command: "EXPOSE".into(),
-                    content: port.to_string(),
-                    options: vec![],
-                }))
-            });
-        }
-        if let OptionalField::Present(healthcheck) = &self.healthcheck {
+        self.expose.iter().for_each(|port| {
+            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "EXPOSE".into(),
+                content: port.to_string(),
+                options: vec![],
+            }))
+        });
+        if let Some(healthcheck) = &self.healthcheck {
             let mut options = vec![];
-            if let OptionalField::Present(interval) = &healthcheck.interval {
+            if let Some(interval) = &healthcheck.interval {
                 options.push(InstructionOption::WithValue(
                     "interval".into(),
                     interval.into(),
                 ));
             }
-            if let OptionalField::Present(timeout) = &healthcheck.timeout {
+            if let Some(timeout) = &healthcheck.timeout {
                 options.push(InstructionOption::WithValue(
                     "timeout".into(),
                     timeout.into(),
                 ));
             }
-            if let OptionalField::Present(start_period) = &healthcheck.start {
+            if let Some(start_period) = &healthcheck.start {
                 options.push(InstructionOption::WithValue(
                     "start-period".into(),
                     start_period.into(),
                 ));
             }
-            if let OptionalField::Present(retries) = &healthcheck.retries {
+            if let Some(retries) = &healthcheck.retries {
                 options.push(InstructionOption::WithValue(
                     "retries".into(),
                     retries.to_string(),
@@ -382,27 +362,21 @@ impl DockerfileGenerator for Image {
             }
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "HEALTHCHECK".into(),
-                content: format!(
-                    "CMD {}",
-                    healthcheck
-                        .cmd
-                        .clone()
-                        .ok_or(Error::Custom("Healthcheck cmd is required".into()))?
-                ),
+                content: format!("CMD {}", healthcheck.cmd.clone()),
                 options,
             }))
         }
-        if let OptionalField::Present(entrypoint) = &self.entrypoint {
+        if !self.entrypoint.is_empty() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "ENTRYPOINT".into(),
-                content: string_vec_into(entrypoint.to_vec()),
+                content: string_vec_into(self.entrypoint.to_vec()),
                 options: vec![],
             }))
         }
-        if let OptionalField::Present(cmd) = &self.cmd {
+        if !self.cmd.is_empty() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "CMD".into(),
-                content: string_vec_into(cmd.to_vec()),
+                content: string_vec_into(self.cmd.to_vec()),
                 options: vec![],
             }))
         }
@@ -410,7 +384,7 @@ impl DockerfileGenerator for Image {
     }
 }
 
-fn copy_paths_into(paths: Vec<String>, target: &OptionalField<String>) -> String {
+fn copy_paths_into(paths: Vec<String>, target: &Option<String>) -> String {
     let mut parts = paths.clone();
     parts.push(target.clone().unwrap_or("./".into()));
     parts
@@ -441,7 +415,7 @@ mod test {
         #[test]
         fn name_with_name() {
             let builder = Builder {
-                name: OptionalField::Present(String::from("my-builder")),
+                name: Some(String::from("my-builder")),
                 ..Default::default()
             };
             let name = builder.name(&GenerationContext {
@@ -464,15 +438,15 @@ mod test {
         #[test]
         fn user_with_user() {
             let builder = Builder {
-                user: OptionalField::Present(PermissiveStruct::new(User::new_without_group("my-user"))),
+                user: Some(PermissiveStruct::new(User::new_without_group("my-user"))),
                 ..Default::default()
             };
             let user = builder.user();
             assert_eq!(
                 user,
                 Some(User {
-                    user: OptionalField::Present("my-user".into()),
-                    group: OptionalField::Missing,
+                    user: "my-user".into(),
+                    group: None,
                 })
             );
         }
@@ -486,7 +460,6 @@ mod test {
     }
 
     mod image_name {
-        use merge::OptionalField;
         use PermissiveStruct;
 
         use super::*;
@@ -494,8 +467,8 @@ mod test {
         #[test]
         fn test_image_name() {
             let image = Image {
-                from: OptionalField::Present(PermissiveStruct::new(ImageName {
-                    path: OptionalField::Present(String::from("my-image")),
+                from: Some(PermissiveStruct::new(ImageName {
+                    path: String::from("my-image"),
                     ..Default::default()
                 })),
                 ..Default::default()
@@ -510,9 +483,9 @@ mod test {
         #[test]
         fn test_image_user_with_user() {
             let image = Image {
-                user: OptionalField::Present(PermissiveStruct::new(User::new_without_group("my-user"))),
-                from: OptionalField::Present(PermissiveStruct::new(ImageName {
-                    path: OptionalField::Present(String::from("my-image")),
+                user: Some(PermissiveStruct::new(User::new_without_group("my-user"))),
+                from: Some(PermissiveStruct::new(ImageName {
+                    path: String::from("my-image"),
                     ..Default::default()
                 })),
                 ..Default::default()
@@ -521,8 +494,8 @@ mod test {
             assert_eq!(
                 user,
                 Some(User {
-                    user: OptionalField::Present(String::from("my-user")),
-                    group: OptionalField::Missing,
+                    user: String::from("my-user"),
+                    group: None,
                 })
             );
         }
@@ -530,8 +503,8 @@ mod test {
         #[test]
         fn test_image_user_without_user() {
             let image = Image {
-                from: OptionalField::Present(PermissiveStruct::new(ImageName {
-                    path: OptionalField::Present(String::from("my-image")),
+                from: Some(PermissiveStruct::new(ImageName {
+                    path: String::from("my-image"),
                     ..Default::default()
                 })),
                 ..Default::default()
@@ -540,8 +513,8 @@ mod test {
             assert_eq!(
                 user,
                 Some(User {
-                    user: OptionalField::Present(String::from("1000")),
-                    group: OptionalField::Present(String::from("1000")),
+                    user: String::from("1000"),
+                    group: Some(String::from("1000")),
                 })
             );
         }

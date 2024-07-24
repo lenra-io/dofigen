@@ -3,7 +3,7 @@ use crate::dofigen_struct::*;
 use schemars::JsonSchema;
 use serde::{
     de::{self, Error as DeError, MapAccess, Visitor},
-    Deserialize, Deserializer, Serialize,
+    Deserialize, Deserializer,
 };
 use serde_yaml::Value;
 use std::{fmt, ops::Deref, str::FromStr};
@@ -12,7 +12,7 @@ pub trait Merge: Clone {
     fn merge(&self, other: Self) -> Self;
 }
 
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(, Debug, PartialEq)]
 // #[serde(untagged)]
 pub enum OptionalField<T> {
     Missing,
@@ -23,7 +23,7 @@ pub enum OptionalField<T> {
 impl<T: Sized + Clone> OptionalField<T> {
     pub fn as_ref(&self) -> OptionalField<&T> {
         match self {
-            OptionalField::Present(v) => OptionalField::Present(v),
+            Some(v) => Some(v),
             OptionalField::Missing => OptionalField::Missing,
             OptionalField::Null => OptionalField::Null,
         }
@@ -31,7 +31,7 @@ impl<T: Sized + Clone> OptionalField<T> {
 
     pub fn expect(self, msg: &str) -> T {
         match self {
-            OptionalField::Present(v) => v,
+            Some(v) => v,
             _ => panic!("{}", msg),
         }
     }
@@ -42,42 +42,42 @@ impl<T: Sized + Clone> OptionalField<T> {
 
     pub fn unwrap_or(self, default: T) -> T {
         match self {
-            OptionalField::Present(v) => v,
+            Some(v) => v,
             _ => default,
         }
     }
 
     pub fn or(self, other: OptionalField<T>) -> OptionalField<T> {
         match self {
-            OptionalField::Present(_) => self,
+            Some(_) => self,
             _ => other,
         }
     }
 
     pub fn ok_or<E>(self, err: E) -> Result<T, E> {
         match self {
-            OptionalField::Present(v) => Ok(v),
+            Some(v) => Ok(v),
             _ => Err(err),
         }
     }
 
     pub fn to_option(self) -> Option<T> {
         match self {
-            OptionalField::Present(v) => Some(v),
+            Some(v) => Some(v),
             _ => None,
         }
     }
 
     pub fn map<U, F: FnOnce(T) -> U>(self, f: F) -> OptionalField<U> {
         match self {
-            OptionalField::Present(v) => OptionalField::Present(f(v)),
+            Some(v) => Some(f(v)),
             OptionalField::Missing => OptionalField::Missing,
             OptionalField::Null => OptionalField::Null,
         }
     }
 
     pub fn is_present(&self) -> bool {
-        matches!(self, OptionalField::Present(_))
+        matches!(self, Some(_))
     }
 
     pub fn is_missing(&self) -> bool {
@@ -103,7 +103,7 @@ where
         match self {
             OptionalField::Missing => OptionalField::Missing,
             OptionalField::Null => OptionalField::Null,
-            OptionalField::Present(v) => OptionalField::Present(v.clone()),
+            Some(v) => Some(v.clone()),
         }
     }
 }
@@ -111,7 +111,7 @@ where
 impl<T> From<Option<T>> for OptionalField<T> {
     fn from(opt: Option<T>) -> OptionalField<T> {
         match opt {
-            Some(v) => OptionalField::Present(v),
+            Some(v) => Some(v),
             None => OptionalField::Null,
         }
     }
@@ -132,7 +132,7 @@ where
 impl<T: Merge> Merge for OptionalField<T> {
     fn merge(&self, other: Self) -> Self {
         match (self, other) {
-            (OptionalField::Present(a), OptionalField::Present(b)) => OptionalField::Present(a.merge(b)),
+            (Some(a), Some(b)) => Some(a.merge(b)),
             (_, OptionalField::Missing) => self.clone(),
             (_, other) => other,
         }
@@ -235,7 +235,7 @@ mod test {
     mod optional_field {
         use super::*;
 
-        #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+        #[derive(, Deserialize, Debug, Clone, PartialEq, Default)]
         struct TestStruct {
             pub test: OptionalField<String>,
         }
@@ -246,7 +246,7 @@ mod test {
             assert_eq!(
                 ret,
                 TestStruct {
-                    test: OptionalField::Present("test".into())
+                    test: Some("test".into())
                 }
             )
         }
@@ -282,9 +282,9 @@ mod test {
         #[test]
         fn extends_from_tag() {
             let base = Image {
-                from: OptionalField::Present(
+                from: Some(
                     ImageName {
-                        path: OptionalField::Present("ubuntu".into()),
+                        path: Some("ubuntu".into()),
                         ..Default::default()
                     }
                     .into(),
@@ -293,9 +293,9 @@ mod test {
             };
 
             let extended = Image {
-                from: OptionalField::Present(
+                from: Some(
                     ImageName {
-                        version: OptionalField::Present(crate::ImageVersion::Tag("20.04".into())),
+                        version: Some(crate::ImageVersion::Tag("20.04".into())),
                         ..Default::default()
                     }
                     .into(),
@@ -308,10 +308,10 @@ mod test {
             assert_eq!(
                 merged,
                 Image {
-                    from: OptionalField::Present(
+                    from: Some(
                         ImageName {
-                            path: OptionalField::Present("ubuntu".into()),
-                            version: OptionalField::Present(crate::ImageVersion::Tag("20.04".into())),
+                            path: Some("ubuntu".into()),
+                            version: Some(crate::ImageVersion::Tag("20.04".into())),
                             ..Default::default()
                         }
                         .into()

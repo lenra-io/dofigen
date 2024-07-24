@@ -3,7 +3,6 @@ use std::{collections::HashMap, ops::Deref};
 use crate::{
     dofigen_struct::{Builder, Image},
     generator::GenerationContext,
-    merge::OptionalField,
     script_runner::ScriptRunner,
     Artifact, CopyResource, ImageName, PermissiveStruct, Root, User,
 };
@@ -14,33 +13,26 @@ pub trait BaseStage: ScriptRunner {
     fn user(&self) -> Option<User>;
 }
 pub trait Stage: BaseStage {
-    fn workdir(&self) -> OptionalField<&String>;
-    fn env(&self) -> OptionalField<&HashMap<String, String>>;
-    fn copy(&self) -> OptionalField<&Vec<PermissiveStruct<CopyResource>>>;
-    fn artifacts(&self) -> OptionalField<&Vec<Artifact>>;
-    fn root(&self) -> OptionalField<&Root>;
+    fn workdir(&self) -> Option<&String>;
+    fn env(&self) -> Option<&HashMap<String, String>>;
+    fn copy(&self) -> std::vec::Vec<PermissiveStruct<CopyResource>>;
+    fn artifacts(&self) -> std::vec::Vec<Artifact>;
+    fn root(&self) -> Option<&Root>;
 }
 
 impl BaseStage for Builder {
     fn name(&self, context: &GenerationContext) -> String {
         match self.name.as_ref() {
-            OptionalField::Present(name) => String::from(name),
+            Some(name) => String::from(name),
             _ => format!("builder-{}", context.previous_builders.len()),
         }
     }
     fn from(&self) -> ImageName {
-        self.from
-            .as_ref()
-            .expect("Builder must have a from field")
-            .deref()
-            .clone()
+        self.from.deref().clone()
     }
 
     fn user(&self) -> Option<User> {
-        self.user
-            .as_ref()
-            .to_option()
-            .map(|user| user.deref().clone())
+        self.user.as_ref().map(|user| user.deref().clone())
     }
 }
 
@@ -49,11 +41,11 @@ impl BaseStage for Image {
         String::from("runtime")
     }
     fn from(&self) -> ImageName {
-        if let OptionalField::Present(image_name) = &self.from {
+        if let Some(image_name) = &self.from {
             image_name.deref().clone()
         } else {
             ImageName {
-                path: OptionalField::Present(String::from("scratch")),
+                path: String::from("scratch"),
                 ..Default::default()
             }
         }
@@ -61,7 +53,6 @@ impl BaseStage for Image {
     fn user(&self) -> Option<User> {
         self.user
             .as_ref()
-            .to_option()
             .map(|user| user.deref().clone())
             .or(Some(User::new("1000")))
     }
@@ -70,23 +61,23 @@ impl BaseStage for Image {
 macro_rules! impl_Stage {
     (for $($t:ty),+) => {
         $(impl Stage for $t {
-            fn workdir(&self) -> OptionalField<&String> {
+            fn workdir(&self) -> Option<&String> {
                 self.workdir.as_ref()
             }
 
-            fn env(&self) -> OptionalField<&HashMap<String, String>> {
+            fn env(&self) -> Option<&HashMap<String, String>> {
                 self.env.as_ref()
             }
 
-            fn copy(&self) -> OptionalField<&Vec<PermissiveStruct<CopyResource>>> {
-                self.copy.as_ref().map(|vec|vec.deref())
+            fn copy(&self) -> Vec<PermissiveStruct<CopyResource>> {
+                self.copy.to_vec()
             }
 
-            fn artifacts(&self) -> OptionalField<&Vec<Artifact>> {
-                self.artifacts.as_ref()
+            fn artifacts(&self) -> Vec<Artifact> {
+                self.artifacts.to_vec()
             }
 
-            fn root(&self) -> OptionalField<&Root> {
+            fn root(&self) -> Option<&Root> {
                 self.root.as_ref()
             }
         })*
@@ -97,40 +88,33 @@ impl_Stage!(for Builder, Image);
 
 impl Image {
     pub fn apply_extends(&self) -> &Self {
-        if let OptionalField::Present(extends) = &self.extend {
-            let extends = extends.to_vec();
-            // TODO: load extends files
-
-            // TODO: for each extends file, merge it with self
-            todo!()
-        } else {
-            self
+        let extends = self.extend.to_vec();
+        if extends.is_empty() {
+            return self;
         }
+        // TODO: load extends files
+
+        // TODO: for each extends file, merge it with self
+        todo!()
     }
 }
 
 impl User {
     pub fn uid(&self) -> Option<u16> {
-        self.user
-            .as_ref()
-            .to_option()
-            .expect("User user field is required")
-            .parse::<u16>()
-            .ok()
+        self.user.parse::<u16>().ok()
     }
 
     pub fn gid(&self) -> Option<u16> {
         self.group
             .as_ref()
-            .to_option()
             .map(|group| group.parse::<u16>().ok())
             .flatten()
     }
 
     pub fn into(&self) -> String {
-        let name = self.user.clone().expect("User user field is required");
+        let name = self.user.clone();
         match &self.group {
-            OptionalField::Present(group) => format!("{}:{}", name, group),
+            Some(group) => format!("{}:{}", name, group),
             _ => name,
         }
     }
@@ -139,15 +123,15 @@ impl User {
 
     pub fn new(user: &str) -> Self {
         Self {
-            user: OptionalField::Present(user.into()),
-            group: OptionalField::Present(user.into()),
+            user: user.into(),
+            group: Some(user.into()),
         }
     }
 
     pub fn new_without_group(user: &str) -> Self {
         Self {
-            user: OptionalField::Present(user.into()),
-            group: OptionalField::Missing,
+            user: user.into(),
+            group: None,
         }
     }
 }
@@ -161,7 +145,7 @@ mod tests {
     #[test]
     fn test_builder_name_with_name() {
         let builder = Builder {
-            name: OptionalField::Present(String::from("my-builder")),
+            name: Some(String::from("my-builder")),
             ..Default::default()
         };
         let name = builder.name(&GenerationContext {
@@ -184,8 +168,8 @@ mod tests {
     #[test]
     fn test_builder_user_with_user() {
         let builder = Builder {
-            user: OptionalField::Present(PermissiveStruct::new(User {
-                user: OptionalField::Present("my-user".into()),
+            user: Some(PermissiveStruct::new(User {
+                user: "my-user".into(),
                 ..Default::default()
             })),
             ..Default::default()
@@ -194,7 +178,7 @@ mod tests {
         assert_eq!(
             user,
             Some(User {
-                user: OptionalField::Present("my-user".into()),
+                user: "my-user".into(),
                 ..Default::default()
             })
         );
@@ -210,8 +194,8 @@ mod tests {
     #[test]
     fn test_image_name() {
         let image = Image {
-            from: OptionalField::Present(PermissiveStruct::new(ImageName {
-                path: OptionalField::Present(String::from("my-image")),
+            from: Some(PermissiveStruct::new(ImageName {
+                path: String::from("my-image"),
                 ..Default::default()
             })),
             ..Default::default()
@@ -226,12 +210,12 @@ mod tests {
     #[test]
     fn test_image_user_with_user() {
         let image = Image {
-            user: OptionalField::Present(PermissiveStruct::new(User {
-                user: OptionalField::Present("my-user".into()),
+            user: Some(PermissiveStruct::new(User {
+                user: "my-user".into(),
                 ..Default::default()
             })),
-            from: OptionalField::Present(PermissiveStruct::new(ImageName {
-                path: OptionalField::Present(String::from("my-image")),
+            from: Some(PermissiveStruct::new(ImageName {
+                path: String::from("my-image"),
                 ..Default::default()
             })),
             ..Default::default()
@@ -240,7 +224,7 @@ mod tests {
         assert_eq!(
             user,
             Some(User {
-                user: OptionalField::Present("my-user".into()),
+                user: "my-user".into(),
                 ..Default::default()
             })
         );
@@ -249,8 +233,8 @@ mod tests {
     #[test]
     fn test_image_user_without_user() {
         let image = Image {
-            from: OptionalField::Present(PermissiveStruct::new(ImageName {
-                path: OptionalField::Present(String::from("my-image")),
+            from: Some(PermissiveStruct::new(ImageName {
+                path: String::from("my-image"),
                 ..Default::default()
             })),
             ..Default::default()
@@ -259,8 +243,8 @@ mod tests {
         assert_eq!(
             user,
             Some(User {
-                user: OptionalField::Present("1000".into()),
-                group: OptionalField::Present("1000".into()),
+                user: "1000".into(),
+                group: Some("1000".into()),
             })
         );
     }

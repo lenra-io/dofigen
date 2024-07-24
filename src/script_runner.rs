@@ -1,16 +1,20 @@
 use crate::{
-    dockerfile_struct::{DockerfileInsctruction, InstructionOption, InstructionOptionOption}, dofigen_struct::{Builder, Image, Root}, generator::{GenerationContext, LINE_SEPARATOR}, merge::OptionalField, Result
+    dockerfile_struct::{DockerfileInsctruction, InstructionOption, InstructionOptionOption},
+    dofigen_struct::{Builder, Image, Root},
+    generator::{GenerationContext, LINE_SEPARATOR},
+    Result,
 };
 
 pub trait ScriptRunner {
-    fn script(&self) -> Option<Vec<String>>;
-    fn caches(&self) -> Option<Vec<String>>;
+    fn script(&self) -> Vec<String>;
+    fn caches(&self) -> Vec<String>;
 
     fn to_run_inscruction(
         &self,
         context: &GenerationContext,
     ) -> Result<Option<DockerfileInsctruction>> {
-        if let Some(script) = self.script() {
+        let script = self.script();
+        if !script.is_empty() {
             let script = script.join(" &&\n");
             let script_lines = script.lines().collect::<Vec<&str>>();
             let content = match script_lines.len() {
@@ -22,29 +26,25 @@ pub trait ScriptRunner {
                 // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
             };
             let mut options = vec![];
-            if let Some(caches) = self.caches() {
-                caches.iter().for_each(|cache| {
-                    let mut cache_options = vec![
-                        InstructionOptionOption::new("type", "cache"),
-                        InstructionOptionOption::new("target", cache),
-                        InstructionOptionOption::new("sharing", "locked"),
-                    ];
-                    if let OptionalField::Present(user) = &context.user {
-                        if let Some(uid) = user.uid() {
-                            cache_options
-                                .push(InstructionOptionOption::new("uid", &uid.to_string()));
-                        }
-                        if let Some(gid) = user.gid() {
-                            cache_options
-                                .push(InstructionOptionOption::new("gid", &gid.to_string()));
-                        }
+            self.caches().iter().for_each(|cache| {
+                let mut cache_options = vec![
+                    InstructionOptionOption::new("type", "cache"),
+                    InstructionOptionOption::new("target", cache),
+                    InstructionOptionOption::new("sharing", "locked"),
+                ];
+                if let Some(user) = &context.user {
+                    if let Some(uid) = user.uid() {
+                        cache_options.push(InstructionOptionOption::new("uid", &uid.to_string()));
                     }
-                    options.push(InstructionOption::WithOptions(
-                        "mount".into(),
-                        cache_options,
-                    ));
-                });
-            }
+                    if let Some(gid) = user.gid() {
+                        cache_options.push(InstructionOptionOption::new("gid", &gid.to_string()));
+                    }
+                }
+                options.push(InstructionOption::WithOptions(
+                    "mount".into(),
+                    cache_options,
+                ));
+            });
             return Ok(Some(DockerfileInsctruction {
                 command: "RUN".into(),
                 content,
@@ -58,11 +58,11 @@ pub trait ScriptRunner {
 macro_rules! impl_ScriptRunner {
     (for $($t:ty),+) => {
         $(impl ScriptRunner for $t {
-            fn script(&self) -> Option<Vec<String>> {
-                self.run.as_ref().to_option().map(|v|v.to_vec())
+            fn script(&self) -> Vec<String> {
+                self.run.to_vec()
             }
-            fn caches(&self) -> Option<Vec<String>> {
-                self.cache.as_ref().to_option().map(|v|v.to_vec())
+            fn caches(&self) -> Vec<String> {
+                self.cache.to_vec()
             }
         })*
     }
@@ -73,12 +73,12 @@ impl_ScriptRunner!(for Builder, Image, Root);
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{PermissiveVec, User};
+    use crate::User;
 
     #[test]
     fn to_run_inscruction_with_script() {
         let builder = Builder {
-            run: OptionalField::Present(PermissiveVec::new(vec!["echo Hello".into()])),
+            run: vec!["echo Hello".into()].into(),
             ..Default::default()
         };
         assert_eq!(
@@ -109,7 +109,7 @@ mod test {
     #[test]
     fn to_run_inscruction_with_empty_script() {
         let builder = Builder {
-            run: OptionalField::Present(PermissiveVec::new(vec![])),
+            run: vec![].into(),
             ..Default::default()
         };
         assert_eq!(
@@ -123,12 +123,12 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_named_user() {
         let builder = Builder {
-            run: OptionalField::Present(PermissiveVec::new(vec!["echo Hello".into()])),
-            cache: OptionalField::Present(PermissiveVec::new(vec!["/path/to/cache".into()])),
+            run: vec!["echo Hello".into()].into(),
+            cache: vec!["/path/to/cache".into()].into(),
             ..Default::default()
         };
         let context = GenerationContext {
-            user: OptionalField::Present(User::new("test")),
+            user: Some(User::new("test")),
             ..Default::default()
         };
         assert_eq!(
@@ -151,12 +151,12 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user() {
         let builder = Builder {
-            run: OptionalField::Present(PermissiveVec::new(vec!["echo Hello".into()])),
-            cache: OptionalField::Present(PermissiveVec::new(vec!["/path/to/cache".into()])),
+            run: vec!["echo Hello".into()].into(),
+            cache: vec!["/path/to/cache".into()].into(),
             ..Default::default()
         };
         let context = GenerationContext {
-            user: OptionalField::Present(User::new("1000")),
+            user: Some(User::new("1000")),
             ..Default::default()
         };
         assert_eq!(
@@ -181,12 +181,12 @@ mod test {
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user_without_group() {
         let builder = Builder {
-            run: OptionalField::Present(PermissiveVec::new(vec!["echo Hello".into()])),
-            cache: OptionalField::Present(PermissiveVec::new(vec!["/path/to/cache".into()])),
+            run: vec!["echo Hello".into()].into(),
+            cache: vec!["/path/to/cache".into()].into(),
             ..Default::default()
         };
         let context = GenerationContext {
-            user: OptionalField::Present(User::new_without_group("1000")),
+            user: Some(User::new_without_group("1000")),
             ..Default::default()
         };
         assert_eq!(

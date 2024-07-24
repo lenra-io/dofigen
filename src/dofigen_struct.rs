@@ -1,10 +1,10 @@
-use crate::merge::OptionalField;
 #[cfg(feature = "permissive")]
-use crate::serde_permissive::{OneOrManyVec, ParsableStruct};
+use crate::serde_permissive::{OneOrManyVec as Vec, ParsableStruct};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
+use struct_patch::Patch;
 use url::Url;
 
 #[cfg(feature = "permissive")]
@@ -12,70 +12,70 @@ pub type PermissiveStruct<T> = ParsableStruct<T>;
 #[cfg(not(feature = "permissive"))]
 pub type PermissiveStruct<T> = Box<T>;
 
-#[cfg(feature = "permissive")]
-pub type PermissiveVec<T> = OneOrManyVec<T>;
-#[cfg(not(feature = "permissive"))]
-pub type PermissiveVec<T> = Box<Vec<T>>;
-
 /** Represents the Dockerfile main stage */
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, default)]
 pub struct Image {
     // Common part
     #[serde(alias = "image")]
-    pub from: OptionalField<PermissiveStruct<ImageName>>,
-    pub user: OptionalField<PermissiveStruct<User>>,
-    pub workdir: OptionalField<String>,
+    pub from: Option<PermissiveStruct<ImageName>>,
+    pub user: Option<PermissiveStruct<User>>,
+    pub workdir: Option<String>,
     #[serde(alias = "envs")]
-    pub env: OptionalField<HashMap<String, String>>,
-    pub artifacts: OptionalField<Vec<Artifact>>,
+    pub env: Option<HashMap<String, String>>,
+    pub artifacts: Vec<Artifact>,
     #[serde(alias = "add", alias = "adds")]
-    pub copy: OptionalField<PermissiveVec<PermissiveStruct<CopyResource>>>,
-    pub root: OptionalField<Root>,
+    pub copy: Vec<PermissiveStruct<CopyResource>>,
+    pub root: Option<Root>,
     #[serde(alias = "script")]
-    pub run: OptionalField<PermissiveVec<String>>,
+    pub run: Vec<String>,
     #[serde(alias = "caches")]
-    pub cache: OptionalField<PermissiveVec<String>>,
+    pub cache: Vec<String>,
     // Specific part
-    #[serde(alias = "extends")]
-    pub extend: OptionalField<PermissiveVec<Resource>>,
-    pub builders: OptionalField<Vec<Builder>>,
-    pub context: OptionalField<PermissiveVec<String>>,
+    #[serde(alias = "extends", default)]
+    pub extend: Vec<Resource>,
+    pub builders: Vec<Builder>,
+    pub context: Vec<String>,
     #[serde(alias = "ignores")]
-    pub ignore: OptionalField<PermissiveVec<String>>,
-    pub entrypoint: OptionalField<PermissiveVec<String>>,
-    pub cmd: OptionalField<PermissiveVec<String>>,
+    pub ignore: Vec<String>,
+    pub entrypoint: Vec<String>,
+    pub cmd: Vec<String>,
     #[serde(alias = "port", alias = "ports")]
-    pub expose: OptionalField<PermissiveVec<PermissiveStruct<Port>>>,
-    pub healthcheck: OptionalField<Healthcheck>,
+    pub expose: Vec<PermissiveStruct<Port>>,
+    pub healthcheck: Option<Healthcheck>,
 }
 
 /** Represents a Dockerfile builder stage */
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(deny_unknown_fields, default)]
 pub struct Builder {
     // Common part
     #[serde(alias = "image")]
-    pub from: OptionalField<PermissiveStruct<ImageName>>,
-    pub user: OptionalField<PermissiveStruct<User>>,
-    pub workdir: OptionalField<String>,
+    pub from: PermissiveStruct<ImageName>,
+    pub user: Option<PermissiveStruct<User>>,
+    pub workdir: Option<String>,
     #[serde(alias = "envs")]
-    pub env: OptionalField<HashMap<String, String>>,
-    pub artifacts: OptionalField<Vec<Artifact>>,
+    pub env: Option<HashMap<String, String>>,
+    pub artifacts: Vec<Artifact>,
     #[serde(alias = "add", alias = "adds")]
-    pub copy: OptionalField<PermissiveVec<PermissiveStruct<CopyResource>>>,
-    pub root: OptionalField<Root>,
+    pub copy: Vec<PermissiveStruct<CopyResource>>,
+    pub root: Option<Root>,
     #[serde(alias = "script")]
-    pub run: OptionalField<PermissiveVec<String>>,
+    pub run: Vec<String>,
     #[serde(alias = "caches")]
-    pub cache: OptionalField<PermissiveVec<String>>,
+    pub cache: Vec<String>,
     // Specific part
-    pub name: OptionalField<String>,
+    pub name: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(deny_unknown_fields, default)]
 pub struct Artifact {
     pub builder: String,
     pub source: String,
@@ -83,42 +83,48 @@ pub struct Artifact {
     pub target: String,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(deny_unknown_fields, default)]
 pub struct Root {
     #[serde(alias = "script")]
-    pub run: OptionalField<PermissiveVec<String>>,
+    pub run: Vec<String>,
     #[serde(alias = "caches")]
-    pub cache: OptionalField<PermissiveVec<String>>,
+    pub cache: Vec<String>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(deny_unknown_fields, default)]
 pub struct Healthcheck {
-    pub cmd: OptionalField<String>,
-    pub interval: OptionalField<String>,
-    pub timeout: OptionalField<String>,
-    pub start: OptionalField<String>,
-    pub retries: OptionalField<u16>,
+    pub cmd: String,
+    pub interval: Option<String>,
+    pub timeout: Option<String>,
+    pub start: Option<String>,
+    pub retries: Option<u16>,
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(deny_unknown_fields, default)]
 pub struct ImageName {
-    pub host: OptionalField<String>,
-    pub port: OptionalField<u16>,
-    pub path: OptionalField<String>,
-    pub version: OptionalField<ImageVersion>,
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub path: String,
+    pub version: Option<ImageVersion>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum ImageVersion {
     Tag(String),
     Digest(String),
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum CopyResource {
@@ -129,91 +135,100 @@ pub enum CopyResource {
 
 /// Represents the COPY instruction in a Dockerfile.
 /// See https://docs.docker.com/reference/dockerfile/#copy
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
-    pub paths: OptionalField<PermissiveVec<String>>,
+    pub paths: Vec<String>,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    pub exclude: OptionalField<PermissiveVec<String>>,
+    pub exclude: Vec<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---parents
-    pub parents: OptionalField<bool>,
+    pub parents: Option<bool>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---from
-    pub from: OptionalField<String>,
+    pub from: Option<String>,
 }
 
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
 /// See https://docs.docker.com/reference/dockerfile/#adding-private-git-repositories
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct AddGitRepo {
-    pub repo: OptionalField<String>,
+    pub repo: String,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    pub exclude: OptionalField<PermissiveVec<String>>,
+    pub exclude: Vec<String>,
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
-    pub keep_git_dir: OptionalField<bool>,
+    pub keep_git_dir: Option<bool>,
 }
 
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Add {
-    pub files: OptionalField<PermissiveVec<Resource>>,
+    pub files: Vec<Resource>,
     #[serde(flatten)]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
-    pub checksum: OptionalField<String>,
+    pub checksum: Option<String>,
 }
 
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct CopyOptions {
-    pub target: OptionalField<String>,
+    pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chown: OptionalField<User>,
+    pub chown: Option<User>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    pub chmod: OptionalField<String>,
+    pub chmod: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
-    pub link: OptionalField<bool>,
+    pub link: Option<bool>,
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct User {
-    pub user: OptionalField<String>,
-    pub group: OptionalField<String>,
+    pub user: String,
+    pub group: Option<String>,
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Port {
-    pub port: OptionalField<u16>,
-    pub protocol: OptionalField<PortProtocol>,
+    pub port: u16,
+    pub protocol: Option<PortProtocol>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum PortProtocol {
     Tcp,
     Udp,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
-// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum Resource {
     File(PathBuf),
     Url(Url),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum GitRepo {
@@ -221,13 +236,35 @@ pub enum GitRepo {
     Ssh(SshGitRepo),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct SshGitRepo {
     pub user: String,
     pub host: String,
     pub path: String,
 }
+
+// #[cfg(feature = "json_schema")]
+// mod json_schema {
+//     use super::*;
+
+//     pub trait CustomSchema: JsonSchema {
+//         fn schema_name() -> String;
+//         fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema;
+//     }
+
+//     impl CustomSchema for Url {
+//         fn schema_name() -> String {
+//             "Url".to_string()
+//         }
+
+//         fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+//             <String as JsonSchema>::json_schema(gen)
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod test {
@@ -251,8 +288,8 @@ mod test {
                 assert_eq!(
                     user,
                     User {
-                        user: OptionalField::Present("test".into()),
-                        group: OptionalField::Present("test".into())
+                        user: "test".into(),
+                        group: Some("test".into())
                     }
                 );
             }
@@ -283,19 +320,19 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::Copy(Copy {
-                        paths: OptionalField::Present(vec!["file1.txt".into(), "file2.txt".into()].into()),
+                        paths: vec!["file1.txt".into(), "file2.txt".into()].into(),
                         options: CopyOptions {
-                            target: OptionalField::Present("destination/".into()),
-                            chown: OptionalField::Present(User {
-                                user: OptionalField::Present("root".into()),
-                                group: OptionalField::Present("root".into())
+                            target: Some("destination/".into()),
+                            chown: Some(User {
+                                user: "root".into(),
+                                group: Some("root".into())
                             }),
-                            chmod: OptionalField::Present("755".into()),
-                            link: OptionalField::Present(true),
+                            chmod: Some("755".into()),
+                            link: Some(true),
                         },
-                        exclude: OptionalField::Present(vec!["file3.txt".into()].into()),
-                        parents: OptionalField::Present(true),
-                        from: OptionalField::Present("source/".into())
+                        exclude: vec!["file3.txt".into()].into(),
+                        parents: Some(true),
+                        from: Some("source/".into())
                     })
                 );
             }
@@ -313,9 +350,9 @@ mod test {
                 assert_eq!(
                     copy_resource.deref(),
                     &CopyResource::Copy(Copy {
-                        paths: OptionalField::Present(vec!["file1.txt".into()].into()),
+                        paths: vec!["file1.txt".into()].into(),
                         options: CopyOptions {
-                            target: OptionalField::Present("destination/".into()),
+                            target: Some("destination/".into()),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -343,18 +380,18 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::AddGitRepo(AddGitRepo {
-                        repo: OptionalField::Present("https://github.com/example/repo.git".into()),
+                        repo: "https://github.com/example/repo.git".into(),
                         options: CopyOptions {
-                            target: OptionalField::Present("destination/".into()),
-                            chown: OptionalField::Present(User {
-                                user: OptionalField::Present("root".into()),
-                                group: OptionalField::Present("root".into())
+                            target: Some("destination/".into()),
+                            chown: Some(User {
+                                user: "root".into(),
+                                group: Some("root".into())
                             }),
-                            chmod: OptionalField::Present("755".into()),
-                            link: OptionalField::Present(true),
+                            chmod: Some("755".into()),
+                            link: Some(true),
                         },
-                        exclude: OptionalField::Present(vec!["file3.txt".into()].into()),
-                        keep_git_dir: OptionalField::Present(true)
+                        exclude: vec!["file3.txt".into()].into(),
+                        keep_git_dir: Some(true)
                     })
                 );
             }
@@ -378,23 +415,21 @@ mod test {
                 assert_eq!(
                     copy_resource,
                     CopyResource::Add(Add {
-                        files: OptionalField::Present(
-                            vec![
-                                Resource::File("file1.txt".into()),
-                                Resource::File("file2.txt".into())
-                            ]
-                            .into()
-                        ),
+                        files: vec![
+                            Resource::File("file1.txt".into()),
+                            Resource::File("file2.txt".into())
+                        ]
+                        .into(),
                         options: CopyOptions {
-                            target: OptionalField::Present("destination/".into()),
-                            chown: OptionalField::Present(User {
-                                user: OptionalField::Present("root".into()),
-                                group: OptionalField::Present("root".into())
+                            target: Some("destination/".into()),
+                            chown: Some(User {
+                                user: "root".into(),
+                                group: Some("root".into())
                             }),
-                            chmod: OptionalField::Present("755".into()),
-                            link: OptionalField::Present(true),
+                            chmod: Some("755".into()),
+                            link: Some(true),
                         },
-                        checksum: OptionalField::Present("sha256:abcdef123456".into()),
+                        checksum: Some("sha256:abcdef123456".into()),
                     })
                 );
             }
