@@ -39,3 +39,4 @@ regex = "1.10.5"
 url = { version = "2.5.2", features = ["serde"] }
 concat-idents = "1.1.5"
 struct-patch = "0.4"
+pretty_assertions_sorted = "1.2.3"

@@ -1,10 +1,14 @@
-use std::{collections::HashMap, ops::Deref};
+use std::{collections::HashMap, fs, ops::Deref};
+
+use serde::de::DeserializeOwned;
+use struct_patch::Patch;
 
 use crate::{
     dofigen_struct::{Builder, Image},
     generator::GenerationContext,
     script_runner::ScriptRunner,
-    Artifact, CopyResource, ImageName, PermissiveStruct, Root, User,
+    Artifact, CopyResource, Error, Extend, ImageName, PermissiveStruct, Resource, Result, Root,
+    User,
 };
 
 pub trait BaseStage: ScriptRunner {
@@ -86,16 +90,76 @@ macro_rules! impl_Stage {
 
 impl_Stage!(for Builder, Image);
 
-impl Image {
-    pub fn apply_extends(&self) -> &Self {
+impl<'de, P> Extend<P>
+where
+    P: DeserializeOwned,
+{
+    pub fn merge<T>(self, context: &mut LoadContext) -> Result<T>
+    where
+        T: Patch<P> + DeserializeOwned + Default,
+    {
         let extends = self.extend.to_vec();
         if extends.is_empty() {
-            return self;
+            let mut ret = T::default();
+            ret.apply(self.value);
+            return Ok(ret);
         }
-        // TODO: load extends files
+        // TODO: add resource load context in order to avoid recursive loading
 
-        // TODO: for each extends file, merge it with self
-        todo!()
+        // load extends files
+        let mut patchs: Vec<T> = extends
+            .into_iter()
+            .map(|extend| extend.load::<Extend<P>>(context)?.merge(context))
+            .collect::<Result<Vec<_>>>()?;
+        // for each extends file, merge it with self
+        let mut merged = patchs.remove(0);
+        for patch in patchs {
+            merged.apply(patch.into_patch());
+        }
+        merged.apply(self.value);
+        Ok(merged)
+    }
+}
+
+pub struct LoadContext {
+    resources: HashMap<String, String>,
+}
+
+impl LoadContext {
+    pub fn new() -> Self {
+        Self {
+            resources: HashMap::new(),
+        }
+    }
+}
+
+impl Resource {
+    pub fn load<T>(&self, context: &mut LoadContext) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        let ret = match self {
+            Resource::File(path) => {
+                let canonical_path = fs::canonicalize(path)
+                    .map_err(|err| {
+                        Error::Custom(format!("Could not canonicalize path {:?}: {}", path, err))
+                    })?
+                    .to_str()
+                    .unwrap()
+                    .to_string();
+                let str = if let Some(value) = context.resources.get(&canonical_path) {
+                    value.clone()
+                } else {
+                    fs::read_to_string(path).map_err(|err| {
+                        Error::Custom(format!("Could not read file {:?}: {}", path, err))
+                    })?
+                };
+                context.resources.insert(canonical_path, str.clone());
+                serde_yaml::from_str(str.as_str()).map_err(Error::from)?
+            }
+            Resource::Url(url) => todo!(),
+        };
+        Ok(ret)
     }
 }
 

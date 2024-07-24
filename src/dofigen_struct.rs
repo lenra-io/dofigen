@@ -34,8 +34,6 @@ pub struct Image {
     #[serde(alias = "caches")]
     pub cache: Vec<String>,
     // Specific part
-    #[serde(alias = "extends", default)]
-    pub extend: Vec<Resource>,
     pub builders: Vec<Builder>,
     pub context: Vec<String>,
     #[serde(alias = "ignores")]
@@ -244,6 +242,14 @@ pub struct SshGitRepo {
     pub user: String,
     pub host: String,
     pub path: String,
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+pub struct Extend<T> {
+    #[serde(alias = "extends")]
+    pub extend: Vec<Resource>,
+    #[serde(flatten)]
+    pub value: T,
 }
 
 // #[cfg(feature = "json_schema")]

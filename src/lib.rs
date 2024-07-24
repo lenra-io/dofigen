@@ -24,6 +24,9 @@ use schemars::schema_for;
 pub use stage::*;
 // pub use merge::*;
 use std::{fs, io::Read};
+// #[macro_use]
+// extern crate pretty_assertions_sorted;
+// use pretty_assertions_sorted::*;
 
 pub const DOCKERFILE_VERSION: &str = "1.7";
 
@@ -111,7 +114,7 @@ const FILE_HEADER_LINES: [&str; 3] = [
 /// );
 /// ```
 pub fn from(input: String) -> Result<Image> {
-    serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))
+    merge_extended_image(serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))?)
 }
 
 /// Parse an Image from a reader.
@@ -189,7 +192,7 @@ pub fn from(input: String) -> Result<Image> {
 /// );
 /// ```
 pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
-    serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))
+    merge_extended_image(serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))?)
 }
 
 /// Parse an Image from a YAML or JSON file path.
@@ -197,9 +200,9 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
     let file = fs::File::open(path).unwrap();
     match path.extension() {
         Some(os_str) => match os_str.to_str() {
-            Some("yml" | "yaml" | "json") => {
-                serde_yaml::from_reader(file).map_err(|err| Error::Deserialize(err))
-            }
+            Some("yml" | "yaml" | "json") => merge_extended_image(
+                serde_yaml::from_reader(file).map_err(|err| Error::Deserialize(err))?,
+            ),
             Some(ext) => Err(Error::Custom(format!(
                 "Not managed Dofigen file extension {}",
                 ext
@@ -208,6 +211,10 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
         },
         None => Err(Error::Custom("The Dofigen file has no extension".into())),
     }
+}
+
+fn merge_extended_image(image: Extend<ImagePatch>) -> Result<Image> {
+    image.merge(&mut LoadContext::new())
 }
 
 /// Generates the Dockerfile content from an Image.
