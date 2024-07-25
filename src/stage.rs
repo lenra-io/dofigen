@@ -104,13 +104,13 @@ where
             ret.apply(self.value);
             return Ok(ret);
         }
-        // TODO: add resource load context in order to avoid recursive loading
 
         // load extends files
         let mut patchs: Vec<T> = extends
             .into_iter()
-            .map(|extend| extend.load::<Extend<P>>(context)?.merge(context))
+            .map(|extend| extend.load::<Self>(context)?.merge(context))
             .collect::<Result<Vec<_>>>()?;
+        
         // for each extends file, merge it with self
         let mut merged = patchs.remove(0);
         for patch in patchs {

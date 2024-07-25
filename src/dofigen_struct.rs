@@ -1,3 +1,4 @@
+use crate::deserialize_struct::VecPatch;
 #[cfg(feature = "permissive")]
 use crate::serde_permissive::{OneOrManyVec as Vec, ParsableStruct};
 #[cfg(feature = "json_schema")]
@@ -6,6 +7,7 @@ use serde::Deserialize;
 use std::{collections::HashMap, path::PathBuf};
 use struct_patch::Patch;
 use url::Url;
+
 
 #[cfg(feature = "permissive")]
 pub type PermissiveStruct<T> = ParsableStruct<T>;
@@ -27,6 +29,7 @@ pub struct Image {
     pub env: Option<HashMap<String, String>>,
     pub artifacts: Vec<Artifact>,
     #[serde(alias = "add", alias = "adds")]
+    #[patch_name = "VecPatch<PermissiveStruct<CopyResource>>"]
     pub copy: Vec<PermissiveStruct<CopyResource>>,
     pub root: Option<Root>,
     #[serde(alias = "script")]
