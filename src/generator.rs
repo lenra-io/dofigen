@@ -10,6 +10,8 @@ pub const LINE_SEPARATOR: &str = " \\\n    ";
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GenerationContext {
     pub user: Option<User>,
+    pub default_stage_name: String,
+    pub default_from: ImageName,
     pub previous_builders: Vec<String>,
 }
 pub trait DockerfileGenerator {
@@ -233,14 +235,14 @@ impl DockerfileGenerator for Artifact {
     }
 }
 
-impl DockerfileGenerator for dyn Stage {
+impl DockerfileGenerator for Stage {
     fn generate_dockerfile_lines(
         &self,
         context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let context = GenerationContext {
             user: self.user().into(),
-            previous_builders: context.previous_builders.clone(),
+            ..context.clone()
         };
         let stage_name = self.name(&context);
         let mut lines = vec![
@@ -249,39 +251,40 @@ impl DockerfileGenerator for dyn Stage {
                 command: "FROM".into(),
                 content: format!(
                     "{image_name} AS {stage_name}",
-                    image_name = self.from().to_string()
+                    image_name = self.from(&context).to_string()
                 ),
                 options: vec![],
             }),
         ];
-        if let Some(env) = self.env() {
+        if !self.env.is_empty() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "ENV".into(),
-                content: env
-                    .into_iter()
+                content: self
+                    .env
+                    .iter()
                     .map(|(key, value)| format!("{}=\"{}\"", key, value))
                     .collect::<Vec<String>>()
                     .join(LINE_SEPARATOR),
                 options: vec![],
             }));
         }
-        if let Some(workdir) = self.workdir() {
+        if let Some(workdir) = &self.workdir {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "WORKDIR".into(),
                 content: workdir.clone(),
                 options: vec![],
             }));
         }
-        for copy in self.copy().iter() {
+        for copy in self.copy.iter() {
             lines.append(&mut copy.generate_dockerfile_lines(&context)?);
         }
-        for artifact in self.artifacts().iter() {
+        for artifact in self.artifacts.iter() {
             lines.append(&mut artifact.generate_dockerfile_lines(&context)?);
         }
-        if let Some(root) = self.root() {
+        if let Some(root) = &self.root {
             let root_context = GenerationContext {
                 user: Some(User::new("0")),
-                previous_builders: context.previous_builders.clone(),
+                ..context.clone()
             };
             if let Some(instruction) = root.to_run_inscruction(&root_context)? {
                 lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
@@ -309,24 +312,30 @@ impl DockerfileGenerator for dyn Stage {
 impl DockerfileGenerator for Image {
     fn generate_dockerfile_lines(
         &self,
-        _context: &GenerationContext,
+        context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let mut context: GenerationContext = GenerationContext {
-            user: self.user().into(),
+            user: self.stage.user().into(),
+            default_stage_name: String::new(),
+            default_from: self.stage.from(context).clone(),
             previous_builders: vec![],
         };
         let mut lines = vec![
             DockerfileLine::Comment(format!("syntax=docker/dockerfile:{}", DOCKERFILE_VERSION)),
             DockerfileLine::Empty,
         ];
-        for builder in self.builders.iter() {
-            lines.append(&mut <dyn Stage>::generate_dockerfile_lines(
-                builder, &context,
-            )?);
+        for (pos, builder) in self.builders.iter().enumerate() {
+            context.default_stage_name = format!("builder-{}", pos);
+            lines.append(&mut Stage::generate_dockerfile_lines(builder, &context)?);
             lines.push(DockerfileLine::Empty);
             context.previous_builders.push(builder.name(&context));
         }
-        lines.append(&mut <dyn Stage>::generate_dockerfile_lines(self, &context)?);
+        context.default_stage_name = "runtime".into();
+        context.default_from = ImageName {
+            path: "scratch".into(),
+            ..Default::default()
+        };
+        lines.append(&mut self.generate_dockerfile_lines(&context)?);
         self.expose.iter().for_each(|port| {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "EXPOSE".into(),
@@ -414,7 +423,7 @@ mod test {
 
         #[test]
         fn name_with_name() {
-            let builder = Builder {
+            let builder = Stage {
                 name: Some(String::from("my-builder")),
                 ..Default::default()
             };
@@ -427,7 +436,7 @@ mod test {
 
         #[test]
         fn name_without_name() {
-            let builder = Builder::default();
+            let builder = Stage::default();
             let name = builder.name(&GenerationContext {
                 previous_builders: vec!["builder-0".into(), "bob".into()],
                 ..Default::default()
@@ -437,8 +446,8 @@ mod test {
 
         #[test]
         fn user_with_user() {
-            let builder = Builder {
-                user: Some(PermissiveStruct::new(User::new_without_group("my-user"))),
+            let builder = Stage {
+                user: Some(User::new_without_group("my-user").into()),
                 ..Default::default()
             };
             let user = builder.user();
@@ -453,28 +462,33 @@ mod test {
 
         #[test]
         fn user_without_user() {
-            let builder = Builder::default();
+            let builder = Stage::default();
             let user = builder.user();
             assert_eq!(user, None);
         }
     }
 
     mod image_name {
-        use PermissiveStruct;
-
         use super::*;
 
         #[test]
         fn test_image_name() {
             let image = Image {
-                from: Some(PermissiveStruct::new(ImageName {
-                    path: String::from("my-image"),
+                stage: Stage {
+                    from: Some(
+                        ImageName {
+                            path: String::from("my-image"),
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
                     ..Default::default()
-                })),
+                },
                 ..Default::default()
             };
-            let name = image.name(&GenerationContext {
+            let name = image.stage.name(&GenerationContext {
                 previous_builders: vec!["builder-0".into(), "builder-1".into(), "builder-2".into()],
+                default_stage_name: "runtime".into(),
                 ..Default::default()
             });
             assert_eq!(name, "runtime");
@@ -483,14 +497,20 @@ mod test {
         #[test]
         fn test_image_user_with_user() {
             let image = Image {
-                user: Some(PermissiveStruct::new(User::new_without_group("my-user"))),
-                from: Some(PermissiveStruct::new(ImageName {
-                    path: String::from("my-image"),
+                stage: Stage {
+                    user: Some(User::new_without_group("my-user").into()),
+                    from: Some(
+                        ImageName {
+                            path: String::from("my-image"),
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
                     ..Default::default()
-                })),
+                },
                 ..Default::default()
             };
-            let user = image.user();
+            let user = image.stage.user();
             assert_eq!(
                 user,
                 Some(User {
@@ -503,13 +523,19 @@ mod test {
         #[test]
         fn test_image_user_without_user() {
             let image = Image {
-                from: Some(PermissiveStruct::new(ImageName {
-                    path: String::from("my-image"),
+                stage: Stage {
+                    from: Some(
+                        ImageName {
+                            path: String::from("my-image"),
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
                     ..Default::default()
-                })),
+                },
                 ..Default::default()
             };
-            let user = image.user();
+            let user = image.stage.user();
             assert_eq!(
                 user,
                 Some(User {

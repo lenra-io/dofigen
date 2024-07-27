@@ -1,6 +1,6 @@
 use crate::{
     dockerfile_struct::{DockerfileInsctruction, InstructionOption, InstructionOptionOption},
-    dofigen_struct::{Builder, Image, Root},
+    dofigen_struct::{Root, Stage},
     generator::{GenerationContext, LINE_SEPARATOR},
     Result,
 };
@@ -68,7 +68,7 @@ macro_rules! impl_ScriptRunner {
     }
 }
 
-impl_ScriptRunner!(for Builder, Image, Root);
+impl_ScriptRunner!(for Stage, Root);
 
 #[cfg(test)]
 mod test {
@@ -77,7 +77,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_script() {
-        let builder = Builder {
+        let builder = Stage {
             run: vec!["echo Hello".into()].into(),
             ..Default::default()
         };
@@ -95,7 +95,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_without_script() {
-        let builder = Builder {
+        let builder = Stage {
             ..Default::default()
         };
         assert_eq!(
@@ -108,7 +108,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_empty_script() {
-        let builder = Builder {
+        let builder = Stage {
             run: vec![].into(),
             ..Default::default()
         };
@@ -122,7 +122,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_named_user() {
-        let builder = Builder {
+        let builder = Stage {
             run: vec!["echo Hello".into()].into(),
             cache: vec!["/path/to/cache".into()].into(),
             ..Default::default()
@@ -150,7 +150,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user() {
-        let builder = Builder {
+        let builder = Stage {
             run: vec!["echo Hello".into()].into(),
             cache: vec!["/path/to/cache".into()].into(),
             ..Default::default()
@@ -180,7 +180,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user_without_group() {
-        let builder = Builder {
+        let builder = Stage {
             run: vec!["echo Hello".into()].into(),
             cache: vec!["/path/to/cache".into()].into(),
             ..Default::default()

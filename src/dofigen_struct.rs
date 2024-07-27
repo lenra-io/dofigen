@@ -1,4 +1,4 @@
-use crate::deserialize_struct::VecPatch;
+use crate::deserialize_struct::{OptionPatch, VecDeepPatch, VecPatch};
 #[cfg(feature = "permissive")]
 use crate::serde_permissive::{OneOrManyVec as Vec, ParsableStruct};
 #[cfg(feature = "json_schema")]
@@ -8,11 +8,10 @@ use std::{collections::HashMap, path::PathBuf};
 use struct_patch::Patch;
 use url::Url;
 
-
-#[cfg(feature = "permissive")]
-pub type PermissiveStruct<T> = ParsableStruct<T>;
-#[cfg(not(feature = "permissive"))]
-pub type PermissiveStruct<T> = Box<T>;
+// #[cfg(feature = "permissive")]
+// pub type PermissiveStruct<T> = ParsableStruct<T>;
+// #[cfg(not(feature = "permissive"))]
+// pub type PermissiveStruct<T> = Box<T>;
 
 /** Represents the Dockerfile main stage */
 #[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
@@ -20,57 +19,54 @@ pub type PermissiveStruct<T> = Box<T>;
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 #[serde(deny_unknown_fields, default)]
 pub struct Image {
-    // Common part
-    #[serde(alias = "image")]
-    pub from: Option<PermissiveStruct<ImageName>>,
-    pub user: Option<PermissiveStruct<User>>,
-    pub workdir: Option<String>,
-    #[serde(alias = "envs")]
-    pub env: Option<HashMap<String, String>>,
-    pub artifacts: Vec<Artifact>,
-    #[serde(alias = "add", alias = "adds")]
-    #[patch_name = "VecPatch<PermissiveStruct<CopyResource>>"]
-    pub copy: Vec<PermissiveStruct<CopyResource>>,
-    pub root: Option<Root>,
-    #[serde(alias = "script")]
-    pub run: Vec<String>,
-    #[serde(alias = "caches")]
-    pub cache: Vec<String>,
-    // Specific part
-    pub builders: Vec<Builder>,
+    #[patch_name = "StagePatch"]
+    #[serde(flatten)]
+    pub stage: Stage,
+    #[patch_name = "VecDeepPatch<Stage, StagePatch>"]
+    pub builders: Vec<Stage>,
+    #[patch_name = "VecPatch<String>"]
     pub context: Vec<String>,
     #[serde(alias = "ignores")]
+    #[patch_name = "VecPatch<String>"]
     pub ignore: Vec<String>,
+    #[patch_name = "VecPatch<String>"]
     pub entrypoint: Vec<String>,
+    #[patch_name = "VecPatch<String>"]
     pub cmd: Vec<String>,
     #[serde(alias = "port", alias = "ports")]
-    pub expose: Vec<PermissiveStruct<Port>>,
+    #[patch_name = "VecDeepPatch<Port, PortPatch>"]
+    pub expose: Vec<Port>,
     pub healthcheck: Option<Healthcheck>,
 }
 
-/** Represents a Dockerfile builder stage */
 #[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 #[serde(deny_unknown_fields, default)]
-pub struct Builder {
-    // Common part
+pub struct Stage {
+    pub name: Option<String>,
     #[serde(alias = "image")]
-    pub from: PermissiveStruct<ImageName>,
-    pub user: Option<PermissiveStruct<User>>,
+    #[patch_name = "OptionPatch<ImageNamePatch>"]
+    pub from: Option<ImageName>,
+    #[patch_name = "OptionPatch<UserPatch>"]
+    pub user: Option<User>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
-    pub env: Option<HashMap<String, String>>,
+    // TODO: handle patching for map
+    pub env: HashMap<String, String>,
+    #[patch_name = "VecDeepPatch<Artifact, ArtifactPatch>"]
     pub artifacts: Vec<Artifact>,
     #[serde(alias = "add", alias = "adds")]
-    pub copy: Vec<PermissiveStruct<CopyResource>>,
+    // TODO: #[patch_name = "VecDeepPatch<CopyResource, CopyResourcePatch>"]
+    pub copy: Vec<CopyResource>,
+    #[patch_name = "OptionPatch<RootPatch>"]
     pub root: Option<Root>,
     #[serde(alias = "script")]
+    #[patch_name = "VecPatch<String>"]
     pub run: Vec<String>,
     #[serde(alias = "caches")]
+    #[patch_name = "VecPatch<String>"]
     pub cache: Vec<String>,
-    // Specific part
-    pub name: Option<String>,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
@@ -90,8 +86,10 @@ pub struct Artifact {
 #[serde(deny_unknown_fields, default)]
 pub struct Root {
     #[serde(alias = "script")]
+    #[patch_name = "VecPatch<String>"]
     pub run: Vec<String>,
     #[serde(alias = "caches")]
+    #[patch_name = "VecPatch<String>"]
     pub cache: Vec<String>,
 }
 
@@ -115,6 +113,7 @@ pub struct ImageName {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub path: String,
+    // TODO: #[patch_name = "OptionPatch<ImageVersionPatch>"]
     pub version: Option<ImageVersion>,
 }
 
@@ -134,6 +133,14 @@ pub enum CopyResource {
     Add(Add),
 }
 
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum CopyResourcePatch {
+    Copy(CopyPatch),
+    AddGitRepo(AddGitRepoPatch),
+    Add(AddPatch),
+}
+
 /// Represents the COPY instruction in a Dockerfile.
 /// See https://docs.docker.com/reference/dockerfile/#copy
 #[derive(Debug, Clone, PartialEq, Default, Deserialize, Patch)]
@@ -141,10 +148,13 @@ pub enum CopyResource {
 #[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
+    #[patch_name = "VecPatch<String>"]
     pub paths: Vec<String>,
     #[serde(flatten)]
+    #[patch_name = "CopyOptionsPatch"]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[patch_name = "VecPatch<String>"]
     pub exclude: Vec<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---parents
     pub parents: Option<bool>,
@@ -161,8 +171,10 @@ pub struct Copy {
 pub struct AddGitRepo {
     pub repo: String,
     #[serde(flatten)]
+    #[patch_name = "CopyOptionsPatch"]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[patch_name = "VecPatch<String>"]
     pub exclude: Vec<String>,
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
     pub keep_git_dir: Option<bool>,
@@ -174,8 +186,10 @@ pub struct AddGitRepo {
 #[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Add {
+    // TODO: #[patch_name = "VecDeepPatch<Resource, ResourcePatch>"]
     pub files: Vec<Resource>,
     #[serde(flatten)]
+    #[patch_name = "CopyOptionsPatch"]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
     pub checksum: Option<String>,
@@ -189,6 +203,7 @@ pub struct Add {
 pub struct CopyOptions {
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
+    #[patch_name = "OptionPatch<UserPatch>"]
     pub chown: Option<User>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
@@ -211,6 +226,7 @@ pub struct User {
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Port {
     pub port: u16,
+    // TODO: #[patch_name = "OptionPatch<PortProtocolPatch>"]
     pub protocol: Option<PortProtocol>,
 }
 

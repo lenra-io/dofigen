@@ -1,94 +1,34 @@
-use std::{collections::HashMap, fs, ops::Deref};
+use std::{collections::HashMap, fs};
 
 use serde::de::DeserializeOwned;
 use struct_patch::Patch;
 
 use crate::{
-    dofigen_struct::{Builder, Image},
-    generator::GenerationContext,
-    script_runner::ScriptRunner,
-    Artifact, CopyResource, Error, Extend, ImageName, PermissiveStruct, Resource, Result, Root,
-    User,
+    dofigen_struct::Stage, generator::GenerationContext, script_runner::ScriptRunner, Error,
+    Extend, ImageName, Resource, Result, User,
 };
 
 pub trait BaseStage: ScriptRunner {
     fn name(&self, context: &GenerationContext) -> String;
-    fn from(&self) -> ImageName;
+    fn from(&self, context: &GenerationContext) -> ImageName;
     fn user(&self) -> Option<User>;
 }
-pub trait Stage: BaseStage {
-    fn workdir(&self) -> Option<&String>;
-    fn env(&self) -> Option<&HashMap<String, String>>;
-    fn copy(&self) -> std::vec::Vec<PermissiveStruct<CopyResource>>;
-    fn artifacts(&self) -> std::vec::Vec<Artifact>;
-    fn root(&self) -> Option<&Root>;
-}
 
-impl BaseStage for Builder {
+impl BaseStage for Stage {
     fn name(&self, context: &GenerationContext) -> String {
         match self.name.as_ref() {
             Some(name) => String::from(name),
             _ => format!("builder-{}", context.previous_builders.len()),
         }
     }
-    fn from(&self) -> ImageName {
-        self.from.deref().clone()
+    fn from(&self, context: &GenerationContext) -> ImageName {
+        self.from.clone().unwrap_or(context.default_from.clone())
     }
 
     fn user(&self) -> Option<User> {
-        self.user.as_ref().map(|user| user.deref().clone())
+        self.user.as_ref().map(|user| user.clone())
     }
 }
-
-impl BaseStage for Image {
-    fn name(&self, _context: &GenerationContext) -> String {
-        String::from("runtime")
-    }
-    fn from(&self) -> ImageName {
-        if let Some(image_name) = &self.from {
-            image_name.deref().clone()
-        } else {
-            ImageName {
-                path: String::from("scratch"),
-                ..Default::default()
-            }
-        }
-    }
-    fn user(&self) -> Option<User> {
-        self.user
-            .as_ref()
-            .map(|user| user.deref().clone())
-            .or(Some(User::new("1000")))
-    }
-}
-
-macro_rules! impl_Stage {
-    (for $($t:ty),+) => {
-        $(impl Stage for $t {
-            fn workdir(&self) -> Option<&String> {
-                self.workdir.as_ref()
-            }
-
-            fn env(&self) -> Option<&HashMap<String, String>> {
-                self.env.as_ref()
-            }
-
-            fn copy(&self) -> Vec<PermissiveStruct<CopyResource>> {
-                self.copy.to_vec()
-            }
-
-            fn artifacts(&self) -> Vec<Artifact> {
-                self.artifacts.to_vec()
-            }
-
-            fn root(&self) -> Option<&Root> {
-                self.root.as_ref()
-            }
-        })*
-    }
-}
-
-impl_Stage!(for Builder, Image);
 
 impl<'de, P> Extend<P>
 where
@@ -110,7 +50,7 @@ where
             .into_iter()
             .map(|extend| extend.load::<Self>(context)?.merge(context))
             .collect::<Result<Vec<_>>>()?;
-        
+
         // for each extends file, merge it with self
         let mut merged = patchs.remove(0);
         for patch in patchs {
@@ -202,13 +142,13 @@ impl User {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ImageName, PermissiveStruct};
+    use crate::ImageName;
 
     use super::*;
 
     #[test]
     fn test_builder_name_with_name() {
-        let builder = Builder {
+        let builder = Stage {
             name: Some(String::from("my-builder")),
             ..Default::default()
         };
@@ -221,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_builder_name_without_name() {
-        let builder = Builder::default();
+        let builder = Stage::default();
         let name = builder.name(&GenerationContext {
             previous_builders: vec!["builder-0".into(), "bob".into()],
             ..Default::default()
@@ -231,11 +171,14 @@ mod tests {
 
     #[test]
     fn test_builder_user_with_user() {
-        let builder = Builder {
-            user: Some(PermissiveStruct::new(User {
-                user: "my-user".into(),
-                ..Default::default()
-            })),
+        let builder = Stage {
+            user: Some(
+                User {
+                    user: "my-user".into(),
+                    ..Default::default()
+                }
+                .into(),
+            ),
             ..Default::default()
         };
         let user = builder.user();
@@ -250,21 +193,24 @@ mod tests {
 
     #[test]
     fn test_builder_user_without_user() {
-        let builder = Builder::default();
+        let builder = Stage::default();
         let user = builder.user();
         assert_eq!(user, None);
     }
 
     #[test]
     fn test_image_name() {
-        let image = Image {
-            from: Some(PermissiveStruct::new(ImageName {
-                path: String::from("my-image"),
-                ..Default::default()
-            })),
+        let stage = Stage {
+            from: Some(
+                ImageName {
+                    path: String::from("my-image"),
+                    ..Default::default()
+                }
+                .into(),
+            ),
             ..Default::default()
         };
-        let name = image.name(&GenerationContext {
+        let name = stage.name(&GenerationContext {
             previous_builders: vec!["builder-0".into(), "bob".into(), "john".into()],
             ..Default::default()
         });
@@ -273,18 +219,24 @@ mod tests {
 
     #[test]
     fn test_image_user_with_user() {
-        let image = Image {
-            user: Some(PermissiveStruct::new(User {
-                user: "my-user".into(),
-                ..Default::default()
-            })),
-            from: Some(PermissiveStruct::new(ImageName {
-                path: String::from("my-image"),
-                ..Default::default()
-            })),
+        let stage = Stage {
+            user: Some(
+                User {
+                    user: "my-user".into(),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+            from: Some(
+                ImageName {
+                    path: String::from("my-image"),
+                    ..Default::default()
+                }
+                .into(),
+            ),
             ..Default::default()
         };
-        let user = image.user();
+        let user = stage.user();
         assert_eq!(
             user,
             Some(User {
@@ -296,14 +248,17 @@ mod tests {
 
     #[test]
     fn test_image_user_without_user() {
-        let image = Image {
-            from: Some(PermissiveStruct::new(ImageName {
-                path: String::from("my-image"),
-                ..Default::default()
-            })),
+        let stage = Stage {
+            from: Some(
+                ImageName {
+                    path: String::from("my-image"),
+                    ..Default::default()
+                }
+                .into(),
+            ),
             ..Default::default()
         };
-        let user = image.user();
+        let user = stage.user();
         assert_eq!(
             user,
             Some(User {

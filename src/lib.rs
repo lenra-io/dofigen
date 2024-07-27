@@ -450,10 +450,13 @@ artifacts:
                         ..Default::default()
                     }
                     .into(),
-                    copy: vec![PermissiveStruct::new(CopyResource::Copy(Copy {
-                        paths: vec![String::from("*")].into(),
-                        ..Default::default()
-                    }))]
+                    copy: vec![CopyResource::Copy(
+                        Copy {
+                            paths: vec![String::from("*")].into(),
+                            ..Default::default()
+                        }
+                        .into()
+                    )]
                     .into(),
                     run: vec![String::from("cargo build --release")].into(),
                     ..Default::default()
