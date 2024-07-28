@@ -47,20 +47,24 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let yaml = "
-/// image:
+/// from:
 ///   path: ubuntu
 /// ";
 /// let image: Image = from(yaml.into()).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     image,
 ///     Image {
+///       stage: Stage {
 ///         from: Some(ImageName {
 ///             path: String::from("ubuntu"),
 ///             ..Default::default()
 ///         }.into()),
 ///         ..Default::default()
+///       },
+///      ..Default::default()
 ///     }
 /// );
 /// ```
@@ -69,6 +73,7 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let yaml = r#"
 /// builders:
@@ -87,28 +92,31 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///     target: /app
 /// "#;
 /// let image: Image = from(yaml.into()).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     image,
 ///     Image {
-///         builders: vec![Builder {
+///         builders: vec![Stage {
 ///             name: Some(String::from("builder")),
 ///             from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
 ///             copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
 ///             run: vec!["cargo build --release".parse().unwrap()].into(),
 ///             ..Default::default()
 ///         }].into(),
-///         from: Some(ImageName {
-///             path: "ubuntu".into(),
+///         stage: Stage {
+///             from: Some(ImageName {
+///                 path: "ubuntu".into(),
+///                 ..Default::default()
+///             }.into()),
+///             artifacts: vec![Artifact {
+///                 builder: String::from("builder"),
+///                 source: String::from(
+///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
+///                 ),
+///                 target: String::from("/app"),
+///                 ..Default::default()
+///             }].into(),
 ///             ..Default::default()
-///         }.into()),
-///         artifacts: vec![Artifact {
-///             builder: String::from("builder"),
-///             source: String::from(
-///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///             ),
-///             target: String::from("/app"),
-///             ..Default::default()
-///         }].into(),
+///         },
 ///         ..Default::default()
 ///     }
 /// );
@@ -125,19 +133,23 @@ pub fn from(input: String) -> Result<Image> {
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let yaml = "
-/// image:
+/// from:
 ///   path: ubuntu
 /// ";
 /// let image: Image = from_reader(yaml.as_bytes()).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     image,
 ///     Image {
-///         from: Some(ImageName {
-///             path: String::from("ubuntu"),
+///         stage: Stage {
+///             from: Some(ImageName {
+///                 path: String::from("ubuntu"),
+///                 ..Default::default()
+///             }.into()),
 ///             ..Default::default()
-///         }.into()),
+///         },
 ///         ..Default::default()
 ///     }
 /// );
@@ -147,6 +159,7 @@ pub fn from(input: String) -> Result<Image> {
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let yaml = r#"
 /// builders:
@@ -165,10 +178,10 @@ pub fn from(input: String) -> Result<Image> {
 ///     target: /app
 /// "#;
 /// let image: Image = from_reader(yaml.as_bytes()).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     image,
 ///     Image {
-///         builders: vec![Builder {
+///         builders: vec![Stage {
 ///             name: Some(String::from("builder")),
 ///             from: ImageName{path: "ekidd/rust-musl-builder".into(), ..Default::default()}.into(),
 ///             copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
@@ -213,7 +226,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
     }
 }
 
-fn merge_extended_image(image: Extend<ImagePatch>) -> Result<Image> {
+fn merge_extended_image(image: ExtendImage) -> Result<Image> {
     image.merge(&mut LoadContext::new())
 }
 
@@ -223,16 +236,20 @@ fn merge_extended_image(image: Extend<ImagePatch>) -> Result<Image> {
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let image = Image {
-///     from: Some(ImageName {
-///         path: String::from("ubuntu"),
+///     stage: Stage {
+///         from: Some(ImageName {
+///             path: String::from("ubuntu"),
+///             ..Default::default()
+///         }.into()),
 ///         ..Default::default()
-///     }.into()),
+///     },
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerfile(&image).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     dockerfile,
 ///     "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\n# syntax=docker/dockerfile:1.7\n\n# runtime\nFROM ubuntu AS runtime\nUSER 1000:1000\n"
 /// );
@@ -258,13 +275,14 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let image = Image {
 ///     context: vec![String::from("/src")].into(),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     dockerfile,
 ///     "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\n**\n!/src\n"
 /// );
@@ -274,13 +292,14 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let image = Image {
 ///     ignore: vec![String::from("target")].into(),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     dockerfile,
 ///     "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\ntarget\n"
 /// );
@@ -290,6 +309,7 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let image = Image {
 ///     context: vec![String::from("/src")].into(),
@@ -297,7 +317,7 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     dockerfile,
 ///     "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\n**\n!/src\n/src/*.test.rs\n"
 /// );
@@ -337,6 +357,7 @@ pub fn generate_json_schema() -> String {
 #[cfg(test)]
 mod test {
     use super::*;
+    use pretty_assertions_sorted::assert_eq_sorted;
 
     #[test]
     fn yaml_to_dockerfile() {
@@ -375,7 +396,7 @@ mod test {
         let image: Image = from(yaml.into()).map_err(Error::from).unwrap();
         let dockerfile: String = generate_dockerfile(&image).unwrap();
 
-        assert_eq!(
+        assert_eq_sorted!(
             dockerfile,
             r#"# This file is generated by Dofigen v0.0.0
 # See https://github.com/lenra-io/dofigen
@@ -421,7 +442,7 @@ CMD ["/fwatchdog"]
 
         let dockerignore: String = generate_dockerignore(&image);
 
-        assert_eq!(dockerignore, "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\ntarget\ntest\n");
+        assert_eq_sorted!(dockerignore, "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\ntarget\ntest\n");
     }
 
     #[test]
@@ -440,10 +461,10 @@ artifacts:
   destination: /app
 "#;
         let image: Image = from(yaml.into()).unwrap();
-        assert_eq!(
+        assert_eq_sorted!(
             image,
             Image {
-                builders: vec![Builder {
+                builders: vec![Stage {
                     name: Some(String::from("builder")),
                     from: ImageName {
                         path: String::from("ekidd/rust-musl-builder"),
@@ -462,15 +483,18 @@ artifacts:
                     ..Default::default()
                 }]
                 .into(),
-                artifacts: vec![Artifact {
-                    builder: String::from("builder"),
-                    source: String::from(
-                        "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-                    ),
-                    target: String::from("/app"),
+                stage: Stage {
+                    artifacts: vec![Artifact {
+                        builder: String::from("builder"),
+                        source: String::from(
+                            "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
+                        ),
+                        target: String::from("/app"),
+                        ..Default::default()
+                    }]
+                    .into(),
                     ..Default::default()
-                }]
-                .into(),
+                },
                 ..Default::default()
             }
         );
@@ -489,7 +513,7 @@ run:
         let image: Image = from(yaml.into()).unwrap();
         let dockerfile: String = generate_dockerfile(&image).unwrap();
 
-        assert_eq!(
+        assert_eq_sorted!(
             dockerfile,
             r#"# This file is generated by Dofigen v0.0.0
 # See https://github.com/lenra-io/dofigen
@@ -535,7 +559,7 @@ test: Fake value
         // Check the error message
         let error = result.unwrap_err();
         let expected = "Error while deserializing the document at line 3, column 1: unknown field `test`, expected one of ";
-        assert_eq!(
+        assert_eq_sorted!(
             &error.to_string().as_str()[..expected.len()],
             expected,
             "Wrong error message"
@@ -600,7 +624,7 @@ ignore:
         let image: Image = from(yaml.into()).unwrap();
         let dockerfile: String = generate_dockerfile(&image).unwrap();
 
-        assert_eq!(
+        assert_eq_sorted!(
             dockerfile,
             r#"# This file is generated by Dofigen v0.0.0
 # See https://github.com/lenra-io/dofigen

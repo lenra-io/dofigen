@@ -243,7 +243,7 @@ mod test {
         #[test]
         fn deserialize_present_field() {
             let ret: TestStruct = serde_yaml::from_str("test: test").unwrap();
-            assert_eq!(
+            assert_eq_sorted!(
                 ret,
                 TestStruct {
                     test: Some("test".into())
@@ -254,7 +254,7 @@ mod test {
         #[test]
         fn deserialize_missing_field() {
             let ret: TestStruct = serde_yaml::from_str("").unwrap();
-            assert_eq!(
+            assert_eq_sorted!(
                 ret,
                 TestStruct {
                     test: OptionalField::Missing
@@ -265,7 +265,7 @@ mod test {
         #[test]
         fn deserialize_null_field() {
             let ret: TestStruct = serde_yaml::from_str("test: null").unwrap();
-            assert_eq!(
+            assert_eq_sorted!(
                 ret,
                 TestStruct {
                     test: OptionalField::Null
@@ -305,7 +305,7 @@ mod test {
 
             let merged = base.merge(extended);
 
-            assert_eq!(
+            assert_eq_sorted!(
                 merged,
                 Image {
                     from: Some(

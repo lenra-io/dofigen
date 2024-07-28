@@ -72,6 +72,8 @@ impl_ScriptRunner!(for Stage, Root);
 
 #[cfg(test)]
 mod test {
+    use pretty_assertions_sorted::assert_eq_sorted;
+
     use super::*;
     use crate::User;
 
@@ -81,7 +83,7 @@ mod test {
             run: vec!["echo Hello".into()].into(),
             ..Default::default()
         };
-        assert_eq!(
+        assert_eq_sorted!(
             builder
                 .to_run_inscruction(&GenerationContext::default())
                 .unwrap(),
@@ -98,7 +100,7 @@ mod test {
         let builder = Stage {
             ..Default::default()
         };
-        assert_eq!(
+        assert_eq_sorted!(
             builder
                 .to_run_inscruction(&GenerationContext::default())
                 .unwrap(),
@@ -112,7 +114,7 @@ mod test {
             run: vec![].into(),
             ..Default::default()
         };
-        assert_eq!(
+        assert_eq_sorted!(
             builder
                 .to_run_inscruction(&GenerationContext::default())
                 .unwrap(),
@@ -131,7 +133,7 @@ mod test {
             user: Some(User::new("test")),
             ..Default::default()
         };
-        assert_eq!(
+        assert_eq_sorted!(
             builder.to_run_inscruction(&context).unwrap(),
             Some(DockerfileInsctruction {
                 command: "RUN".into(),
@@ -159,7 +161,7 @@ mod test {
             user: Some(User::new("1000")),
             ..Default::default()
         };
-        assert_eq!(
+        assert_eq_sorted!(
             builder.to_run_inscruction(&context).unwrap(),
             Some(DockerfileInsctruction {
                 command: "RUN".into(),
@@ -189,7 +191,7 @@ mod test {
             user: Some(User::new_without_group("1000")),
             ..Default::default()
         };
-        assert_eq!(
+        assert_eq_sorted!(
             builder.to_run_inscruction(&context).unwrap(),
             Some(DockerfileInsctruction {
                 command: "RUN".into(),

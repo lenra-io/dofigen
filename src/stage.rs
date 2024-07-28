@@ -5,43 +5,46 @@ use struct_patch::Patch;
 
 use crate::{
     dofigen_struct::Stage, generator::GenerationContext, script_runner::ScriptRunner, Error,
-    Extend, ImageName, Resource, Result, User,
+    ExtendImage, ImageName, ImagePatch, Resource, Result, User,
 };
 
 pub trait BaseStage: ScriptRunner {
     fn name(&self, context: &GenerationContext) -> String;
     fn from(&self, context: &GenerationContext) -> ImageName;
-    fn user(&self) -> Option<User>;
+    fn user(&self, context: &GenerationContext) -> Option<User>;
 }
 
 impl BaseStage for Stage {
     fn name(&self, context: &GenerationContext) -> String {
-        match self.name.as_ref() {
-            Some(name) => String::from(name),
-            _ => format!("builder-{}", context.previous_builders.len()),
-        }
+        self.name
+            .clone()
+            .unwrap_or_else(|| context.default_stage_name.clone())
     }
     fn from(&self, context: &GenerationContext) -> ImageName {
         self.from.clone().unwrap_or(context.default_from.clone())
     }
 
-    fn user(&self) -> Option<User> {
-        self.user.as_ref().map(|user| user.clone())
+    fn user(&self, context: &GenerationContext) -> Option<User> {
+        self.user.clone().or(context.user.clone())
     }
 }
 
-impl<'de, P> Extend<P>
+pub trait Extend<P>: Sized + DeserializeOwned
 where
-    P: DeserializeOwned,
+    P: DeserializeOwned + Default,
 {
-    pub fn merge<T>(self, context: &mut LoadContext) -> Result<T>
+    fn extend(&self) -> Vec<Resource>;
+
+    fn value(&self) -> P;
+
+    fn merge<T>(&self, context: &mut LoadContext) -> Result<T>
     where
         T: Patch<P> + DeserializeOwned + Default,
     {
-        let extends = self.extend.to_vec();
+        let extends = self.extend();
         if extends.is_empty() {
             let mut ret = T::default();
-            ret.apply(self.value);
+            ret.apply(self.value());
             return Ok(ret);
         }
 
@@ -56,8 +59,18 @@ where
         for patch in patchs {
             merged.apply(patch.into_patch());
         }
-        merged.apply(self.value);
+        merged.apply(self.value());
         Ok(merged)
+    }
+}
+
+impl Extend<ImagePatch> for ExtendImage {
+    fn extend(&self) -> Vec<Resource> {
+        self.extend.clone()
+    }
+
+    fn value(&self) -> ImagePatch {
+        self.value.clone()
     }
 }
 
@@ -142,6 +155,8 @@ impl User {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions_sorted::assert_eq_sorted;
+
     use crate::ImageName;
 
     use super::*;
@@ -156,7 +171,7 @@ mod tests {
             previous_builders: vec!["builder-0".into()],
             ..Default::default()
         });
-        assert_eq!(name, "my-builder");
+        assert_eq_sorted!(name, "my-builder");
     }
 
     #[test]
@@ -164,9 +179,10 @@ mod tests {
         let builder = Stage::default();
         let name = builder.name(&GenerationContext {
             previous_builders: vec!["builder-0".into(), "bob".into()],
+            default_stage_name: "builder-2".into(),
             ..Default::default()
         });
-        assert_eq!(name, "builder-2");
+        assert_eq_sorted!(name, "builder-2");
     }
 
     #[test]
@@ -181,8 +197,8 @@ mod tests {
             ),
             ..Default::default()
         };
-        let user = builder.user();
-        assert_eq!(
+        let user = builder.user(&GenerationContext::default());
+        assert_eq_sorted!(
             user,
             Some(User {
                 user: "my-user".into(),
@@ -194,8 +210,8 @@ mod tests {
     #[test]
     fn test_builder_user_without_user() {
         let builder = Stage::default();
-        let user = builder.user();
-        assert_eq!(user, None);
+        let user = builder.user(&GenerationContext::default());
+        assert_eq_sorted!(user, None);
     }
 
     #[test]
@@ -212,9 +228,10 @@ mod tests {
         };
         let name = stage.name(&GenerationContext {
             previous_builders: vec!["builder-0".into(), "bob".into(), "john".into()],
+            default_stage_name: "runtime".into(),
             ..Default::default()
         });
-        assert_eq!(name, "runtime");
+        assert_eq_sorted!(name, "runtime");
     }
 
     #[test]
@@ -236,8 +253,8 @@ mod tests {
             ),
             ..Default::default()
         };
-        let user = stage.user();
-        assert_eq!(
+        let user = stage.user(&GenerationContext::default());
+        assert_eq_sorted!(
             user,
             Some(User {
                 user: "my-user".into(),
@@ -258,8 +275,11 @@ mod tests {
             ),
             ..Default::default()
         };
-        let user = stage.user();
-        assert_eq!(
+        let user = stage.user(&GenerationContext {
+            user: Some(User::new("1000")),
+            ..Default::default()
+        });
+        assert_eq_sorted!(
             user,
             Some(User {
                 user: "1000".into(),

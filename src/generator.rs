@@ -241,7 +241,7 @@ impl DockerfileGenerator for Stage {
         context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let context = GenerationContext {
-            user: self.user().into(),
+            user: self.user(context),
             ..context.clone()
         };
         let stage_name = self.name(&context);
@@ -295,7 +295,7 @@ impl DockerfileGenerator for Stage {
                 lines.push(DockerfileLine::Instruction(instruction));
             }
         }
-        if let Some(user) = self.user() {
+        if let Some(user) = self.user(&context) {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "USER".into(),
                 content: user.to_string(),
@@ -315,7 +315,7 @@ impl DockerfileGenerator for Image {
         context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let mut context: GenerationContext = GenerationContext {
-            user: self.stage.user().into(),
+            user: None,
             default_stage_name: String::new(),
             default_from: self.stage.from(context).clone(),
             previous_builders: vec![],
@@ -330,6 +330,7 @@ impl DockerfileGenerator for Image {
             lines.push(DockerfileLine::Empty);
             context.previous_builders.push(builder.name(&context));
         }
+        context.user = Some(User::new("1000"));
         context.default_stage_name = "runtime".into();
         context.default_from = ImageName {
             path: "scratch".into(),
@@ -419,6 +420,8 @@ mod test {
     use crate::*;
 
     mod builder {
+        use pretty_assertions_sorted::assert_eq_sorted;
+
         use super::*;
 
         #[test]
@@ -429,9 +432,10 @@ mod test {
             };
             let name = builder.name(&GenerationContext {
                 previous_builders: vec!["builder-0".into()],
+                default_stage_name: "builder-1".into(),
                 ..Default::default()
             });
-            assert_eq!(name, "my-builder");
+            assert_eq_sorted!(name, "my-builder");
         }
 
         #[test]
@@ -439,9 +443,10 @@ mod test {
             let builder = Stage::default();
             let name = builder.name(&GenerationContext {
                 previous_builders: vec!["builder-0".into(), "bob".into()],
+                default_stage_name: "builder-2".into(),
                 ..Default::default()
             });
-            assert_eq!(name, "builder-2");
+            assert_eq_sorted!(name, "builder-2");
         }
 
         #[test]
@@ -450,8 +455,8 @@ mod test {
                 user: Some(User::new_without_group("my-user").into()),
                 ..Default::default()
             };
-            let user = builder.user();
-            assert_eq!(
+            let user = builder.user(&GenerationContext::default());
+            assert_eq_sorted!(
                 user,
                 Some(User {
                     user: "my-user".into(),
@@ -463,12 +468,14 @@ mod test {
         #[test]
         fn user_without_user() {
             let builder = Stage::default();
-            let user = builder.user();
-            assert_eq!(user, None);
+            let user = builder.user(&GenerationContext::default());
+            assert_eq_sorted!(user, None);
         }
     }
 
     mod image_name {
+        use pretty_assertions_sorted::assert_eq_sorted;
+
         use super::*;
 
         #[test]
@@ -491,7 +498,7 @@ mod test {
                 default_stage_name: "runtime".into(),
                 ..Default::default()
             });
-            assert_eq!(name, "runtime");
+            assert_eq_sorted!(name, "runtime");
         }
 
         #[test]
@@ -510,8 +517,11 @@ mod test {
                 },
                 ..Default::default()
             };
-            let user = image.stage.user();
-            assert_eq!(
+            let user = image.stage.user(&GenerationContext {
+                user: Some(User::new("1000")),
+                ..Default::default()
+            });
+            assert_eq_sorted!(
                 user,
                 Some(User {
                     user: String::from("my-user"),
@@ -535,8 +545,11 @@ mod test {
                 },
                 ..Default::default()
             };
-            let user = image.stage.user();
-            assert_eq!(
+            let user = image.stage.user(&GenerationContext {
+                user: Some(User::new("1000")),
+                ..Default::default()
+            });
+            assert_eq_sorted!(
                 user,
                 Some(User {
                     user: String::from("1000"),

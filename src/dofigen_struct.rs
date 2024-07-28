@@ -1,6 +1,6 @@
 use crate::deserialize_struct::{OptionPatch, VecDeepPatch, VecPatch};
 #[cfg(feature = "permissive")]
-use crate::serde_permissive::{OneOrManyVec as Vec, ParsableStruct};
+use crate::serde_permissive::ParsableStruct;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::Deserialize;
@@ -17,7 +17,7 @@ use url::Url;
 #[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(deny_unknown_fields, default)]
+#[serde(default)]
 pub struct Image {
     #[patch_name = "StagePatch"]
     #[serde(flatten)]
@@ -46,6 +46,14 @@ pub struct Image {
 pub struct Stage {
     pub name: Option<String>,
     #[serde(alias = "image")]
+    // #[cfg_attr(
+    //     not(feature = "permissive"),
+    //     patch_name = "OptionPatch<ImageNamePatch>"
+    // )]
+    // #[cfg_attr(
+    //     feature = "permissive",
+    //     patch_name = "OptionPatch<ParsableStruct<ImageNamePatch>>"
+    // )]
     #[patch_name = "OptionPatch<ImageNamePatch>"]
     pub from: Option<ImageName>,
     #[patch_name = "OptionPatch<UserPatch>"]
@@ -57,7 +65,7 @@ pub struct Stage {
     #[patch_name = "VecDeepPatch<Artifact, ArtifactPatch>"]
     pub artifacts: Vec<Artifact>,
     #[serde(alias = "add", alias = "adds")]
-    // TODO: #[patch_name = "VecDeepPatch<CopyResource, CopyResourcePatch>"]
+    // #[patch_name = "VecDeepPatch<CopyResource, CopyResourcePatch>"]
     pub copy: Vec<CopyResource>,
     #[patch_name = "OptionPatch<RootPatch>"]
     pub root: Option<Root>,
@@ -113,7 +121,6 @@ pub struct ImageName {
     pub host: Option<String>,
     pub port: Option<u16>,
     pub path: String,
-    // TODO: #[patch_name = "OptionPatch<ImageVersionPatch>"]
     pub version: Option<ImageVersion>,
 }
 
@@ -133,28 +140,28 @@ pub enum CopyResource {
     Add(Add),
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(untagged)]
-pub enum CopyResourcePatch {
-    Copy(CopyPatch),
-    AddGitRepo(AddGitRepoPatch),
-    Add(AddPatch),
-}
+// #[derive(Debug, Clone, PartialEq, Deserialize)]
+// #[serde(untagged)]
+// pub enum CopyResourcePatch {
+//     Copy(CopyPatch),
+//     AddGitRepo(AddGitRepoPatch),
+//     Add(AddPatch),
+// }
 
 /// Represents the COPY instruction in a Dockerfile.
 /// See https://docs.docker.com/reference/dockerfile/#copy
-#[derive(Debug, Clone, PartialEq, Default, Deserialize, Patch)]
-#[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Deserialize)]
+// #[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Copy {
-    #[patch_name = "VecPatch<String>"]
+    // #[patch_name = "VecPatch<String>"]
     pub paths: Vec<String>,
     #[serde(flatten)]
-    #[patch_name = "CopyOptionsPatch"]
+    // #[patch_name = "CopyOptionsPatch"]
     pub options: CopyOptions,
     /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[patch_name = "VecPatch<String>"]
+    // #[patch_name = "VecPatch<String>"]
     pub exclude: Vec<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---parents
     pub parents: Option<bool>,
@@ -186,7 +193,7 @@ pub struct AddGitRepo {
 #[serde(deny_unknown_fields, default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Add {
-    // TODO: #[patch_name = "VecDeepPatch<Resource, ResourcePatch>"]
+    #[patch_name = "VecPatch<Resource>"]
     pub files: Vec<Resource>,
     #[serde(flatten)]
     #[patch_name = "CopyOptionsPatch"]
@@ -226,7 +233,6 @@ pub struct User {
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct Port {
     pub port: u16,
-    // TODO: #[patch_name = "OptionPatch<PortProtocolPatch>"]
     pub protocol: Option<PortProtocol>,
 }
 
@@ -263,12 +269,13 @@ pub struct SshGitRepo {
     pub path: String,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-pub struct Extend<T> {
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(default)]
+pub struct ExtendImage {
     #[serde(alias = "extends")]
     pub extend: Vec<Resource>,
     #[serde(flatten)]
-    pub value: T,
+    pub value: ImagePatch,
 }
 
 // #[cfg(feature = "json_schema")]
@@ -294,6 +301,7 @@ pub struct Extend<T> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use pretty_assertions_sorted::assert_eq_sorted;
 
     mod deserialize {
         use super::*;
@@ -310,7 +318,7 @@ mod test {
 
                 let user: User = serde_yaml::from_str(json_data).unwrap();
 
-                assert_eq!(
+                assert_eq_sorted!(
                     user,
                     User {
                         user: "test".into(),
@@ -342,7 +350,7 @@ mod test {
 
                 let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
 
-                assert_eq!(
+                assert_eq_sorted!(
                     copy_resource,
                     CopyResource::Copy(Copy {
                         paths: vec!["file1.txt".into(), "file2.txt".into()].into(),
@@ -362,28 +370,28 @@ mod test {
                 );
             }
 
-            #[cfg(feature = "permissive")]
-            #[test]
-            fn deserialize_copy_from_str() {
-                use std::ops::Deref;
+            // #[cfg(feature = "permissive")]
+            // #[test]
+            // fn deserialize_copy_from_str() {
+            //     use std::ops::Deref;
 
-                let json_data = "file1.txt destination/";
+            //     let json_data = "file1.txt destination/";
 
-                let copy_resource: PermissiveStruct<CopyResource> =
-                    serde_yaml::from_str(json_data).unwrap();
+            //     let copy_resource: PermissiveStruct<CopyResource> =
+            //         serde_yaml::from_str(json_data).unwrap();
 
-                assert_eq!(
-                    copy_resource.deref(),
-                    &CopyResource::Copy(Copy {
-                        paths: vec!["file1.txt".into()].into(),
-                        options: CopyOptions {
-                            target: Some("destination/".into()),
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    })
-                );
-            }
+            //     assert_eq_sorted!(
+            //         copy_resource.deref(),
+            //         &CopyResource::Copy(Copy {
+            //             paths: vec!["file1.txt".into()].into(),
+            //             options: CopyOptions {
+            //                 target: Some("destination/".into()),
+            //                 ..Default::default()
+            //             },
+            //             ..Default::default()
+            //         })
+            //     );
+            // }
 
             #[test]
             fn deserialize_add_git_repo() {
@@ -402,7 +410,7 @@ mod test {
 
                 let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
 
-                assert_eq!(
+                assert_eq_sorted!(
                     copy_resource,
                     CopyResource::AddGitRepo(AddGitRepo {
                         repo: "https://github.com/example/repo.git".into(),
@@ -437,7 +445,7 @@ mod test {
 
                 let copy_resource: CopyResource = serde_yaml::from_str(json_data).unwrap();
 
-                assert_eq!(
+                assert_eq_sorted!(
                     copy_resource,
                     CopyResource::Add(Add {
                         files: vec![

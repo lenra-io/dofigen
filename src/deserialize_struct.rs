@@ -1,17 +1,13 @@
-#[cfg(feature = "permissive")]
-use crate::serde_permissive::{OneOrManyVec as Vec, ParsableStruct};
+// #[cfg(feature = "permissive")]
+// use crate::serde_permissive::{OneOrManyVec as Vec, ParsableStruct};
 use serde::{
     de::{self, DeserializeOwned, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
 use serde_yaml;
 use serde_yaml::Value;
-use std::{collections::BTreeSet, fmt};
-use std::{
-    collections::{BTreeMap, HashMap},
-    ops::Deref,
-    u16, usize,
-};
+use std::fmt;
+use std::{collections::BTreeMap, ops::Deref, usize};
 use struct_patch::Patch;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -120,6 +116,15 @@ where
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum VecPatchCommand<T> {
+    ReplaceAll(Vec<T>),
+    Replace(usize, T),
+    InsertBefore(usize, Vec<T>),
+    InsertAfter(usize, Vec<T>),
+    Append(Vec<T>),
+}
+
 /// Patch for Vec<T> that handle some commands based on the position:
 /// - `_` to replace the whole list
 /// - `+` to append to the list
@@ -128,10 +133,15 @@ where
 /// - `+n` to prepend to the nth element
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct VecPatch<T> {
-    pub reset: bool,
-    pub replaces: BTreeMap<u16, Vec<T>>,
-    pub prepends: BTreeMap<u16, Vec<T>>,
-    pub appends: BTreeMap<u16, Vec<T>>,
+    commands: Vec<VecPatchCommand<T>>,
+}
+
+impl<T> From<Vec<T>> for VecPatch<T> {
+    fn from(value: Vec<T>) -> Self {
+        Self {
+            commands: vec![VecPatchCommand::ReplaceAll(value)],
+        }
+    }
 }
 
 impl<'de, T> Deserialize<'de> for VecPatch<T>
@@ -172,40 +182,48 @@ where
             Ok(replacer.into_patch())
         }
 
-        fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
         where
             A: MapAccess<'de>,
         {
             let mut patch: VecPatch<T> = Vec::new_empty_patch();
-            // let map_de: de::value::MapAccessDeserializer<A> = de::value::MapAccessDeserializer::new(map);
-            let hash_map: HashMap<StringOrNumber, Vec<T>> =
-                Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
-            for (key, values) in hash_map {
-                println!("{:?} => {}", key, values.len());
+
+            while let Some(key) = map.next_key()? {
                 match key {
                     StringOrNumber::String(key) => match key.as_str() {
                         "_" => {
-                            patch.reset = true;
-                            patch.appends.insert(0, values.to_vec());
+                            patch
+                                .commands
+                                .push(VecPatchCommand::ReplaceAll(map.next_value()?));
                         }
                         "+" => {
-                            patch.appends.insert(u16::MAX, values.to_vec());
+                            patch
+                                .commands
+                                .push(VecPatchCommand::Append(map.next_value()?));
                         }
                         key => {
                             if key.starts_with('+') {
-                                let pos = key[..key.len() - 1].parse::<u16>().unwrap();
-                                patch.appends.insert(pos, values.to_vec());
+                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
+                                patch
+                                    .commands
+                                    .push(VecPatchCommand::InsertBefore(pos, map.next_value()?));
                             } else if key.ends_with('+') {
-                                let pos = key[..key.len() - 1].parse::<u16>().unwrap();
-                                patch.prepends.insert(pos, values.to_vec());
+                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
+                                patch
+                                    .commands
+                                    .push(VecPatchCommand::InsertAfter(pos, map.next_value()?));
                             } else {
-                                let pos = key.parse::<u16>().unwrap();
-                                patch.replaces.insert(pos, values.to_vec());
+                                let pos = key.parse::<usize>().unwrap();
+                                patch
+                                    .commands
+                                    .push(VecPatchCommand::Replace(pos, map.next_value()?));
                             }
                         }
                     },
                     StringOrNumber::Number(pos) => {
-                        patch.replaces.insert(pos as u16, values.to_vec());
+                        patch
+                            .commands
+                            .push(VecPatchCommand::Replace(pos, map.next_value()?));
                     }
                 }
             }
@@ -230,164 +248,25 @@ where
     T: Clone,
 {
     fn apply(&mut self, patch: VecPatch<T>) {
-        if patch.reset {
-            self.clear();
-        }
-        // initial array length
-        let initial_len = self.len() as u16;
-        // save the number of elements added before the positions
-        let mut adapted_positions: Vec<u16> = vec![0; self.len()];
-        // save the current position and corresponding adapted position to avoid recomputing it
-        let mut current_position: (u16, u16) = (0, 0);
-
-        // add the prepends
-        for (pos, elements) in patch.prepends {
-            if pos > initial_len {
-                panic!("Position {} is out of bounds", pos);
-            }
-            for i in current_position.0..pos {
-                current_position.0 = i;
-                current_position.1 += adapted_positions[(i + 1) as usize];
-            }
-            let usize_pos = current_position.1 as usize;
-            let added = elements.len() as u16;
-            self.splice(usize_pos..usize_pos, elements.into_iter());
-            current_position.1 += added;
-            adapted_positions[pos as usize] += added;
-        }
-
-        // add the replaces
-        if initial_len > 0 {
-            current_position = (0, adapted_positions[0]);
-        }
-        for (pos, element) in patch.replaces {
-            if pos >= initial_len {
-                panic!("Position {} is out of bounds", pos);
-            }
-            for i in current_position.0..pos {
-                current_position.0 = i;
-                current_position.1 += adapted_positions[(i + 1) as usize];
-            }
-            let usize_pos = current_position.1 as usize;
-            let added = element.len() as u16;
-            self.splice(usize_pos..usize_pos + 1, element.into_iter());
-            if pos + 1 < initial_len {
-                adapted_positions[(pos + 1) as usize] = added;
-            } else {
-                adapted_positions.push(added);
-            }
-        }
-
-        // add the appends
-        if initial_len > 0 {
-            current_position = (0, adapted_positions[0]);
-        }
-        for (pos, elements) in patch.appends {
-            let added = elements.len() as u16;
-            if pos == u16::MAX {
-                self.extend(elements.into_iter());
-                current_position.1 += added;
-                continue;
-            }
-            if pos > initial_len {
-                panic!("Position {} is out of bounds", pos);
-            }
-            for i in current_position.0..pos {
-                current_position.0 = i;
-                current_position.1 += adapted_positions[(i + 1) as usize];
-            }
-            let usize_pos = current_position.1 as usize + 1;
-            let added = elements.len() as u16;
-            self.splice(usize_pos..usize_pos, elements.into_iter());
-            if pos + 1 < initial_len {
-                adapted_positions[(pos + 1) as usize] = added;
-            } else {
-                adapted_positions.push(added);
-            }
-        }
-    }
-
-    fn into_patch(self) -> VecPatch<T> {
-        let mut p = Self::new_empty_patch();
-
-        p.reset = true;
-        p.appends.insert(u16::MAX, self.clone());
-
-        p
-    }
-
-    fn into_patch_by_diff(self, previous_struct: Self) -> VecPatch<T> {
-        todo!()
-    }
-
-    fn new_empty_patch() -> VecPatch<T> {
-        VecPatch {
-            reset: false,
-            replaces: BTreeMap::new(),
-            appends: BTreeMap::new(),
-            prepends: BTreeMap::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum VecPatchCommand<T, P>
-where
-    T: Clone + Patch<P>,
-{
-    ReplaceAll(Vec<T>),
-    Replace(usize, T),
-    Patch(usize, P),
-    InsertBefore(usize, Vec<T>),
-    InsertAfter(usize, Vec<T>),
-    Append(Vec<T>),
-}
-
-/// Patch for Vec<T> that handle some commands based on the position:
-/// - `_` to replace the whole list
-/// - `+` to append to the list
-/// - `n` to replace the nth element
-/// - `n<` to patch the nth element
-/// - `n+` to append to the nth element
-/// - `+n` to prepend to the nth element
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct VecDeepPatch<T, P>
-where
-    T: Clone + Patch<P>,
-{
-    commands: Vec<VecPatchCommand<T, P>>,
-}
-
-impl<T, P> Patch<VecDeepPatch<T, P>> for Vec<T>
-where
-    T: Clone + Patch<P>,
-    P: Clone,
-{
-    fn apply(&mut self, patch: VecDeepPatch<T, P>) {
         let mut commands = patch.commands.clone();
         commands.sort_by(|a, b| match (a, b) {
             (VecPatchCommand::ReplaceAll(_), _) => std::cmp::Ordering::Less,
             (_, VecPatchCommand::ReplaceAll(_)) => std::cmp::Ordering::Greater,
             (VecPatchCommand::InsertBefore(a, _), VecPatchCommand::InsertBefore(b, _))
-            | (
-                VecPatchCommand::Replace(a, _) | VecPatchCommand::Patch(a, _),
-                VecPatchCommand::Replace(b, _) | VecPatchCommand::Patch(b, _),
-            )
+            | (VecPatchCommand::Replace(a, _), VecPatchCommand::Replace(b, _))
             | (VecPatchCommand::InsertAfter(a, _), VecPatchCommand::InsertAfter(b, _)) => a.cmp(b),
-            (
-                VecPatchCommand::Replace(a, _) | VecPatchCommand::Patch(a, _),
-                VecPatchCommand::InsertAfter(b, _),
-            ) => match a.cmp(b) {
-                std::cmp::Ordering::Equal => std::cmp::Ordering::Less,
-                other => other,
-            },
-            (
-                VecPatchCommand::InsertAfter(a, _),
-                VecPatchCommand::Replace(b, _) | VecPatchCommand::Patch(b, _),
-            ) => match a.cmp(b) {
-                std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
-                other => other,
-            },
+            (VecPatchCommand::Replace(a, _), VecPatchCommand::InsertAfter(b, _)) => {
+                match a.cmp(b) {
+                    std::cmp::Ordering::Equal => std::cmp::Ordering::Less,
+                    other => other,
+                }
+            }
+            (VecPatchCommand::InsertAfter(a, _), VecPatchCommand::Replace(b, _)) => {
+                match a.cmp(b) {
+                    std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
+                    other => other,
+                }
+            }
             (VecPatchCommand::InsertBefore(_, _), _) => std::cmp::Ordering::Less,
             (_, VecPatchCommand::InsertBefore(_, _)) => std::cmp::Ordering::Greater,
             (VecPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
@@ -427,26 +306,6 @@ where
                         current_position.1 += adapted_positions[i + 1];
                     }
                     self[current_position.1] = elements;
-                    last_modified_position = pos;
-                }
-                VecPatchCommand::Patch(pos, element) => {
-                    if reseted {
-                        panic!("Cannot patch element at position {} after a reset", pos);
-                    }
-                    if pos >= initial_len {
-                        panic!("Position {} is out of bounds", pos);
-                    }
-                    if pos == last_modified_position {
-                        panic!(
-                            "Cannot patch element at position {} after another modification on it",
-                            pos
-                        );
-                    }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
-                    }
-                    self[current_position.1].apply(element);
                     last_modified_position = pos;
                 }
                 VecPatchCommand::InsertBefore(pos, elements) => {
@@ -498,9 +357,205 @@ where
         }
     }
 
+    fn into_patch(self) -> VecPatch<T> {
+        VecPatch {
+            commands: vec![VecPatchCommand::ReplaceAll(self)],
+        }
+    }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> VecPatch<T> {
+        todo!()
+    }
+
+    fn new_empty_patch() -> VecPatch<T> {
+        VecPatch { commands: vec![] }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum VecDeepPatchCommand<T, P>
+where
+    T: Clone + Patch<P>,
+{
+    ReplaceAll(Vec<T>),
+    Replace(usize, T),
+    Patch(usize, P),
+    InsertBefore(usize, Vec<T>),
+    InsertAfter(usize, Vec<T>),
+    Append(Vec<T>),
+}
+
+/// Patch for Vec<T> that handle some commands based on the position:
+/// - `_` to replace the whole list
+/// - `+` to append to the list
+/// - `n` to replace the nth element
+/// - `n<` to patch the nth element
+/// - `n+` to append to the nth element
+/// - `+n` to prepend to the nth element
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct VecDeepPatch<T, P>
+where
+    T: Clone + Patch<P>,
+{
+    commands: Vec<VecDeepPatchCommand<T, P>>,
+}
+
+impl<T, P> From<Vec<T>> for VecDeepPatch<T, P>
+where
+    T: Clone + Patch<P>,
+{
+    fn from(value: Vec<T>) -> Self {
+        Self {
+            commands: vec![VecDeepPatchCommand::ReplaceAll(value)],
+        }
+    }
+}
+
+impl<T, P> Patch<VecDeepPatch<T, P>> for Vec<T>
+where
+    T: Clone + Patch<P>,
+    P: Clone,
+{
+    fn apply(&mut self, patch: VecDeepPatch<T, P>) {
+        let mut commands = patch.commands.clone();
+        commands.sort_by(|a, b| match (a, b) {
+            (VecDeepPatchCommand::ReplaceAll(_), _) => std::cmp::Ordering::Less,
+            (_, VecDeepPatchCommand::ReplaceAll(_)) => std::cmp::Ordering::Greater,
+            (VecDeepPatchCommand::InsertBefore(a, _), VecDeepPatchCommand::InsertBefore(b, _))
+            | (
+                VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
+                VecDeepPatchCommand::Replace(b, _) | VecDeepPatchCommand::Patch(b, _),
+            )
+            | (VecDeepPatchCommand::InsertAfter(a, _), VecDeepPatchCommand::InsertAfter(b, _)) => {
+                a.cmp(b)
+            }
+            (
+                VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
+                VecDeepPatchCommand::InsertAfter(b, _),
+            ) => match a.cmp(b) {
+                std::cmp::Ordering::Equal => std::cmp::Ordering::Less,
+                other => other,
+            },
+            (
+                VecDeepPatchCommand::InsertAfter(a, _),
+                VecDeepPatchCommand::Replace(b, _) | VecDeepPatchCommand::Patch(b, _),
+            ) => match a.cmp(b) {
+                std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
+                other => other,
+            },
+            (VecDeepPatchCommand::InsertBefore(_, _), _) => std::cmp::Ordering::Less,
+            (_, VecDeepPatchCommand::InsertBefore(_, _)) => std::cmp::Ordering::Greater,
+            (VecDeepPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
+            (_, VecDeepPatchCommand::Append(_)) => std::cmp::Ordering::Less,
+        });
+        let mut reseted = false;
+        let mut last_modified_position: usize = usize::MAX;
+        // initial array length
+        let initial_len = self.len();
+        // save the number of elements added before the positions
+        let mut adapted_positions: Vec<usize> = vec![0; self.len()];
+        // save the current position and corresponding adapted position to avoid recomputing it
+        let mut current_position: (usize, usize) = (0, 0);
+
+        for command in commands {
+            match command {
+                VecDeepPatchCommand::ReplaceAll(elements) => {
+                    if reseted {
+                        panic!("Cannot replace the list twice");
+                    }
+                    reseted = true;
+                    self.clear();
+                    self.extend(elements.into_iter());
+                }
+                VecDeepPatchCommand::Replace(pos, elements) => {
+                    if reseted {
+                        panic!("Cannot replace element at position {} after a reset", pos);
+                    }
+                    if pos >= initial_len {
+                        panic!("Position {} is out of bounds", pos);
+                    }
+                    if pos == last_modified_position {
+                        panic!("Cannot replace element at position {} after another modification on it", pos);
+                    }
+                    for i in current_position.0..pos {
+                        current_position.0 = i;
+                        current_position.1 += adapted_positions[i + 1];
+                    }
+                    self[current_position.1] = elements;
+                    last_modified_position = pos;
+                }
+                VecDeepPatchCommand::Patch(pos, element) => {
+                    if reseted {
+                        panic!("Cannot patch element at position {} after a reset", pos);
+                    }
+                    if pos >= initial_len {
+                        panic!("Position {} is out of bounds", pos);
+                    }
+                    if pos == last_modified_position {
+                        panic!(
+                            "Cannot patch element at position {} after another modification on it",
+                            pos
+                        );
+                    }
+                    for i in current_position.0..pos {
+                        current_position.0 = i;
+                        current_position.1 += adapted_positions[i + 1];
+                    }
+                    self[current_position.1].apply(element);
+                    last_modified_position = pos;
+                }
+                VecDeepPatchCommand::InsertBefore(pos, elements) => {
+                    if reseted {
+                        panic!(
+                            "Cannot insert before element at position {} after a reset",
+                            pos
+                        );
+                    }
+                    if pos >= initial_len {
+                        panic!("Position {} is out of bounds", pos);
+                    }
+                    for i in current_position.0..pos {
+                        current_position.0 = i;
+                        current_position.1 += adapted_positions[i + 1];
+                    }
+                    let added = elements.len();
+                    self.splice(current_position.1..current_position.1, elements);
+                    current_position.1 += added;
+                    adapted_positions[pos as usize] += added;
+                }
+                VecDeepPatchCommand::InsertAfter(pos, elements) => {
+                    if reseted {
+                        panic!(
+                            "Cannot insert after element at position {} after a reset",
+                            pos
+                        );
+                    }
+                    if pos >= initial_len {
+                        panic!("Position {} is out of bounds", pos);
+                    }
+                    for i in current_position.0..pos {
+                        current_position.0 = i;
+                        current_position.1 += adapted_positions[i + 1];
+                    }
+                    let usize_pos = current_position.1 + 1;
+                    let added = elements.len();
+                    self.splice(usize_pos..usize_pos, elements);
+                    if pos + 1 < initial_len {
+                        adapted_positions[(pos + 1) as usize] = added;
+                    } else {
+                        adapted_positions.push(added);
+                    }
+                }
+                VecDeepPatchCommand::Append(elements) => {
+                    self.extend(elements);
+                }
+            }
+        }
+    }
+
     fn into_patch(self) -> VecDeepPatch<T, P> {
         VecDeepPatch {
-            commands: vec![VecPatchCommand::ReplaceAll(self)],
+            commands: vec![VecDeepPatchCommand::ReplaceAll(self)],
         }
     }
 
@@ -513,34 +568,12 @@ where
     }
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(untagged)]
-enum OneOrVec<T>
-where
-    T: Clone,
-{
-    One(T),
-    Vec(Vec<T>),
-}
-
-impl<T> OneOrVec<T>
-where
-    T: Clone,
-{
-    pub fn to_vec(self) -> Vec<T> {
-        match self {
-            OneOrVec::One(value) => vec![value],
-            OneOrVec::Vec(values) => values,
-        }
-    }
-}
-
 impl<'de, T, P> Deserialize<'de> for VecDeepPatch<T, P>
 where
     T: Clone + DeserializeOwned + Default + Patch<P>,
     P: Clone + DeserializeOwned,
 {
-    fn deserialize<D>(deserializer: D) -> Result<VecDeepPatch<T, P>, D::Error>
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -576,61 +609,54 @@ where
             Ok(replacer.into_patch())
         }
 
-        fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
         where
             A: MapAccess<'de>,
         {
             let mut patch: VecDeepPatch<T, P> = Vec::new_empty_patch();
 
-            let hash_map: HashMap<StringOrNumber, OneOrVec<P>> =
-                Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
-            for (key, value) in hash_map {
+            while let Some(key) = map.next_key()? {
                 match key {
                     StringOrNumber::String(key) => match key.as_str() {
                         "_" => {
-                            patch.commands.push(VecPatchCommand::ReplaceAll(
-                                value.to_vec().iter().map(from_patch::<T, P>).collect(),
-                            ));
+                            patch
+                                .commands
+                                .push(VecDeepPatchCommand::ReplaceAll(map.next_value()?));
                         }
                         "+" => {
-                            patch.commands.push(VecPatchCommand::Append(
-                                value.to_vec().iter().map(from_patch::<T, P>).collect(),
-                            ));
+                            patch
+                                .commands
+                                .push(VecDeepPatchCommand::Append(map.next_value()?));
                         }
                         key => {
                             if key.starts_with('+') {
                                 let pos = key[..key.len() - 1].parse::<usize>().unwrap();
-                                patch.commands.push(VecPatchCommand::InsertBefore(
+                                patch.commands.push(VecDeepPatchCommand::InsertBefore(
                                     pos,
-                                    value.to_vec().iter().map(from_patch::<T, P>).collect(),
+                                    map.next_value()?,
                                 ));
                             } else if key.ends_with('+') {
                                 let pos = key[..key.len() - 1].parse::<usize>().unwrap();
-                                patch.commands.push(VecPatchCommand::InsertAfter(
-                                    pos,
-                                    value.to_vec().iter().map(from_patch::<T, P>).collect(),
-                                ));
+                                patch
+                                    .commands
+                                    .push(VecDeepPatchCommand::InsertAfter(pos, map.next_value()?));
                             } else if key.ends_with('<') {
                                 let pos = key[..key.len() - 1].parse::<usize>().unwrap();
-                                if let OneOrVec::One(el) = value {
-                                    patch.commands.push(VecPatchCommand::Patch(pos, el));
-                                }
+                                patch
+                                    .commands
+                                    .push(VecDeepPatchCommand::Patch(pos, map.next_value()?));
                             } else {
                                 let pos = key.parse::<usize>().unwrap();
-                                if let OneOrVec::One(el) = value {
-                                    patch
-                                        .commands
-                                        .push(VecPatchCommand::Replace(pos, from_patch(&el)));
-                                }
+                                patch
+                                    .commands
+                                    .push(VecDeepPatchCommand::Replace(pos, map.next_value()?));
                             }
                         }
                     },
                     StringOrNumber::Number(pos) => {
-                        if let OneOrVec::One(el) = value {
-                            patch
-                                .commands
-                                .push(VecPatchCommand::Replace(pos, from_patch(&el)));
-                        }
+                        patch
+                            .commands
+                            .push(VecDeepPatchCommand::Replace(pos, map.next_value()?));
                     }
                 }
             }
@@ -641,16 +667,6 @@ where
     let visitor: VecDeepPatchVisitor<T, P> = VecDeepPatchVisitor(None);
 
     deserializer.deserialize_any(visitor)
-}
-
-fn from_patch<T, P>(patch: &P) -> T
-where
-    T: Patch<P> + Default + Clone,
-    P: Clone,
-{
-    let mut value = T::default();
-    value.apply(patch.clone());
-    value
 }
 
 #[cfg(test)]

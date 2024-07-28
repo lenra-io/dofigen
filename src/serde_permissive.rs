@@ -1,10 +1,13 @@
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{
-    de::{self, Error as DeError, MapAccess, Visitor},
+    de::{self, DeserializeOwned, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
 use std::{fmt, ops::Deref, str::FromStr};
+use struct_patch::Patch;
+
+use crate::{Copy, ImageName, ImageNamePatch, Stage};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
@@ -274,9 +277,58 @@ where
     deserializer.deserialize_any(visitor)
 }
 
+macro_rules! impl_ParsablePatch {
+    (for $($t:ty > $p:ty),+) => {
+        $(impl Patch<ParsableStruct<$p>> for $t
+        where
+            P: FromStr + Sized,
+        {
+            fn apply(&mut self, patch: ParsableStruct<P>) {
+                todo!()
+            }
+
+            fn into_patch(self) -> ParsableStruct<P> {
+                todo!()
+            }
+
+            fn into_patch_by_diff(self, previous_struct: Self) -> ParsableStruct<P> {
+                todo!()
+            }
+
+            fn new_empty_patch() -> ParsableStruct<P> {
+                todo!()
+            }
+        })*
+    }
+}
+
+// impl_ParsablePatch!(for (ImageName ImageNamePatch));
+
+// It does not work because it makes two implementations of the same trait for the same type...
+// Maybe defining a struct based on Patch could solve this
+// impl Patch<ParsableStruct<ImageNamePatch>> for ImageName
+// {
+//     fn apply(&mut self, patch: ParsableStruct<ImageNamePatch>) {
+//         todo!()
+//     }
+
+//     fn into_patch(self) -> ParsableStruct<ImageNamePatch> {
+//         todo!()
+//     }
+
+//     fn into_patch_by_diff(self, previous_struct: Self) -> ParsableStruct<ImageNamePatch> {
+//         todo!()
+//     }
+
+//     fn new_empty_patch() -> ParsableStruct<ImageNamePatch> {
+//         todo!()
+//     }
+// }
+
 #[cfg(test)]
 mod test {
     use super::*;
+    use pretty_assertions_sorted::assert_eq_sorted;
 
     mod deserialize_one_or_many {
         use super::*;
@@ -289,7 +341,7 @@ mod test {
         #[test]
         fn one() {
             let ret: TestStruct = serde_yaml::from_str("one_or_many: test").unwrap();
-            assert_eq!(
+            assert_eq_sorted!(
                 ret,
                 TestStruct {
                     one_or_many: OneOrManyVec::new(vec!["test".into()])
@@ -300,7 +352,7 @@ mod test {
         #[test]
         fn many() {
             let ret: TestStruct = serde_yaml::from_str("one_or_many: [test]").unwrap();
-            assert_eq!(
+            assert_eq_sorted!(
                 ret,
                 TestStruct {
                     one_or_many: OneOrManyVec::new(vec!["test".into()])
@@ -321,7 +373,7 @@ mod test {
         #[test]
         fn one() {
             let ret: TestStruct = serde_yaml::from_str("one_or_many: test").unwrap();
-            assert_eq!(
+            assert_eq_sorted!(
                 ret,
                 TestStruct {
                     test: None,
@@ -333,7 +385,7 @@ mod test {
         #[test]
         fn many() {
             let ret: TestStruct = serde_yaml::from_str("one_or_many: [test]").unwrap();
-            assert_eq!(
+            assert_eq_sorted!(
                 ret,
                 TestStruct {
                     test: None,
@@ -345,7 +397,7 @@ mod test {
         #[test]
         fn null() {
             let ret: TestStruct = serde_yaml::from_str("one_or_many: null").unwrap();
-            assert_eq!(
+            assert_eq_sorted!(
                 ret,
                 TestStruct {
                     test: None,
@@ -357,7 +409,7 @@ mod test {
         #[test]
         fn absent() {
             let ret: TestStruct = serde_yaml::from_str("test: test").unwrap();
-            assert_eq!(
+            assert_eq_sorted!(
                 ret,
                 TestStruct {
                     test: Some("test".into()),
