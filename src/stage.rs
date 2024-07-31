@@ -5,7 +5,7 @@ use struct_patch::Patch;
 
 use crate::{
     dofigen_struct::Stage, generator::GenerationContext, script_runner::ScriptRunner, Error,
-    ExtendImage, ImageName, ImagePatch, Resource, Result, User,
+    Extend, ImageName, ImagePatch, Resource, Result, User,
 };
 
 pub trait BaseStage: ScriptRunner {
@@ -29,28 +29,24 @@ impl BaseStage for Stage {
     }
 }
 
-pub trait Extend<P>: Sized + DeserializeOwned
+impl<P> Extend<P>
 where
-    P: DeserializeOwned + Default,
+    P: DeserializeOwned + Clone,
 {
-    fn extend(&self) -> Vec<Resource>;
-
-    fn value(&self) -> P;
-
-    fn merge<T>(&self, context: &mut LoadContext) -> Result<T>
+    pub fn merge<T>(&self, context: &mut LoadContext) -> Result<T>
     where
         T: Patch<P> + DeserializeOwned + Default,
     {
-        let extends = self.extend();
-        if extends.is_empty() {
+        if self.extend.is_empty() {
             let mut ret = T::default();
-            ret.apply(self.value());
+            ret.apply(self.value.clone());
             return Ok(ret);
         }
 
         // load extends files
-        let mut patchs: Vec<T> = extends
-            .into_iter()
+        let mut patchs: Vec<T> = self
+            .extend
+            .iter()
             .map(|extend| extend.load::<Self>(context)?.merge(context))
             .collect::<Result<Vec<_>>>()?;
 
@@ -59,18 +55,8 @@ where
         for patch in patchs {
             merged.apply(patch.into_patch());
         }
-        merged.apply(self.value());
+        merged.apply(self.value.clone());
         Ok(merged)
-    }
-}
-
-impl Extend<ImagePatch> for ExtendImage {
-    fn extend(&self) -> Vec<Resource> {
-        self.extend.clone()
-    }
-
-    fn value(&self) -> ImagePatch {
-        self.value.clone()
     }
 }
 

@@ -47,183 +47,6 @@ impl<T: FromStr + Sized> From<T> for ParsableStruct<T> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct OneOrManyVec<T>(Vec<T>)
-where
-    T: Sized;
-
-impl<T: Sized + Clone> OneOrManyVec<T> {
-    pub fn new(value: Vec<T>) -> Self {
-        OneOrManyVec(value)
-    }
-}
-
-impl<T> Default for OneOrManyVec<T>
-where
-    T: Sized,
-{
-    fn default() -> Self {
-        OneOrManyVec(Vec::new())
-    }
-}
-
-impl<T: Sized + Clone> Deref for OneOrManyVec<T> {
-    type Target = Vec<T>;
-
-    fn deref(&self) -> &Vec<T> {
-        &self.0
-    }
-}
-
-impl<T: Sized + Clone> From<Vec<T>> for OneOrManyVec<T> {
-    fn from(value: Vec<T>) -> Self {
-        OneOrManyVec::new(value)
-    }
-}
-
-impl<T> IntoIterator for OneOrManyVec<T>
-where
-    T: Sized + Clone,
-{
-    type Item = T;
-    type IntoIter = std::vec::IntoIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl<'de, T> Deserialize<'de> for OneOrManyVec<T>
-where
-    T: Sized + Clone + Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<OneOrManyVec<T>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserialize_one_or_many_vec(deserializer).map(OneOrManyVec::new)
-    }
-}
-
-fn deserialize_one_or_many_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Deserialize<'de>,
-{
-    struct OneOrManyVisitor<T>(Option<T>);
-
-    fn map_vec<T>(value: T) -> Vec<T> {
-        vec![value]
-    }
-
-    impl<'de, T> Visitor<'de> for OneOrManyVisitor<T>
-    where
-        T: Deserialize<'de>,
-    {
-        type Value = Vec<T>;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("any type")
-        }
-
-        fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::I8Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::I16Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::I32Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::I128Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::U8Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::U16Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::U32Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::U128Deserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: DeError,
-        {
-            Deserialize::deserialize(de::value::StrDeserializer::new(v)).map(map_vec)
-        }
-
-        fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
-        where
-            A: MapAccess<'de>,
-        {
-            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map)).map(map_vec)
-        }
-
-        fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
-        where
-            A: de::SeqAccess<'de>,
-        {
-            Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))
-        }
-    }
-
-    let visitor: OneOrManyVisitor<T> = OneOrManyVisitor(None);
-
-    deserializer.deserialize_any(visitor)
-}
-
 fn deserialize_permissive_struct<'de, D, T>(deserializer: D) -> Result<T, D::Error>
 where
     D: Deserializer<'de>,
@@ -302,6 +125,7 @@ macro_rules! impl_ParsablePatch {
     }
 }
 
+
 // impl_ParsablePatch!(for (ImageName ImageNamePatch));
 
 // It does not work because it makes two implementations of the same trait for the same type...
@@ -329,6 +153,7 @@ macro_rules! impl_ParsablePatch {
 mod test {
     use super::*;
     use pretty_assertions_sorted::assert_eq_sorted;
+    use crate::deserialize_struct::OneOrManyVec;
 
     mod deserialize_one_or_many {
         use super::*;

@@ -188,18 +188,21 @@ pub fn from(input: String) -> Result<Image> {
 ///             run: vec!["cargo build --release".parse().unwrap()].into(),
 ///             ..Default::default()
 ///         }].into(),
-///         from: Some(ImageName {
-///             path: String::from("ubuntu"),
+///         stage: Stage {
+///             from: Some(ImageName {
+///                 path: String::from("ubuntu"),
+///                 ..Default::default()
+///             }.into()),
+///             artifacts: vec![Artifact {
+///                 builder: String::from("builder"),
+///                 source: String::from(
+///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
+///                 ),
+///                 target: String::from("/app"),
+///                 ..Default::default()
+///             }].into(),
 ///             ..Default::default()
-///         }.into()),
-///         artifacts: vec![Artifact {
-///             builder: String::from("builder"),
-///             source: String::from(
-///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///             ),
-///             target: String::from("/app"),
-///             ..Default::default()
-///         }].into(),
+///         },
 ///         ..Default::default()
 ///     }
 /// );
@@ -226,7 +229,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
     }
 }
 
-fn merge_extended_image(image: ExtendImage) -> Result<Image> {
+fn merge_extended_image(image: Extend<ImagePatch>) -> Result<Image> {
     image.merge(&mut LoadContext::new())
 }
 

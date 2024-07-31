@@ -336,7 +336,7 @@ impl DockerfileGenerator for Image {
             path: "scratch".into(),
             ..Default::default()
         };
-        lines.append(&mut self.generate_dockerfile_lines(&context)?);
+        lines.append(&mut self.stage.generate_dockerfile_lines(&context)?);
         self.expose.iter().for_each(|port| {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "EXPOSE".into(),

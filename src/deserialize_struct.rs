@@ -1,120 +1,261 @@
 // #[cfg(feature = "permissive")]
 // use crate::serde_permissive::{OneOrManyVec as Vec, ParsableStruct};
 use serde::{
-    de::{self, DeserializeOwned, MapAccess, Visitor},
+    de::{self, DeserializeOwned, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
-use serde_yaml;
 use serde_yaml::Value;
-use std::fmt;
-use std::{collections::BTreeMap, ops::Deref, usize};
+use serde_yaml::{self, from_value};
+use std::{
+    collections::BTreeMap,
+    ops::{Deref, DerefMut},
+    usize,
+};
+use std::{collections::HashMap, fmt};
 use struct_patch::Patch;
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct DeserializableStruct<T>
+use crate::{dofigen_struct::Extend, ImageName, ImageNamePatch, Resource, User, UserPatch};
+
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct OneOrManyVec<T>(Vec<T>)
+where
+    T: Sized;
+
+impl<T: Sized + Clone> OneOrManyVec<T> {
+    pub fn new(value: Vec<T>) -> Self {
+        OneOrManyVec(value)
+    }
+}
+
+impl<T> Default for OneOrManyVec<T>
 where
     T: Sized,
 {
-    fields: Vec<String>,
-    content: T,
-}
-
-impl<T: Sized> Deref for DeserializableStruct<T> {
-    type Target = T;
-
-    fn deref(&self) -> &T {
-        &self.content
+    fn default() -> Self {
+        OneOrManyVec(Vec::new())
     }
 }
 
-impl<'de, T> Deserialize<'de> for DeserializableStruct<T>
+impl<T: Sized + Clone> Deref for OneOrManyVec<T> {
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Vec<T> {
+        &self.0
+    }
+}
+
+impl<T: Sized + Clone> From<Vec<T>> for OneOrManyVec<T> {
+    fn from(value: Vec<T>) -> Self {
+        OneOrManyVec::new(value)
+    }
+}
+
+impl<T> IntoIterator for OneOrManyVec<T>
 where
-    T: Sized + DeserializeOwned,
+    T: Sized + Clone,
 {
-    fn deserialize<D>(deserializer: D) -> Result<DeserializableStruct<T>, D::Error>
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<'de, T> Deserialize<'de> for OneOrManyVec<T>
+where
+    T: Sized + Clone + Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<OneOrManyVec<T>, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let value: Value = Deserialize::deserialize(deserializer)?;
-        let fields = if value.is_mapping() {
-            value
-                .as_mapping()
-                .unwrap()
-                .keys()
-                .map(|key| key.as_str().unwrap().to_string())
-                .collect()
-        } else {
-            vec![]
-        };
-        // TODO: fix the error management
-        let content = Deserialize::deserialize(value).unwrap();
-        Ok(DeserializableStruct { fields, content })
+        deserialize_one_or_many_vec(deserializer).map(OneOrManyVec::new)
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-// #[derive(Deserialize)]
-// #[serde(from = "Option<T>")]
-pub struct OptionPatch<T>(Option<T>);
-
-impl<T, P> Patch<OptionPatch<P>> for Option<T>
+fn deserialize_one_or_many_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
-    T: Patch<P> + Default + Clone,
+    D: Deserializer<'de>,
+    T: Deserialize<'de>,
 {
-    fn apply(&mut self, patch: OptionPatch<P>) {
-        match self {
-            Some(value) => match patch.0 {
-                Some(patch_value) => {
-                    value.apply(patch_value);
-                }
-                None => {
-                    *self = None;
-                }
-            },
-            None => {
-                if let Some(patch_value) = patch.0 {
-                    let mut value = T::default();
-                    value.apply(patch_value);
-                    *self = Some(value);
-                }
-            }
-        }
+    struct OneOrManyVisitor<T>(Option<T>);
+
+    fn map_vec<T>(value: T) -> Vec<T> {
+        vec![value]
     }
 
-    fn into_patch(self) -> OptionPatch<P> {
-        match self {
-            Some(value) => OptionPatch(Some(value.into_patch())),
-            None => OptionPatch(None),
-        }
-    }
-
-    fn into_patch_by_diff(self, previous_struct: Self) -> OptionPatch<P> {
-        todo!()
-    }
-
-    fn new_empty_patch() -> OptionPatch<P> {
-        OptionPatch(None)
-    }
-}
-
-impl<T> From<Option<T>> for OptionPatch<T> {
-    fn from(value: Option<T>) -> Self {
-        OptionPatch(value)
-    }
-}
-
-impl<'de, T> Deserialize<'de> for OptionPatch<T>
-where
-    T: DeserializeOwned,
-{
-    fn deserialize<D>(deserializer: D) -> Result<OptionPatch<T>, D::Error>
+    impl<'de, T> Visitor<'de> for OneOrManyVisitor<T>
     where
-        D: Deserializer<'de>,
+        T: Deserialize<'de>,
     {
-        let value: Option<T> = Deserialize::deserialize(deserializer)?;
-        Ok(OptionPatch(value))
+        type Value = Vec<T>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("any type")
+        }
+
+        fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I8Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I16Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I32Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I128Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U8Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U16Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U32Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U128Deserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::StrDeserializer::new(v)).map(map_vec)
+        }
+
+        fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+        where
+            A: MapAccess<'de>,
+        {
+            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map)).map(map_vec)
+        }
+
+        fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+        where
+            A: de::SeqAccess<'de>,
+        {
+            Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))
+        }
     }
+
+    let visitor: OneOrManyVisitor<T> = OneOrManyVisitor(None);
+
+    deserializer.deserialize_any(visitor)
 }
+
+// #[derive(Debug, Clone, PartialEq, Default)]
+// // #[derive(Deserialize)]
+// // #[serde(from = "Option<T>")]
+// pub struct OptionPatch<T>(Option<T>);
+
+// impl<T, P> Patch<OptionPatch<P>> for Option<T>
+// where
+//     T: Patch<P> + Default + Clone,
+// {
+//     fn apply(&mut self, patch: OptionPatch<P>) {
+//         match self {
+//             Some(value) => match patch.0 {
+//                 Some(patch_value) => {
+//                     value.apply(patch_value);
+//                 }
+//                 None => {
+//                     *self = None;
+//                 }
+//             },
+//             None => {
+//                 if let Some(patch_value) = patch.0 {
+//                     let mut value = T::default();
+//                     value.apply(patch_value);
+//                     *self = Some(value);
+//                 }
+//             }
+//         }
+//     }
+
+//     fn into_patch(self) -> OptionPatch<P> {
+//         match self {
+//             Some(value) => OptionPatch(Some(value.into_patch())),
+//             None => OptionPatch(None),
+//         }
+//     }
+
+//     fn into_patch_by_diff(self, previous_struct: Self) -> OptionPatch<P> {
+//         todo!()
+//     }
+
+//     fn new_empty_patch() -> OptionPatch<P> {
+//         OptionPatch(None)
+//     }
+// }
+
+// impl<T> From<Option<T>> for OptionPatch<T> {
+//     fn from(value: Option<T>) -> Self {
+//         OptionPatch(value)
+//     }
+// }
+
+// impl<'de, T> Deserialize<'de> for OptionPatch<T>
+// where
+//     T: DeserializeOwned,
+// {
+//     fn deserialize<D>(deserializer: D) -> Result<OptionPatch<T>, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         let value: Option<T> = Deserialize::deserialize(deserializer)?;
+//         Ok(OptionPatch(value))
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq)]
 enum VecPatchCommand<T> {
@@ -669,6 +810,71 @@ where
     deserializer.deserialize_any(visitor)
 }
 
+struct ExtendVisitor<T>(Option<T>);
+
+impl<'de, T> Visitor<'de> for ExtendVisitor<T>
+where
+    T: DeserializeOwned,
+{
+    type Value = Extend<T>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a map")
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let mut val: Value = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
+        if let Value::Mapping(mut value_map) = val {
+            let keys = value_map
+                .keys()
+                .filter(|key| {
+                    key.as_str()
+                        .map(|str| match str.to_lowercase().as_str() {
+                            "extend" | "extends" => true,
+                            _ => false,
+                        })
+                        .unwrap_or(false)
+                })
+                .collect::<Vec<_>>();
+            if keys.len() > 1 {
+                return Err(serde::de::Error::custom(
+                    "Only one of 'extend' or 'extends' is allowed",
+                ));
+            }
+            let extend = if keys.len() > 0 {
+                let extend = value_map.remove(keys[0].clone()).unwrap();
+                from_value::<OneOrManyVec<Resource>>(extend).unwrap()
+            } else {
+                OneOrManyVec::new(vec![])
+            };
+
+            Ok(Extend {
+                extend: extend.to_vec(),
+                value: from_value(Value::Mapping(value_map)).unwrap(),
+            })
+        } else {
+            Err(serde::de::Error::custom("Expected a map"))
+        }
+    }
+}
+
+impl<'de, T> Deserialize<'de> for Extend<T>
+where
+    T: DeserializeOwned,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Extend<T>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let visitor: ExtendVisitor<T> = ExtendVisitor(None);
+
+        deserializer.deserialize_map(visitor)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -681,23 +887,31 @@ mod test {
         use struct_patch::Patch;
 
         #[derive(Deserialize, Debug, Clone, PartialEq, Patch, Default)]
-        #[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+        #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
         struct TestStruct {
             pub name: String,
-            #[patch_name = "OptionPatch<SubTestStructPatch>"]
+            #[patch(type = "Option<SubTestStructPatch>")]
             pub sub: Option<SubTestStruct>,
         }
 
         #[derive(Deserialize, Debug, Clone, PartialEq, Patch, Default)]
-        #[patch_derive(Deserialize, Debug, Clone, PartialEq, Default)]
+        #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
         struct SubTestStruct {
-            #[patch_name = "VecPatch<String>"]
+            #[patch(type = "VecPatch<String>")]
             pub list: Vec<String>,
             pub num: Option<u32>,
         }
 
+        impl From<SubTestStructPatch> for SubTestStruct {
+            fn from(patch: SubTestStructPatch) -> Self {
+                let mut sub = SubTestStruct::default();
+                sub.apply(patch);
+                sub
+            }
+        }
+
         #[derive(Deserialize, Patch, Default)]
-        #[patch_derive(Deserialize, Default)]
+        #[patch(attribute(derive(Deserialize, Default)))]
         struct MyTestStruct<T>
         where
             T: PartialEq,

@@ -23,7 +23,7 @@ path = "src/bin/main.rs"
 required-features = ["cli"]
 
 [features]
-# default = ["permissive"]
+default = ["permissive"]
 # default = ["permissive", "json_schema"]
 cli = ["clap"]
 json_schema = ["schemars", "serde_json"]
@@ -39,5 +39,7 @@ schemars = { version = "0.8.21", optional = true }
 regex = "1.10.5"
 url = { version = "2.5.2", features = ["serde"] }
 concat-idents = "1.1.5"
-struct-patch = { version = "0.4.1", path = "../../external/struct-patch/struct-patch", default-features=false, features = ["std"] }
+struct-patch = { version = "0.6.0", path = "../../external/struct-patch/struct-patch", default-features = false, features = ["std"] }
+
+[dev-dependencies]
 pretty_assertions_sorted = "1.2.3"
