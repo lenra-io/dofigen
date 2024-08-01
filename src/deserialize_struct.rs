@@ -193,69 +193,90 @@ where
     deserializer.deserialize_any(visitor)
 }
 
-// #[derive(Debug, Clone, PartialEq, Default)]
-// // #[derive(Deserialize)]
-// // #[serde(from = "Option<T>")]
-// pub struct OptionPatch<T>(Option<T>);
+#[derive(Debug, Clone, PartialEq, Default)]
+// #[derive(Deserialize)]
+// #[serde(from = "Option<T>")]
+pub struct OptionPatch<T>(Option<T>);
 
-// impl<T, P> Patch<OptionPatch<P>> for Option<T>
+impl<T> OptionPatch<T> {
+    pub fn new(value: Option<T>) -> Self {
+        OptionPatch(value)
+    }
+}
+
+impl<T, P> From<Option<T>> for OptionPatch<P>
+where
+    T: Patch<P>,
+{
+    fn from(value: Option<T>) -> Self {
+        OptionPatch(value.map(|v| v.into()))
+    }
+}
+
+impl<T, P> Patch<OptionPatch<P>> for Option<T>
+where
+    T: Patch<P> + Default + Clone,
+{
+    fn apply(&mut self, patch: OptionPatch<P>) {
+        match self {
+            Some(value) => match patch.0 {
+                Some(patch_value) => {
+                    value.apply(patch_value);
+                }
+                None => {
+                    *self = None;
+                }
+            },
+            None => {
+                if let Some(patch_value) = patch.0 {
+                    let mut value = T::default();
+                    value.apply(patch_value);
+                    *self = Some(value);
+                }
+            }
+        }
+    }
+
+    // fn into_patch(self) -> OptionPatch<P> {
+    //     match self {
+    //         Some(value) => OptionPatch(Some(value.into())),
+    //         None => OptionPatch(None),
+    //     }
+    // }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> OptionPatch<P> {
+        todo!()
+    }
+
+    fn new_empty_patch() -> OptionPatch<P> {
+        OptionPatch(None)
+    }
+}
+
+// impl<T, P> From<OptionPatch<P>> for Option<T>
 // where
-//     T: Patch<P> + Default + Clone,
+//     T: From<P>,
 // {
-//     fn apply(&mut self, patch: OptionPatch<P>) {
-//         match self {
-//             Some(value) => match patch.0 {
-//                 Some(patch_value) => {
-//                     value.apply(patch_value);
-//                 }
-//                 None => {
-//                     *self = None;
-//                 }
-//             },
-//             None => {
-//                 if let Some(patch_value) = patch.0 {
-//                     let mut value = T::default();
-//                     value.apply(patch_value);
-//                     *self = Some(value);
-//                 }
-//             }
-//         }
-//     }
-
-//     fn into_patch(self) -> OptionPatch<P> {
-//         match self {
-//             Some(value) => OptionPatch(Some(value.into_patch())),
-//             None => OptionPatch(None),
-//         }
-//     }
-
-//     fn into_patch_by_diff(self, previous_struct: Self) -> OptionPatch<P> {
-//         todo!()
-//     }
-
-//     fn new_empty_patch() -> OptionPatch<P> {
-//         OptionPatch(None)
+//     // fn into(self) -> Option<T> {
+//     //     self.0.map(|v| v.into())
+//     // }
+//     fn from(patch: OptionPatch<P>) -> Self {
+//         patch.0.map(|v| v.into())
 //     }
 // }
 
-// impl<T> From<Option<T>> for OptionPatch<T> {
-//     fn from(value: Option<T>) -> Self {
-//         OptionPatch(value)
-//     }
-// }
-
-// impl<'de, T> Deserialize<'de> for OptionPatch<T>
-// where
-//     T: DeserializeOwned,
-// {
-//     fn deserialize<D>(deserializer: D) -> Result<OptionPatch<T>, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         let value: Option<T> = Deserialize::deserialize(deserializer)?;
-//         Ok(OptionPatch(value))
-//     }
-// }
+impl<'de, T> Deserialize<'de> for OptionPatch<T>
+where
+    T: DeserializeOwned,
+{
+    fn deserialize<D>(deserializer: D) -> Result<OptionPatch<T>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let value: Option<T> = Deserialize::deserialize(deserializer)?;
+        Ok(OptionPatch(value))
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 enum VecPatchCommand<T> {
@@ -320,7 +341,7 @@ where
         {
             let replacer: Vec<T> =
                 Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))?;
-            Ok(replacer.into_patch())
+            Ok(replacer.into())
         }
 
         fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -495,12 +516,6 @@ where
                     self.extend(elements);
                 }
             }
-        }
-    }
-
-    fn into_patch(self) -> VecPatch<T> {
-        VecPatch {
-            commands: vec![VecPatchCommand::ReplaceAll(self)],
         }
     }
 
@@ -694,12 +709,6 @@ where
         }
     }
 
-    fn into_patch(self) -> VecDeepPatch<T, P> {
-        VecDeepPatch {
-            commands: vec![VecDeepPatchCommand::ReplaceAll(self)],
-        }
-    }
-
     fn into_patch_by_diff(self, previous_struct: Self) -> VecDeepPatch<T, P> {
         todo!()
     }
@@ -747,7 +756,7 @@ where
         {
             let replacer: Vec<T> =
                 Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))?;
-            Ok(replacer.into_patch())
+            Ok(replacer.into())
         }
 
         fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -890,7 +899,7 @@ mod test {
         #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
         struct TestStruct {
             pub name: String,
-            #[patch(type = "Option<SubTestStructPatch>")]
+            #[patch(type = "OptionPatch<SubTestStructPatch>")]
             pub sub: Option<SubTestStruct>,
         }
 

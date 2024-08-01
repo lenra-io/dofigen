@@ -53,7 +53,7 @@ where
         // for each extends file, merge it with self
         let mut merged = patchs.remove(0);
         for patch in patchs {
-            merged.apply(patch.into_patch());
+            merged.apply(patch.into());
         }
         merged.apply(self.value.clone());
         Ok(merged)

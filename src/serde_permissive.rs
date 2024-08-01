@@ -5,7 +5,7 @@ use serde::{
     Deserialize, Deserializer,
 };
 use std::{fmt, ops::Deref, str::FromStr};
-use struct_patch::Patch;
+use struct_patch::*;
 
 use crate::{Copy, ImageName, ImageNamePatch, Stage};
 
@@ -101,32 +101,28 @@ where
 }
 
 macro_rules! impl_ParsablePatch {
-    (for $($t:ty > $p:ty),+) => {
-        $(impl Patch<ParsableStruct<$p>> for $t
-        where
-            P: FromStr + Sized,
-        {
-            fn apply(&mut self, patch: ParsableStruct<P>) {
+    ($struct:ty, $patch:ty) => {
+        impl Patch<ParsableStruct<$patch>> for $struct {
+            fn apply(&mut self, patch: ParsableStruct<$patch>) {
                 todo!()
             }
 
-            fn into_patch(self) -> ParsableStruct<P> {
+            fn into_patch(self) -> ParsableStruct<$patch> {
                 todo!()
             }
 
-            fn into_patch_by_diff(self, previous_struct: Self) -> ParsableStruct<P> {
+            fn into_patch_by_diff(self, previous_struct: Self) -> ParsableStruct<$patch> {
                 todo!()
             }
 
-            fn new_empty_patch() -> ParsableStruct<P> {
+            fn new_empty_patch() -> ParsableStruct<$patch> {
                 todo!()
             }
-        })*
+        }
     }
 }
 
-
-// impl_ParsablePatch!(for (ImageName ImageNamePatch));
+// impl_ParsablePatch!(ImageName, ImageNamePatch);
 
 // It does not work because it makes two implementations of the same trait for the same type...
 // Maybe defining a struct based on Patch could solve this
@@ -152,8 +148,8 @@ macro_rules! impl_ParsablePatch {
 #[cfg(test)]
 mod test {
     use super::*;
-    use pretty_assertions_sorted::assert_eq_sorted;
     use crate::deserialize_struct::OneOrManyVec;
+    use pretty_assertions_sorted::assert_eq_sorted;
 
     mod deserialize_one_or_many {
         use super::*;

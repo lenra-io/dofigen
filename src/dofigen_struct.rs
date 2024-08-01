@@ -1,4 +1,4 @@
-use crate::deserialize_struct::{VecDeepPatch, VecPatch};
+use crate::deserialize_struct::{OptionPatch, VecDeepPatch, VecPatch};
 #[cfg(feature = "permissive")]
 use crate::serde_permissive::ParsableStruct;
 #[cfg(feature = "json_schema")]
@@ -54,10 +54,10 @@ pub struct Stage {
     //     feature = "permissive",
     //     patch_name = "OptionPatch<ParsableStruct<ImageNamePatch>>"
     // )]
-    // #[cfg_attr(feature = "permissive", patch(attribute(serde(with = "Option<ParsableStruct<ImageNamePatch>>"))))]
-    #[patch(type = "Option<ImageNamePatch>")]
+    // #[cfg_attr(feature = "permissive", patch(attribute(serde(alias = "image", with = "OptionPatch<OptionPatch<ParsableStruct<ImageNamePatch>>>"))))]
+    #[patch(type = "OptionPatch<ImageNamePatch>")]
     pub from: Option<ImageName>,
-    #[patch(type = "Option<UserPatch>")]
+    #[patch(type = "OptionPatch<UserPatch>")]
     pub user: Option<User>,
     pub workdir: Option<String>,
     #[serde(alias = "envs")]
@@ -68,7 +68,7 @@ pub struct Stage {
     #[serde(alias = "add", alias = "adds")]
     // #[patch(type = "VecDeepPatch<CopyResource, CopyResourcePatch>")]
     pub copy: Vec<CopyResource>,
-    #[patch(type = "Option<RootPatch>")]
+    #[patch(type = "OptionPatch<RootPatch>")]
     pub root: Option<Root>,
     #[serde(alias = "script")]
     #[patch(type = "VecPatch<String>")]
@@ -211,7 +211,7 @@ pub struct Add {
 pub struct CopyOptions {
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    #[patch(type = "Option<UserPatch>")]
+    #[patch(type = "OptionPatch<UserPatch>")]
     pub chown: Option<User>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
@@ -296,27 +296,27 @@ pub struct Extend<T> {
 //     }
 // }
 
-macro_rules! impl_from_patch {
-    ($struct:ty, $patch:ty) => {
-        impl From<$patch> for $struct {
-            fn from(patch: $patch) -> Self {
-                let mut struct_data = <$struct>::default();
-                struct_data.apply(patch);
-                struct_data
-            }
-        }
+// macro_rules! impl_from_patch {
+//     ($struct:ty, $patch:ty) => {
+//         impl From<$patch> for $struct {
+//             fn from(patch: $patch) -> Self {
+//                 let mut struct_data = <$struct>::default();
+//                 struct_data.apply(patch);
+//                 struct_data
+//             }
+//         }
 
-        impl From<$struct> for $patch {
-            fn from(value: $struct) -> Self {
-                value.into_patch()
-            }
-        }
-    };
-}
+//         impl From<$struct> for $patch {
+//             fn from(value: $struct) -> Self {
+//                 value.into()
+//             }
+//         }
+//     };
+// }
 
-impl_from_patch!(ImageName, ImageNamePatch);
-impl_from_patch!(User, UserPatch);
-impl_from_patch!(Root, RootPatch);
+// impl_from_patch!(ImageName, ImageNamePatch);
+// impl_from_patch!(User, UserPatch);
+// impl_from_patch!(Root, RootPatch);
 
 #[cfg(test)]
 mod test {
@@ -492,7 +492,10 @@ mod test {
             use super::*;
 
             #[derive(Deserialize, Patch)]
-            #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
+            #[patch(
+                attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+                attribute(serde(deny_unknown_fields, default))
+            )]
             struct TestStruct {
                 pub name: Option<String>,
                 #[serde(flatten)]
@@ -501,7 +504,10 @@ mod test {
             }
 
             #[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
-            #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
+            #[patch(
+                attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+                attribute(serde(deny_unknown_fields, default))
+            )]
             struct TestSubStruct {
                 pub level: u16,
             }
@@ -605,10 +611,12 @@ mod test {
                         extend: vec![],
                         value: ImagePatch {
                             stage: Some(StagePatch {
-                                from: Some(Some(ImageNamePatch {
-                                    path: Some("ubuntu".into()),
-                                    ..Default::default()
-                                })),
+                                from: Some(
+                                    OptionPatch::new(Some(ImageNamePatch {
+                                        path: Some("ubuntu".into()),
+                                        ..Default::default()
+                                    }))
+                                ),
                                 ..Default::default()
                             }),
                             ..Default::default()
