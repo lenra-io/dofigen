@@ -204,14 +204,14 @@ impl<T> OptionPatch<T> {
     }
 }
 
-impl<T, P> From<Option<T>> for OptionPatch<P>
-where
-    T: Patch<P>,
-{
-    fn from(value: Option<T>) -> Self {
-        OptionPatch(value.map(|v| v.into()))
-    }
-}
+// impl<T, P> From<Option<T>> for OptionPatch<P>
+// where
+//     T: Patch<P>,
+// {
+//     fn from(value: Option<T>) -> Self {
+//         OptionPatch(value.map(|v| v.into_patch()))
+//     }
+// }
 
 impl<T, P> Patch<OptionPatch<P>> for Option<T>
 where
@@ -237,12 +237,12 @@ where
         }
     }
 
-    // fn into_patch(self) -> OptionPatch<P> {
-    //     match self {
-    //         Some(value) => OptionPatch(Some(value.into())),
-    //         None => OptionPatch(None),
-    //     }
-    // }
+    fn into_patch(self) -> OptionPatch<P> {
+        match self {
+            Some(value) => OptionPatch(Some(value.into_patch())),
+            None => OptionPatch(None),
+        }
+    }
 
     fn into_patch_by_diff(self, previous_struct: Self) -> OptionPatch<P> {
         todo!()
@@ -519,6 +519,12 @@ where
         }
     }
 
+    fn into_patch(self) -> VecPatch<T> {
+        VecPatch {
+            commands: vec![VecPatchCommand::ReplaceAll(self)],
+        }
+    }
+
     fn into_patch_by_diff(self, previous_struct: Self) -> VecPatch<T> {
         todo!()
     }
@@ -709,6 +715,12 @@ where
         }
     }
 
+    fn into_patch(self) -> VecDeepPatch<T, P> {
+        VecDeepPatch {
+            commands: vec![VecDeepPatchCommand::ReplaceAll(self)],
+        }
+    }
+
     fn into_patch_by_diff(self, previous_struct: Self) -> VecDeepPatch<T, P> {
         todo!()
     }
@@ -720,7 +732,7 @@ where
 
 impl<'de, T, P> Deserialize<'de> for VecDeepPatch<T, P>
 where
-    T: Clone + DeserializeOwned + Default + Patch<P>,
+    T: Clone + DeserializeOwned + Default + Patch<P> + From<P>,
     P: Clone + DeserializeOwned,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -734,14 +746,14 @@ where
 fn deserialize_vec_deep_patch<'de, D, T, P>(deserializer: D) -> Result<VecDeepPatch<T, P>, D::Error>
 where
     D: Deserializer<'de>,
-    T: Clone + DeserializeOwned + Default + Patch<P>,
+    T: Clone + DeserializeOwned + Default + Patch<P> + From<P>,
     P: Clone + DeserializeOwned,
 {
     struct VecDeepPatchVisitor<T, P>(Option<BTreeMap<T, P>>);
 
     impl<'de, T, P> Visitor<'de> for VecDeepPatchVisitor<T, P>
     where
-        T: Clone + DeserializeOwned + Patch<P> + Default,
+        T: Clone + DeserializeOwned + Patch<P> + From<P> + Default,
         P: Clone + DeserializeOwned,
     {
         type Value = VecDeepPatch<T, P>;
@@ -754,9 +766,13 @@ where
         where
             A: de::SeqAccess<'de>,
         {
-            let replacer: Vec<T> =
+            let replacer: Vec<P> =
                 Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))?;
-            Ok(replacer.into())
+            let replacer: Vec<T> = replacer.iter().map(|p| p.clone().into()).collect();
+
+            Ok(VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::ReplaceAll(replacer)],
+            })
         }
 
         fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -835,6 +851,7 @@ where
     where
         A: MapAccess<'de>,
     {
+        // TODO: implement without Value
         let mut val: Value = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
         if let Value::Mapping(mut value_map) = val {
             let keys = value_map
@@ -899,14 +916,14 @@ mod test {
         #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
         struct TestStruct {
             pub name: String,
-            #[patch(type = "OptionPatch<SubTestStructPatch>")]
+            #[patch(name = "OptionPatch<SubTestStructPatch>")]
             pub sub: Option<SubTestStruct>,
         }
 
         #[derive(Deserialize, Debug, Clone, PartialEq, Patch, Default)]
         #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
         struct SubTestStruct {
-            #[patch(type = "VecPatch<String>")]
+            #[patch(name = "VecPatch<String>")]
             pub list: Vec<String>,
             pub num: Option<u32>,
         }

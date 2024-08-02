@@ -7,7 +7,7 @@ use serde::{
 use std::{fmt, ops::Deref, str::FromStr};
 use struct_patch::*;
 
-use crate::{Copy, ImageName, ImageNamePatch, Stage};
+use crate::dofigen_struct::*;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
@@ -100,50 +100,108 @@ where
     deserializer.deserialize_any(visitor)
 }
 
+pub fn deserialize_permissive_type<'de, T2, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de> + From<T2>,
+{
+    // let tmp:T2 = deserializer.deserialize_any()?;
+    // Ok(T::from(tmp))
+    println!("deserialize_permissive_type");
+    todo!()
+}
+
 macro_rules! impl_ParsablePatch {
     ($struct:ty, $patch:ty) => {
         impl Patch<ParsableStruct<$patch>> for $struct {
             fn apply(&mut self, patch: ParsableStruct<$patch>) {
-                todo!()
+                self.apply(patch.0);
             }
 
             fn into_patch(self) -> ParsableStruct<$patch> {
-                todo!()
+                ParsableStruct(self.into_patch())
             }
 
             fn into_patch_by_diff(self, previous_struct: Self) -> ParsableStruct<$patch> {
-                todo!()
+                ParsableStruct(self.into_patch_by_diff(previous_struct))
             }
 
             fn new_empty_patch() -> ParsableStruct<$patch> {
-                todo!()
+                ParsableStruct(Self::new_empty_patch())
             }
         }
+
+        impl_from_patch!($struct, $patch);
+    };
+}
+
+macro_rules! impl_from_patch {
+    ($struct:ty, $patch:ty) => {
+        impl From<$patch> for $struct {
+            fn from(patch: $patch) -> Self {
+                let mut s = Self::default();
+                s.apply(patch);
+                s
+            }
+        }
+    };
+}
+
+impl Patch<CopyResourcePatch> for CopyResource {
+    fn apply(&mut self, patch: CopyResourcePatch) {
+        match (self, patch) {
+            (CopyResource::Copy(s), CopyResourcePatch::Copy(p)) => s.apply(p),
+            (CopyResource::Add(s), CopyResourcePatch::Add(p)) => s.apply(p),
+            (CopyResource::AddGitRepo(s), CopyResourcePatch::AddGitRepo(p)) => s.apply(p),
+            _ => todo!(),
+        }
+    }
+
+    fn into_patch(self) -> CopyResourcePatch {
+        match self {
+            CopyResource::Copy(s) => CopyResourcePatch::Copy(s.into_patch()),
+            CopyResource::Add(s) => CopyResourcePatch::Add(s.into_patch()),
+            CopyResource::AddGitRepo(s) => CopyResourcePatch::AddGitRepo(s.into_patch()),
+        }
+    }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> CopyResourcePatch {
+        match (self, previous_struct) {
+            (CopyResource::Copy(s), CopyResource::Copy(p)) => {
+                CopyResourcePatch::Copy(s.into_patch_by_diff(p))
+            }
+            (CopyResource::Add(s), CopyResource::Add(p)) => {
+                CopyResourcePatch::Add(s.into_patch_by_diff(p))
+            }
+            (CopyResource::AddGitRepo(s), CopyResource::AddGitRepo(p)) => {
+                CopyResourcePatch::AddGitRepo(s.into_patch_by_diff(p))
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn new_empty_patch() -> CopyResourcePatch {
+        todo!()
     }
 }
 
-// impl_ParsablePatch!(ImageName, ImageNamePatch);
+impl Default for CopyResourcePatch {
+    fn default() -> Self {
+        CopyResourcePatch::Unknown(UnknownPatch::default())
+    }
+}
 
-// It does not work because it makes two implementations of the same trait for the same type...
-// Maybe defining a struct based on Patch could solve this
-// impl Patch<ParsableStruct<ImageNamePatch>> for ImageName
-// {
-//     fn apply(&mut self, patch: ParsableStruct<ImageNamePatch>) {
-//         todo!()
-//     }
+impl_ParsablePatch!(ImageName, ImageNamePatch);
+impl_ParsablePatch!(User, UserPatch);
+impl_ParsablePatch!(CopyResource, CopyResourcePatch);
+impl_ParsablePatch!(Copy, CopyPatch);
+impl_ParsablePatch!(Add, AddPatch);
+impl_ParsablePatch!(AddGitRepo, AddGitRepoPatch);
+impl_ParsablePatch!(Port, PortPatch);
 
-//     fn into_patch(self) -> ParsableStruct<ImageNamePatch> {
-//         todo!()
-//     }
-
-//     fn into_patch_by_diff(self, previous_struct: Self) -> ParsableStruct<ImageNamePatch> {
-//         todo!()
-//     }
-
-//     fn new_empty_patch() -> ParsableStruct<ImageNamePatch> {
-//         todo!()
-//     }
-// }
+impl_from_patch!(Image, ImagePatch);
+impl_from_patch!(Stage, StagePatch);
+impl_from_patch!(Artifact, ArtifactPatch);
 
 #[cfg(test)]
 mod test {

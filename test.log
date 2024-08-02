@@ -1,0 +1,1054 @@
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct ImagePatch
+{
+    #[serde(flatten)] pub stage : Option < StagePatch > , pub builders :
+    Option < VecDeepPatch < Stage, StagePatch > > , pub context : Option <
+    VecPatch < String > > , pub ignore : Option < VecPatch < String > > , pub
+    entrypoint : Option < VecPatch < String > > , pub cmd : Option < VecPatch
+    < String > > , pub expose : Option < VecDeepPatch < Port, PortPatch > > ,
+    pub healthcheck : Option < Option < Healthcheck > > ,
+} impl struct_patch :: traits :: Patch < ImagePatch > for Image
+{
+    fn apply(& mut self, patch : ImagePatch)
+    {
+        if let Some(v) = patch.stage { self.stage.apply(v); } if let Some(v) =
+        patch.builders { self.builders.apply(v); } if let Some(v) =
+        patch.context { self.context.apply(v); } if let Some(v) = patch.ignore
+        { self.ignore.apply(v); } if let Some(v) = patch.entrypoint
+        { self.entrypoint.apply(v); } if let Some(v) = patch.cmd
+        { self.cmd.apply(v); } if let Some(v) = patch.expose
+        { self.expose.apply(v); } if let Some(v) = patch.healthcheck
+        { self.healthcheck = v; }
+    } fn into_patch(self) -> ImagePatch
+    {
+        let mut p = Self :: new_empty_patch(); p.stage =
+        Some(self.stage.into_patch()); p.builders =
+        Some(self.builders.into_patch()); p.context =
+        Some(self.context.into_patch()); p.ignore =
+        Some(self.ignore.into_patch()); p.entrypoint =
+        Some(self.entrypoint.into_patch()); p.cmd =
+        Some(self.cmd.into_patch()); p.expose =
+        Some(self.expose.into_patch()); p.healthcheck =
+        Some(self.healthcheck); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> ImagePatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.stage !=
+        previous_struct.stage
+        {
+            p.stage =
+            Some(self.stage.into_patch_by_diff(previous_struct.stage));
+        } if self.builders != previous_struct.builders
+        {
+            p.builders =
+            Some(self.builders.into_patch_by_diff(previous_struct.builders));
+        } if self.context != previous_struct.context
+        {
+            p.context =
+            Some(self.context.into_patch_by_diff(previous_struct.context));
+        } if self.ignore != previous_struct.ignore
+        {
+            p.ignore =
+            Some(self.ignore.into_patch_by_diff(previous_struct.ignore));
+        } if self.entrypoint != previous_struct.entrypoint
+        {
+            p.entrypoint =
+            Some(self.entrypoint.into_patch_by_diff(previous_struct.entrypoint));
+        } if self.cmd != previous_struct.cmd
+        { p.cmd = Some(self.cmd.into_patch_by_diff(previous_struct.cmd)); } if
+        self.expose != previous_struct.expose
+        {
+            p.expose =
+            Some(self.expose.into_patch_by_diff(previous_struct.expose));
+        } if self.healthcheck != previous_struct.healthcheck
+        { p.healthcheck = Some(self.healthcheck); } p
+    } fn new_empty_patch() -> ImagePatch
+    {
+        ImagePatch
+        {
+            stage : None, builders : None, context : None, ignore : None,
+            entrypoint : None, cmd : None, expose : None, healthcheck : None,
+        }
+    }
+} impl From < Image > for ImagePatch
+{ fn from(s : Image) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct StagePatch
+{
+    pub name : Option < Option < String > > , pub from : Option < OptionPatch
+    < ParsableStruct < ImageNamePatch > > > , pub user : Option < OptionPatch
+    < UserPatch > > , pub workdir : Option < Option < String > > , pub env :
+    Option < HashMap < String, String > > , pub artifacts : Option <
+    VecDeepPatch < Artifact, ArtifactPatch > > , pub copy : Option < Vec <
+    CopyResource > > , pub root : Option < OptionPatch < RootPatch > > , pub
+    run : Option < VecPatch < String > > , pub cache : Option < VecPatch <
+    String > > ,
+} impl struct_patch :: traits :: Patch < StagePatch > for Stage
+{
+    fn apply(& mut self, patch : StagePatch)
+    {
+        if let Some(v) = patch.from { self.from.apply(v); } if let Some(v) =
+        patch.user { self.user.apply(v); } if let Some(v) = patch.artifacts
+        { self.artifacts.apply(v); } if let Some(v) = patch.root
+        { self.root.apply(v); } if let Some(v) = patch.run
+        { self.run.apply(v); } if let Some(v) = patch.cache
+        { self.cache.apply(v); } if let Some(v) = patch.name
+        { self.name = v; } if let Some(v) = patch.workdir
+        { self.workdir = v; } if let Some(v) = patch.env { self.env = v; } if
+        let Some(v) = patch.copy { self.copy = v; }
+    } fn into_patch(self) -> StagePatch
+    {
+        let mut p = Self :: new_empty_patch(); p.from =
+        Some(self.from.into_patch()); p.user = Some(self.user.into_patch());
+        p.artifacts = Some(self.artifacts.into_patch()); p.root =
+        Some(self.root.into_patch()); p.run = Some(self.run.into_patch());
+        p.cache = Some(self.cache.into_patch()); p.name = Some(self.name);
+        p.workdir = Some(self.workdir); p.env = Some(self.env); p.copy =
+        Some(self.copy); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> StagePatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.from !=
+        previous_struct.from
+        { p.from = Some(self.from.into_patch_by_diff(previous_struct.from)); }
+        if self.user != previous_struct.user
+        { p.user = Some(self.user.into_patch_by_diff(previous_struct.user)); }
+        if self.artifacts != previous_struct.artifacts
+        {
+            p.artifacts =
+            Some(self.artifacts.into_patch_by_diff(previous_struct.artifacts));
+        } if self.root != previous_struct.root
+        { p.root = Some(self.root.into_patch_by_diff(previous_struct.root)); }
+        if self.run != previous_struct.run
+        { p.run = Some(self.run.into_patch_by_diff(previous_struct.run)); } if
+        self.cache != previous_struct.cache
+        {
+            p.cache =
+            Some(self.cache.into_patch_by_diff(previous_struct.cache));
+        } if self.name != previous_struct.name { p.name = Some(self.name); }
+        if self.workdir != previous_struct.workdir
+        { p.workdir = Some(self.workdir); } if self.env != previous_struct.env
+        { p.env = Some(self.env); } if self.copy != previous_struct.copy
+        { p.copy = Some(self.copy); } p
+    } fn new_empty_patch() -> StagePatch
+    {
+        StagePatch
+        {
+            name : None, from : None, user : None, workdir : None, env : None,
+            artifacts : None, copy : None, root : None, run : None, cache :
+            None,
+        }
+    }
+} impl From < Stage > for StagePatch
+{ fn from(s : Stage) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] struct
+TestStructPatch
+{
+    pub name : Option < String > , pub sub : Option < OptionPatch <
+    SubTestStructPatch > > ,
+} impl struct_patch :: traits :: Patch < TestStructPatch > for TestStruct
+{
+    fn apply(& mut self, patch : TestStructPatch)
+    {
+        if let Some(v) = patch.sub { self.sub.apply(v); } if let Some(v) =
+        patch.name { self.name = v; }
+    } fn into_patch(self) -> TestStructPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.sub =
+        Some(self.sub.into_patch()); p.name = Some(self.name); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> TestStructPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.sub !=
+        previous_struct.sub
+        { p.sub = Some(self.sub.into_patch_by_diff(previous_struct.sub)); } if
+        self.name != previous_struct.name { p.name = Some(self.name); } p
+    } fn new_empty_patch() -> TestStructPatch
+    { TestStructPatch { name : None, sub : None, } }
+} impl From < TestStruct > for TestStructPatch
+{ fn from(s : TestStruct) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+ArtifactPatch
+{
+    pub builder : Option < String > , pub source : Option < String > , pub
+    target : Option < String > ,
+} impl struct_patch :: traits :: Patch < ArtifactPatch > for Artifact
+{
+    fn apply(& mut self, patch : ArtifactPatch)
+    {
+        if let Some(v) = patch.builder { self.builder = v; } if let Some(v) =
+        patch.source { self.source = v; } if let Some(v) = patch.target
+        { self.target = v; }
+    } fn into_patch(self) -> ArtifactPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.builder = Some(self.builder);
+        p.source = Some(self.source); p.target = Some(self.target); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> ArtifactPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.builder !=
+        previous_struct.builder { p.builder = Some(self.builder); } if
+        self.source != previous_struct.source
+        { p.source = Some(self.source); } if self.target !=
+        previous_struct.target { p.target = Some(self.target); } p
+    } fn new_empty_patch() -> ArtifactPatch
+    { ArtifactPatch { builder : None, source : None, target : None, } }
+} impl From < Artifact > for ArtifactPatch
+{ fn from(s : Artifact) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] struct
+SubTestStructPatch
+{
+    pub list : Option < VecPatch < String > > , pub num : Option < Option <
+    u32 > > ,
+} impl struct_patch :: traits :: Patch < SubTestStructPatch > for
+SubTestStruct
+{
+    fn apply(& mut self, patch : SubTestStructPatch)
+    {
+        if let Some(v) = patch.list { self.list.apply(v); } if let Some(v) =
+        patch.num { self.num = v; }
+    } fn into_patch(self) -> SubTestStructPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.list =
+        Some(self.list.into_patch()); p.num = Some(self.num); p
+    } fn into_patch_by_diff(self, previous_struct : Self) ->
+    SubTestStructPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.list !=
+        previous_struct.list
+        { p.list = Some(self.list.into_patch_by_diff(previous_struct.list)); }
+        if self.num != previous_struct.num { p.num = Some(self.num); } p
+    } fn new_empty_patch() -> SubTestStructPatch
+    { SubTestStructPatch { list : None, num : None, } }
+} impl From < SubTestStruct > for SubTestStructPatch
+{ fn from(s : SubTestStruct) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct RootPatch
+{
+    pub run : Option < VecPatch < String > > , pub cache : Option < VecPatch <
+    String > > ,
+} impl struct_patch :: traits :: Patch < RootPatch > for Root
+{
+    fn apply(& mut self, patch : RootPatch)
+    {
+        if let Some(v) = patch.run { self.run.apply(v); } if let Some(v) =
+        patch.cache { self.cache.apply(v); }
+    } fn into_patch(self) -> RootPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.run =
+        Some(self.run.into_patch()); p.cache = Some(self.cache.into_patch());
+        p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> RootPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.run !=
+        previous_struct.run
+        { p.run = Some(self.run.into_patch_by_diff(previous_struct.run)); } if
+        self.cache != previous_struct.cache
+        {
+            p.cache =
+            Some(self.cache.into_patch_by_diff(previous_struct.cache));
+        } p
+    } fn new_empty_patch() -> RootPatch
+    { RootPatch { run : None, cache : None, } }
+} impl From < Root > for RootPatch
+{ fn from(s : Root) -> Self { s.into_patch() } }
+#[derive(Deserialize, Default)] struct MyTestStructPatch < T >
+{ pub num : Option < Option < T > > , } impl < T > struct_patch :: traits ::
+Patch < MyTestStructPatch < T > > for MyTestStruct < T > where T : PartialEq,
+{
+    fn apply(& mut self, patch : MyTestStructPatch < T >)
+    { if let Some(v) = patch.num { self.num = v; } } fn into_patch(self) ->
+    MyTestStructPatch < T >
+    { let mut p = Self :: new_empty_patch(); p.num = Some(self.num); p } fn
+    into_patch_by_diff(self, previous_struct : Self) -> MyTestStructPatch < T
+    >
+    {
+        let mut p = Self :: new_empty_patch(); if self.num !=
+        previous_struct.num { p.num = Some(self.num); } p
+    } fn new_empty_patch() -> MyTestStructPatch < T >
+    { MyTestStructPatch { num : None, } }
+} impl < T > From < MyTestStruct < T > > for MyTestStructPatch < T > where T :
+PartialEq, { fn from(s : MyTestStruct < T >) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+HealthcheckPatch
+{
+    pub cmd : Option < String > , pub interval : Option < Option < String > >
+    , pub timeout : Option < Option < String > > , pub start : Option < Option
+    < String > > , pub retries : Option < Option < u16 > > ,
+} impl struct_patch :: traits :: Patch < HealthcheckPatch > for Healthcheck
+{
+    fn apply(& mut self, patch : HealthcheckPatch)
+    {
+        if let Some(v) = patch.cmd { self.cmd = v; } if let Some(v) =
+        patch.interval { self.interval = v; } if let Some(v) = patch.timeout
+        { self.timeout = v; } if let Some(v) = patch.start { self.start = v; }
+        if let Some(v) = patch.retries { self.retries = v; }
+    } fn into_patch(self) -> HealthcheckPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.cmd = Some(self.cmd);
+        p.interval = Some(self.interval); p.timeout = Some(self.timeout);
+        p.start = Some(self.start); p.retries = Some(self.retries); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> HealthcheckPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.cmd !=
+        previous_struct.cmd { p.cmd = Some(self.cmd); } if self.interval !=
+        previous_struct.interval { p.interval = Some(self.interval); } if
+        self.timeout != previous_struct.timeout
+        { p.timeout = Some(self.timeout); } if self.start !=
+        previous_struct.start { p.start = Some(self.start); } if self.retries
+        != previous_struct.retries { p.retries = Some(self.retries); } p
+    } fn new_empty_patch() -> HealthcheckPatch
+    {
+        HealthcheckPatch
+        {
+            cmd : None, interval : None, timeout : None, start : None, retries
+            : None,
+        }
+    }
+} impl From < Healthcheck > for HealthcheckPatch
+{ fn from(s : Healthcheck) -> Self { s.into_patch() } }
+ impl struct_patch :: traits :: Patch < ImagePatch > for Image
+{
+    fn apply(& mut self, patch : ImagePatch)
+    {
+        if let Some(v) = patch.stage { self.stage.apply(v); } if let Some(v) =
+        patch.builders { self.builders.apply(v); } if let Some(v) =
+        patch.context { self.context.apply(v); } if let Some(v) = patch.ignore
+        { self.ignore.apply(v); } if let Some(v) = patch.entrypoint
+        { self.entrypoint.apply(v); } if let Some(v) = patch.cmd
+        { self.cmd.apply(v); } if let Some(v) = patch.expose
+        { self.expose.apply(v); } if let Some(v) = patch.healthcheck
+        { self.healthcheck = v; }
+    } fn into_patch(self) -> ImagePatch
+    {
+        let mut p = Self :: new_empty_patch(); p.stage =
+        Some(self.stage.into_patch()); p.builders =
+        Some(self.builders.into_patch()); p.context =
+        Some(self.context.into_patch()); p.ignore =
+        Some(self.ignore.into_patch()); p.entrypoint =
+        Some(self.entrypoint.into_patch()); p.cmd =
+        Some(self.cmd.into_patch()); p.expose =
+        Some(self.expose.into_patch()); p.healthcheck =
+        Some(self.healthcheck); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> ImagePatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.stage !=
+        previous_struct.stage
+        {
+            p.stage =
+            Some(self.stage.into_patch_by_diff(previous_struct.stage));
+        } if self.builders != previous_struct.builders
+        {
+            p.builders =
+            Some(self.builders.into_patch_by_diff(previous_struct.builders));
+        } if self.context != previous_struct.context
+        {
+            p.context =
+            Some(self.context.into_patch_by_diff(previous_struct.context));
+        } if self.ignore != previous_struct.ignore
+        {
+            p.ignore =
+            Some(self.ignore.into_patch_by_diff(previous_struct.ignore));
+        } if self.entrypoint != previous_struct.entrypoint
+        {
+            p.entrypoint =
+            Some(self.entrypoint.into_patch_by_diff(previous_struct.entrypoint));
+        } if self.cmd != previous_struct.cmd
+        { p.cmd = Some(self.cmd.into_patch_by_diff(previous_struct.cmd)); } if
+        self.expose != previous_struct.expose
+        {
+            p.expose =
+            Some(self.expose.into_patch_by_diff(previous_struct.expose));
+        } if self.healthcheck != previous_struct.healthcheck
+        { p.healthcheck = Some(self.healthcheck); } p
+    } fn new_empty_patch() -> ImagePatch
+    {
+        ImagePatch
+        {
+            stage : None, builders : None, context : None, ignore : None,
+            entrypoint : None, cmd : None, expose : None, healthcheck : None,
+        }
+    }
+} impl From < Image > for ImagePatch
+{ fn from(s : Image) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct CopyPatch
+{
+    pub paths : Option < Vec < String > > , #[serde(flatten)] pub options :
+    Option < CopyOptionsPatch > , pub exclude : Option < VecPatch < String > >
+    , pub parents : Option < Option < bool > > , pub from : Option < Option <
+    String > > ,
+} impl struct_patch :: traits :: Patch < CopyPatch > for Copy
+{
+    fn apply(& mut self, patch : CopyPatch)
+    {
+        if let Some(v) = patch.options { self.options.apply(v); } if let
+        Some(v) = patch.exclude { self.exclude.apply(v); } if let Some(v) =
+        patch.paths { self.paths = v; } if let Some(v) = patch.parents
+        { self.parents = v; } if let Some(v) = patch.from { self.from = v; }
+    } fn into_patch(self) -> CopyPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.options =
+        Some(self.options.into_patch()); p.exclude =
+        Some(self.exclude.into_patch()); p.paths = Some(self.paths); p.parents
+        = Some(self.parents); p.from = Some(self.from); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> CopyPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.options !=
+        previous_struct.options
+        {
+            p.options =
+            Some(self.options.into_patch_by_diff(previous_struct.options));
+        } if self.exclude != previous_struct.exclude
+        {
+            p.exclude =
+            Some(self.exclude.into_patch_by_diff(previous_struct.exclude));
+        } if self.paths != previous_struct.paths
+        { p.paths = Some(self.paths); } if self.parents !=
+        previous_struct.parents { p.parents = Some(self.parents); } if
+        self.from != previous_struct.from { p.from = Some(self.from); } p
+    } fn new_empty_patch() -> CopyPatch
+    {
+        CopyPatch
+        {
+            paths : None, options : None, exclude : None, parents : None, from
+            : None,
+        }
+    }
+} impl From < Copy > for CopyPatch
+{ fn from(s : Copy) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct StagePatch
+{
+    pub name : Option < Option < String > > , pub from : Option < OptionPatch
+    < ParsableStruct < ImageNamePatch > > > , pub user : Option < OptionPatch
+    < UserPatch > > , pub workdir : Option < Option < String > > , pub env :
+    Option < HashMap < String, String > > , pub artifacts : Option <
+    VecDeepPatch < Artifact, ArtifactPatch > > , pub copy : Option < Vec <
+    CopyResource > > , pub root : Option < OptionPatch < RootPatch > > , pub
+    run : Option < VecPatch < String > > , pub cache : Option < VecPatch <
+    String > > ,
+} impl struct_patch :: traits :: Patch < StagePatch > for Stage
+{
+    fn apply(& mut self, patch : StagePatch)
+    {
+        if let Some(v) = patch.from { self.from.apply(v); } if let Some(v) =
+        patch.user { self.user.apply(v); } if let Some(v) = patch.artifacts
+        { self.artifacts.apply(v); } if let Some(v) = patch.root
+        { self.root.apply(v); } if let Some(v) = patch.run
+        { self.run.apply(v); } if let Some(v) = patch.cache
+        { self.cache.apply(v); } if let Some(v) = patch.name
+        { self.name = v; } if let Some(v) = patch.workdir
+        { self.workdir = v; } if let Some(v) = patch.env { self.env = v; } if
+        let Some(v) = patch.copy { self.copy = v; }
+    } fn into_patch(self) -> StagePatch
+    {
+        let mut p = Self :: new_empty_patch(); p.from =
+        Some(self.from.into_patch()); p.user = Some(self.user.into_patch());
+        p.artifacts = Some(self.artifacts.into_patch()); p.root =
+        Some(self.root.into_patch()); p.run = Some(self.run.into_patch());
+        p.cache = Some(self.cache.into_patch()); p.name = Some(self.name);
+        p.workdir = Some(self.workdir); p.env = Some(self.env); p.copy =
+        Some(self.copy); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> StagePatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.from !=
+        previous_struct.from
+        { p.from = Some(self.from.into_patch_by_diff(previous_struct.from)); }
+        if self.user != previous_struct.user
+        { p.user = Some(self.user.into_patch_by_diff(previous_struct.user)); }
+        if self.artifacts != previous_struct.artifacts
+        {
+            p.artifacts =
+            Some(self.artifacts.into_patch_by_diff(previous_struct.artifacts));
+        } if self.root != previous_struct.root
+        { p.root = Some(self.root.into_patch_by_diff(previous_struct.root)); }
+        if self.run != previous_struct.run
+        { p.run = Some(self.run.into_patch_by_diff(previous_struct.run)); } if
+        self.cache != previous_struct.cache
+        {
+            p.cache =
+            Some(self.cache.into_patch_by_diff(previous_struct.cache));
+        } if self.name != previous_struct.name { p.name = Some(self.name); }
+        if self.workdir != previous_struct.workdir
+        { p.workdir = Some(self.workdir); } if self.env != previous_struct.env
+        { p.env = Some(self.env); } if self.copy != previous_struct.copy
+        { p.copy = Some(self.copy); } p
+    } fn new_empty_patch() -> StagePatch
+    {
+        StagePatch
+        {
+            name : None, from : None, user : None, workdir : None, env : None,
+            artifacts : None, copy : None, root : None, run : None, cache :
+            None,
+        }
+    }
+} impl From < Stage > for StagePatch
+{ fn from(s : Stage) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+AddGitRepoPatch
+{
+    pub repo : Option < String > , #[serde(flatten)] pub options : Option <
+    CopyOptionsPatch > , pub exclude : Option < VecPatch < String > > , pub
+    keep_git_dir : Option < Option < bool > > ,
+} impl struct_patch :: traits :: Patch < AddGitRepoPatch > for AddGitRepo
+{
+    fn apply(& mut self, patch : AddGitRepoPatch)
+    {
+        if let Some(v) = patch.options { self.options.apply(v); } if let
+        Some(v) = patch.exclude { self.exclude.apply(v); } if let Some(v) =
+        patch.repo { self.repo = v; } if let Some(v) = patch.keep_git_dir
+        { self.keep_git_dir = v; }
+    } fn into_patch(self) -> AddGitRepoPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.options =
+        Some(self.options.into_patch()); p.exclude =
+        Some(self.exclude.into_patch()); p.repo = Some(self.repo);
+        p.keep_git_dir = Some(self.keep_git_dir); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> AddGitRepoPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.options !=
+        previous_struct.options
+        {
+            p.options =
+            Some(self.options.into_patch_by_diff(previous_struct.options));
+        } if self.exclude != previous_struct.exclude
+        {
+            p.exclude =
+            Some(self.exclude.into_patch_by_diff(previous_struct.exclude));
+        } if self.repo != previous_struct.repo { p.repo = Some(self.repo); }
+        if self.keep_git_dir != previous_struct.keep_git_dir
+        { p.keep_git_dir = Some(self.keep_git_dir); } p
+    } fn new_empty_patch() -> AddGitRepoPatch
+    {
+        AddGitRepoPatch
+        { repo : None, options : None, exclude : None, keep_git_dir : None, }
+    }
+} impl From < AddGitRepo > for AddGitRepoPatch
+{ fn from(s : AddGitRepo) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+ArtifactPatch
+{
+    pub builder : Option < String > , pub source : Option < String > , pub
+    target : Option < String > ,
+} impl struct_patch :: traits :: Patch < ArtifactPatch > for Artifact
+{
+    fn apply(& mut self, patch : ArtifactPatch)
+    {
+        if let Some(v) = patch.builder { self.builder = v; } if let Some(v) =
+        patch.source { self.source = v; } if let Some(v) = patch.target
+        { self.target = v; }
+    } fn into_patch(self) -> ArtifactPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.builder = Some(self.builder);
+        p.source = Some(self.source); p.target = Some(self.target); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> ArtifactPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.builder !=
+        previous_struct.builder { p.builder = Some(self.builder); } if
+        self.source != previous_struct.source
+        { p.source = Some(self.source); } if self.target !=
+        previous_struct.target { p.target = Some(self.target); } p
+    } fn new_empty_patch() -> ArtifactPatch
+    { ArtifactPatch { builder : None, source : None, target : None, } }
+} impl From < Artifact > for ArtifactPatch
+{ fn from(s : Artifact) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct AddPatch
+{
+    pub files : Option < VecPatch < Resource > > , #[serde(flatten)] pub
+    options : Option < CopyOptionsPatch > , pub checksum : Option < Option <
+    String > > ,
+} impl struct_patch :: traits :: Patch < AddPatch > for Add
+{
+    fn apply(& mut self, patch : AddPatch)
+    {
+        if let Some(v) = patch.files { self.files.apply(v); } if let Some(v) =
+        patch.options { self.options.apply(v); } if let Some(v) =
+        patch.checksum { self.checksum = v; }
+    } fn into_patch(self) -> AddPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.files =
+        Some(self.files.into_patch()); p.options =
+        Some(self.options.into_patch()); p.checksum = Some(self.checksum); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> AddPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.files !=
+        previous_struct.files
+        {
+            p.files =
+            Some(self.files.into_patch_by_diff(previous_struct.files));
+        } if self.options != previous_struct.options
+        {
+            p.options =
+            Some(self.options.into_patch_by_diff(previous_struct.options));
+        } if self.checksum != previous_struct.checksum
+        { p.checksum = Some(self.checksum); } p
+    } fn new_empty_patch() -> AddPatch
+    { AddPatch { files : None, options : None, checksum : None, } }
+} impl From < Add > for AddPatch
+{ fn from(s : Add) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct RootPatch
+{
+    pub run : Option < VecPatch < String > > , pub cache : Option < VecPatch <
+    String > > ,
+} impl struct_patch :: traits :: Patch < RootPatch > for Root
+{
+    fn apply(& mut self, patch : RootPatch)
+    {
+        if let Some(v) = patch.run { self.run.apply(v); } if let Some(v) =
+        patch.cache { self.cache.apply(v); }
+    } fn into_patch(self) -> RootPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.run =
+        Some(self.run.into_patch()); p.cache = Some(self.cache.into_patch());
+        p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> RootPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.run !=
+        previous_struct.run
+        { p.run = Some(self.run.into_patch_by_diff(previous_struct.run)); } if
+        self.cache != previous_struct.cache
+        {
+            p.cache =
+            Some(self.cache.into_patch_by_diff(previous_struct.cache));
+        } p
+    } fn new_empty_patch() -> RootPatch
+    { RootPatch { run : None, cache : None, } }
+} impl From < Root > for RootPatch
+{ fn from(s : Root) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+HealthcheckPatch
+{
+    pub cmd : Option < String > , pub interval : Option < Option < String > >
+    , pub timeout : Option < Option < String > > , pub start : Option < Option
+    < String > > , pub retries : Option < Option < u16 > > ,
+} impl struct_patch :: traits :: Patch < HealthcheckPatch > for Healthcheck
+{
+    fn apply(& mut self, patch : HealthcheckPatch)
+    {
+        if let Some(v) = patch.cmd { self.cmd = v; } if let Some(v) =
+        patch.interval { self.interval = v; } if let Some(v) = patch.timeout
+        { self.timeout = v; } if let Some(v) = patch.start { self.start = v; }
+        if let Some(v) = patch.retries { self.retries = v; }
+    } fn into_patch(self) -> HealthcheckPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.cmd = Some(self.cmd);
+        p.interval = Some(self.interval); p.timeout = Some(self.timeout);
+        p.start = Some(self.start); p.retries = Some(self.retries); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> HealthcheckPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.cmd !=
+        previous_struct.cmd { p.cmd = Some(self.cmd); } if self.interval !=
+        previous_struct.interval { p.interval = Some(self.interval); } if
+        self.timeout != previous_struct.timeout
+        { p.timeout = Some(self.timeout); } if self.start !=
+        previous_struct.start { p.start = Some(self.start); } if self.retries
+        != previous_struct.retries { p.retries = Some(self.retries); } p
+    } fn new_empty_patch() -> HealthcheckPatch
+    {
+        HealthcheckPatch
+        {
+            cmd : None, interval : None, timeout : None, start : None, retries
+            : None,
+        }
+    }
+} impl From < Healthcheck > for HealthcheckPatch
+{ fn from(s : Healthcheck) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+CopyOptionsPatch
+{
+    pub target : Option < Option < String > > , pub chown : Option <
+    OptionPatch < UserPatch > > , pub chmod : Option < Option < String > > ,
+    pub link : Option < Option < bool > > ,
+} impl struct_patch :: traits :: Patch < CopyOptionsPatch > for CopyOptions
+{
+    fn apply(& mut self, patch : CopyOptionsPatch)
+    {
+        if let Some(v) = patch.chown { self.chown.apply(v); } if let Some(v) =
+        patch.target { self.target = v; } if let Some(v) = patch.chmod
+        { self.chmod = v; } if let Some(v) = patch.link { self.link = v; }
+    } fn into_patch(self) -> CopyOptionsPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.chown =
+        Some(self.chown.into_patch()); p.target = Some(self.target); p.chmod =
+        Some(self.chmod); p.link = Some(self.link); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> CopyOptionsPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.chown !=
+        previous_struct.chown
+        {
+            p.chown =
+            Some(self.chown.into_patch_by_diff(previous_struct.chown));
+        } if self.target != previous_struct.target
+        { p.target = Some(self.target); } if self.chmod !=
+        previous_struct.chmod { p.chmod = Some(self.chmod); } if self.link !=
+        previous_struct.link { p.link = Some(self.link); } p
+    } fn new_empty_patch() -> CopyOptionsPatch
+    {
+        CopyOptionsPatch
+        { target : None, chown : None, chmod : None, link : None, }
+    }
+} impl From < CopyOptions > for CopyOptionsPatch
+{ fn from(s : CopyOptions) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct UserPatch
+{ pub user : Option < String > , pub group : Option < Option < String > > , }
+impl struct_patch :: traits :: Patch < UserPatch > for User
+{
+    fn apply(& mut self, patch : UserPatch)
+    {
+        if let Some(v) = patch.user { self.user = v; } if let Some(v) =
+        patch.group { self.group = v; }
+    } fn into_patch(self) -> UserPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.user = Some(self.user);
+        p.group = Some(self.group); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> UserPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.user !=
+        previous_struct.user { p.user = Some(self.user); } if self.group !=
+        previous_struct.group { p.group = Some(self.group); } p
+    } fn new_empty_patch() -> UserPatch
+    { UserPatch { user : None, group : None, } }
+} impl From < User > for UserPatch
+{ fn from(s : User) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+ImageNamePatch
+{
+    pub host : Option < Option < String > > , pub port : Option < Option < u16
+    > > , pub path : Option < String > , pub version : Option < Option <
+    ImageVersion > > ,
+} impl struct_patch :: traits :: Patch < ImageNamePatch > for ImageName
+{
+    fn apply(& mut self, patch : ImageNamePatch)
+    {
+        if let Some(v) = patch.host { self.host = v; } if let Some(v) =
+        patch.port { self.port = v; } if let Some(v) = patch.path
+        { self.path = v; } if let Some(v) = patch.version
+        { self.version = v; }
+    } fn into_patch(self) -> ImageNamePatch
+    {
+        let mut p = Self :: new_empty_patch(); p.host = Some(self.host);
+        p.port = Some(self.port); p.path = Some(self.path); p.version =
+        Some(self.version); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> ImageNamePatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.host !=
+        previous_struct.host { p.host = Some(self.host); } if self.port !=
+        previous_struct.port { p.port = Some(self.port); } if self.path !=
+        previous_struct.path { p.path = Some(self.path); } if self.version !=
+        previous_struct.version { p.version = Some(self.version); } p
+    } fn new_empty_patch() -> ImageNamePatch
+    {
+        ImageNamePatch
+        { host : None, port : None, path : None, version : None, }
+    }
+} impl From < ImageName > for ImageNamePatch
+{ fn from(s : ImageName) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct PortPatch
+{
+    pub port : Option < u16 > , pub protocol : Option < Option < PortProtocol
+    > > ,
+} impl struct_patch :: traits :: Patch < PortPatch > for Port
+{
+    fn apply(& mut self, patch : PortPatch)
+    {
+        if let Some(v) = patch.port { self.port = v; } if let Some(v) =
+        patch.protocol { self.protocol = v; }
+    } fn into_patch(self) -> PortPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.port = Some(self.port);
+        p.protocol = Some(self.protocol); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> PortPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.port !=
+        previous_struct.port { p.port = Some(self.port); } if self.protocol !=
+        previous_struct.protocol { p.protocol = Some(self.protocol); } p
+    } fn new_empty_patch() -> PortPatch
+    { PortPatch { port : None, protocol : None, } }
+} impl From < Port > for PortPatch
+{ fn from(s : Port) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct CopyPatch
+{
+    pub paths : Option < Vec < String > > , #[serde(flatten)] pub options :
+    Option < CopyOptionsPatch > , pub exclude : Option < VecPatch < String > >
+    , pub parents : Option < Option < bool > > , pub from : Option < Option <
+    String > > ,
+} impl struct_patch :: traits :: Patch < CopyPatch > for Copy
+{
+    fn apply(& mut self, patch : CopyPatch)
+    {
+        if let Some(v) = patch.options { self.options.apply(v); } if let
+        Some(v) = patch.exclude { self.exclude.apply(v); } if let Some(v) =
+        patch.paths { self.paths = v; } if let Some(v) = patch.parents
+        { self.parents = v; } if let Some(v) = patch.from { self.from = v; }
+    } fn into_patch(self) -> CopyPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.options =
+        Some(self.options.into_patch()); p.exclude =
+        Some(self.exclude.into_patch()); p.paths = Some(self.paths); p.parents
+        = Some(self.parents); p.from = Some(self.from); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> CopyPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.options !=
+        previous_struct.options
+        {
+            p.options =
+            Some(self.options.into_patch_by_diff(previous_struct.options));
+        } if self.exclude != previous_struct.exclude
+        {
+            p.exclude =
+            Some(self.exclude.into_patch_by_diff(previous_struct.exclude));
+        } if self.paths != previous_struct.paths
+        { p.paths = Some(self.paths); } if self.parents !=
+        previous_struct.parents { p.parents = Some(self.parents); } if
+        self.from != previous_struct.from { p.from = Some(self.from); } p
+    } fn new_empty_patch() -> CopyPatch
+    {
+        CopyPatch
+        {
+            paths : None, options : None, exclude : None, parents : None, from
+            : None,
+        }
+    }
+} impl From < Copy > for CopyPatch
+{ fn from(s : Copy) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+SshGitRepoPatch
+{
+    pub user : Option < String > , pub host : Option < String > , pub path :
+    Option < String > ,
+} impl struct_patch :: traits :: Patch < SshGitRepoPatch > for SshGitRepo
+{
+    fn apply(& mut self, patch : SshGitRepoPatch)
+    {
+        if let Some(v) = patch.user { self.user = v; } if let Some(v) =
+        patch.host { self.host = v; } if let Some(v) = patch.path
+        { self.path = v; }
+    } fn into_patch(self) -> SshGitRepoPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.user = Some(self.user);
+        p.host = Some(self.host); p.path = Some(self.path); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> SshGitRepoPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.user !=
+        previous_struct.user { p.user = Some(self.user); } if self.host !=
+        previous_struct.host { p.host = Some(self.host); } if self.path !=
+        previous_struct.path { p.path = Some(self.path); } p
+    } fn new_empty_patch() -> SshGitRepoPatch
+    { SshGitRepoPatch { user : None, host : None, path : None, } }
+} impl From < SshGitRepo > for SshGitRepoPatch
+{ fn from(s : SshGitRepo) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+AddGitRepoPatch
+{
+    pub repo : Option < String > , #[serde(flatten)] pub options : Option <
+    CopyOptionsPatch > , pub exclude : Option < VecPatch < String > > , pub
+    keep_git_dir : Option < Option < bool > > ,
+} impl struct_patch :: traits :: Patch < AddGitRepoPatch > for AddGitRepo
+{
+    fn apply(& mut self, patch : AddGitRepoPatch)
+    {
+        if let Some(v) = patch.options { self.options.apply(v); } if let
+        Some(v) = patch.exclude { self.exclude.apply(v); } if let Some(v) =
+        patch.repo { self.repo = v; } if let Some(v) = patch.keep_git_dir
+        { self.keep_git_dir = v; }
+    } fn into_patch(self) -> AddGitRepoPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.options =
+        Some(self.options.into_patch()); p.exclude =
+        Some(self.exclude.into_patch()); p.repo = Some(self.repo);
+        p.keep_git_dir = Some(self.keep_git_dir); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> AddGitRepoPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.options !=
+        previous_struct.options
+        {
+            p.options =
+            Some(self.options.into_patch_by_diff(previous_struct.options));
+        } if self.exclude != previous_struct.exclude
+        {
+            p.exclude =
+            Some(self.exclude.into_patch_by_diff(previous_struct.exclude));
+        } if self.repo != previous_struct.repo { p.repo = Some(self.repo); }
+        if self.keep_git_dir != previous_struct.keep_git_dir
+        { p.keep_git_dir = Some(self.keep_git_dir); } p
+    } fn new_empty_patch() -> AddGitRepoPatch
+    {
+        AddGitRepoPatch
+        { repo : None, options : None, exclude : None, keep_git_dir : None, }
+    }
+} impl From < AddGitRepo > for AddGitRepoPatch
+{ fn from(s : AddGitRepo) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct AddPatch
+{
+    pub files : Option < VecPatch < Resource > > , #[serde(flatten)] pub
+    options : Option < CopyOptionsPatch > , pub checksum : Option < Option <
+    String > > ,
+} impl struct_patch :: traits :: Patch < AddPatch > for Add
+{
+    fn apply(& mut self, patch : AddPatch)
+    {
+        if let Some(v) = patch.files { self.files.apply(v); } if let Some(v) =
+        patch.options { self.options.apply(v); } if let Some(v) =
+        patch.checksum { self.checksum = v; }
+    } fn into_patch(self) -> AddPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.files =
+        Some(self.files.into_patch()); p.options =
+        Some(self.options.into_patch()); p.checksum = Some(self.checksum); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> AddPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.files !=
+        previous_struct.files
+        {
+            p.files =
+            Some(self.files.into_patch_by_diff(previous_struct.files));
+        } if self.options != previous_struct.options
+        {
+            p.options =
+            Some(self.options.into_patch_by_diff(previous_struct.options));
+        } if self.checksum != previous_struct.checksum
+        { p.checksum = Some(self.checksum); } p
+    } fn new_empty_patch() -> AddPatch
+    { AddPatch { files : None, options : None, checksum : None, } }
+} impl From < Add > for AddPatch
+{ fn from(s : Add) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+CopyOptionsPatch
+{
+    pub target : Option < Option < String > > , pub chown : Option <
+    OptionPatch < UserPatch > > , pub chmod : Option < Option < String > > ,
+    pub link : Option < Option < bool > > ,
+} impl struct_patch :: traits :: Patch < CopyOptionsPatch > for CopyOptions
+{
+    fn apply(& mut self, patch : CopyOptionsPatch)
+    {
+        if let Some(v) = patch.chown { self.chown.apply(v); } if let Some(v) =
+        patch.target { self.target = v; } if let Some(v) = patch.chmod
+        { self.chmod = v; } if let Some(v) = patch.link { self.link = v; }
+    } fn into_patch(self) -> CopyOptionsPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.chown =
+        Some(self.chown.into_patch()); p.target = Some(self.target); p.chmod =
+        Some(self.chmod); p.link = Some(self.link); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> CopyOptionsPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.chown !=
+        previous_struct.chown
+        {
+            p.chown =
+            Some(self.chown.into_patch_by_diff(previous_struct.chown));
+        } if self.target != previous_struct.target
+        { p.target = Some(self.target); } if self.chmod !=
+        previous_struct.chmod { p.chmod = Some(self.chmod); } if self.link !=
+        previous_struct.link { p.link = Some(self.link); } p
+    } fn new_empty_patch() -> CopyOptionsPatch
+    {
+        CopyOptionsPatch
+        { target : None, chown : None, chmod : None, link : None, }
+    }
+} impl From < CopyOptions > for CopyOptionsPatch
+{ fn from(s : CopyOptions) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct UserPatch
+{ pub user : Option < String > , pub group : Option < Option < String > > , }
+impl struct_patch :: traits :: Patch < UserPatch > for User
+{
+    fn apply(& mut self, patch : UserPatch)
+    {
+        if let Some(v) = patch.user { self.user = v; } if let Some(v) =
+        patch.group { self.group = v; }
+    } fn into_patch(self) -> UserPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.user = Some(self.user);
+        p.group = Some(self.group); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> UserPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.user !=
+        previous_struct.user { p.user = Some(self.user); } if self.group !=
+        previous_struct.group { p.group = Some(self.group); } p
+    } fn new_empty_patch() -> UserPatch
+    { UserPatch { user : None, group : None, } }
+} impl From < User > for UserPatch
+{ fn from(s : User) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct PortPatch
+{
+    pub port : Option < u16 > , pub protocol : Option < Option < PortProtocol
+    > > ,
+} impl struct_patch :: traits :: Patch < PortPatch > for Port
+{
+    fn apply(& mut self, patch : PortPatch)
+    {
+        if let Some(v) = patch.port { self.port = v; } if let Some(v) =
+        patch.protocol { self.protocol = v; }
+    } fn into_patch(self) -> PortPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.port = Some(self.port);
+        p.protocol = Some(self.protocol); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> PortPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.port !=
+        previous_struct.port { p.port = Some(self.port); } if self.protocol !=
+        previous_struct.protocol { p.protocol = Some(self.protocol); } p
+    } fn new_empty_patch() -> PortPatch
+    { PortPatch { port : None, protocol : None, } }
+} impl From < Port > for PortPatch
+{ fn from(s : Port) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)] pub struct
+SshGitRepoPatch
+{
+    pub user : Option < String > , pub host : Option < String > , pub path :
+    Option < String > ,
+} impl struct_patch :: traits :: Patch < SshGitRepoPatch > for SshGitRepo
+{
+    fn apply(& mut self, patch : SshGitRepoPatch)
+    {
+        if let Some(v) = patch.user { self.user = v; } if let Some(v) =
+        patch.host { self.host = v; } if let Some(v) = patch.path
+        { self.path = v; }
+    } fn into_patch(self) -> SshGitRepoPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.user = Some(self.user);
+        p.host = Some(self.host); p.path = Some(self.path); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> SshGitRepoPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.user !=
+        previous_struct.user { p.user = Some(self.user); } if self.host !=
+        previous_struct.host { p.host = Some(self.host); } if self.path !=
+        previous_struct.path { p.path = Some(self.path); } p
+    } fn new_empty_patch() -> SshGitRepoPatch
+    { SshGitRepoPatch { user : None, host : None, path : None, } }
+} impl From < SshGitRepo > for SshGitRepoPatch
+{ fn from(s : SshGitRepo) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields, default)] struct TestStructPatch
+{
+    pub name : Option < Option < String > > , #[serde(flatten)] pub sub :
+    Option < TestSubStructPatch > ,
+} impl struct_patch :: traits :: Patch < TestStructPatch > for TestStruct
+{
+    fn apply(& mut self, patch : TestStructPatch)
+    {
+        if let Some(v) = patch.sub { self.sub.apply(v); } if let Some(v) =
+        patch.name { self.name = v; }
+    } fn into_patch(self) -> TestStructPatch
+    {
+        let mut p = Self :: new_empty_patch(); p.sub =
+        Some(self.sub.into_patch()); p.name = Some(self.name); p
+    } fn into_patch_by_diff(self, previous_struct : Self) -> TestStructPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.sub !=
+        previous_struct.sub
+        { p.sub = Some(self.sub.into_patch_by_diff(previous_struct.sub)); } if
+        self.name != previous_struct.name { p.name = Some(self.name); } p
+    } fn new_empty_patch() -> TestStructPatch
+    { TestStructPatch { name : None, sub : None, } }
+} impl From < TestStruct > for TestStructPatch
+{ fn from(s : TestStruct) -> Self { s.into_patch() } }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(deny_unknown_fields, default)] struct TestSubStructPatch
+{ pub level : Option < u16 > , } impl struct_patch :: traits :: Patch <
+TestSubStructPatch > for TestSubStruct
+{
+    fn apply(& mut self, patch : TestSubStructPatch)
+    { if let Some(v) = patch.level { self.level = v; } } fn into_patch(self)
+    -> TestSubStructPatch
+    { let mut p = Self :: new_empty_patch(); p.level = Some(self.level); p }
+    fn into_patch_by_diff(self, previous_struct : Self) -> TestSubStructPatch
+    {
+        let mut p = Self :: new_empty_patch(); if self.level !=
+        previous_struct.level { p.level = Some(self.level); } p
+    } fn new_empty_patch() -> TestSubStructPatch
+    { TestSubStructPatch { level : None, } }
+} impl From < TestSubStruct > for TestSubStructPatch
+{ fn from(s : TestSubStruct) -> Self { s.into_patch() } }

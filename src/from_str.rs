@@ -35,29 +35,29 @@ impl FromStr for ImageNamePatch {
     }
 }
 
-// impl FromStr for CopyResourcePatch {
-//     type Err = Error;
+impl FromStr for CopyResourcePatch {
+    type Err = Error;
 
-//     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-//         let parts_regex = format!(
-//             r"^(?:(?<git>(?:{git_http}|{git_ssh}))|(?<url>{url})|\S+)(?: (?:{git_http}|{git_ssh}|{url}|\S+))*(?: \S+)?$",
-//             git_http = GIT_HTTP_REPO_REGEX,
-//             git_ssh = GIT_SSH_REPO_REGEX,
-//             url = URL_REGEX
-//         );
-//         let regex = Regex::new(parts_regex.as_str()).unwrap();
-//         let Some(captures) = regex.captures(s) else {
-//             return Err(Error::custom("Not matching copy resources pattern"));
-//         };
-//         if captures.name("git").is_some() {
-//             return Ok(CopyResourcePatch::AddGitRepo(s.parse().unwrap()));
-//         }
-//         if captures.name("url").is_some() {
-//             return Ok(CopyResourcePatch::Add(s.parse().unwrap()));
-//         }
-//         Ok(CopyResourcePatch::Copy(s.parse().unwrap()))
-//     }
-// }
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        let parts_regex = format!(
+            r"^(?:(?<git>(?:{git_http}|{git_ssh}))|(?<url>{url})|\S+)(?: (?:{git_http}|{git_ssh}|{url}|\S+))*(?: \S+)?$",
+            git_http = GIT_HTTP_REPO_REGEX,
+            git_ssh = GIT_SSH_REPO_REGEX,
+            url = URL_REGEX
+        );
+        let regex = Regex::new(parts_regex.as_str()).unwrap();
+        let Some(captures) = regex.captures(s) else {
+            return Err(Error::custom("Not matching copy resources pattern"));
+        };
+        if captures.name("git").is_some() {
+            return Ok(CopyResourcePatch::AddGitRepo(s.parse().unwrap()));
+        }
+        if captures.name("url").is_some() {
+            return Ok(CopyResourcePatch::Add(s.parse().unwrap()));
+        }
+        Ok(CopyResourcePatch::Copy(s.parse().unwrap()))
+    }
+}
 
 impl FromStr for CopyPatch {
     type Err = Error;
@@ -387,6 +387,8 @@ mod test_from_str {
     }
 
     mod add {
+        use struct_patch::Patch;
+
         use crate::{CopyOptions, Resource};
 
         use super::*;
@@ -407,7 +409,7 @@ mod test_from_str {
                     options: CopyOptions::default(),
                     ..Default::default()
                 }
-                .into()
+                .into_patch()
             );
         }
 
@@ -430,7 +432,7 @@ mod test_from_str {
                     },
                     ..Default::default()
                 }
-                .into()
+                .into_patch()
             );
         }
 
@@ -458,7 +460,7 @@ mod test_from_str {
                     },
                     ..Default::default()
                 }
-                .into()
+                .into_patch()
             );
         }
     }

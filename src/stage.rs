@@ -44,16 +44,16 @@ where
         }
 
         // load extends files
-        let mut patchs: Vec<T> = self
+        let mut patches: Vec<T> = self
             .extend
             .iter()
             .map(|extend| extend.load::<Self>(context)?.merge(context))
             .collect::<Result<Vec<_>>>()?;
 
         // for each extends file, merge it with self
-        let mut merged = patchs.remove(0);
-        for patch in patchs {
-            merged.apply(patch.into());
+        let mut merged = patches.remove(0);
+        for patch in patches {
+            merged.apply(patch.into_patch());
         }
         merged.apply(self.value.clone());
         Ok(merged)
