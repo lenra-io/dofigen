@@ -3,16 +3,15 @@ use crate::serde_permissive::ParsableStruct;
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
 use std::str::FromStr;
-use url::Url;
 use struct_patch::Patch;
-
+use url::Url;
 
 const GIT_HTTP_REPO_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.git(?:#[a-zA-Z0-9_/.-]*(?::[a-zA-Z0-9_/-]+)?)?";
 const GIT_SSH_REPO_REGEX: &str = "[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+:[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:#[a-zA-Z0-9_/.-]+)?(?::[a-zA-Z0-9_/-]+)?";
 const URL_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+(/[a-zA-Z0-9_.-]+)*";
 
 macro_rules! impl_parsable_patch {
-    ($struct:ty, $patch:ty) => {
+    ($struct:ty, $patch:ty, $param:ident, $expression:expr) => {
         impl Patch<ParsableStruct<$patch>> for $struct {
             fn apply(&mut self, patch: ParsableStruct<$patch>) {
                 self.apply(patch.0);
@@ -36,177 +35,149 @@ macro_rules! impl_parsable_patch {
                 value.0.into()
             }
         }
+
+        impl FromStr for $patch {
+            type Err = Error;
+
+            fn from_str($param: &str) -> std::result::Result<Self, Self::Err> {
+                $expression
+            }
+        }
     };
 }
 
-impl FromStr for ImageNamePatch {
-    type Err = Error;
+impl_parsable_patch!(ImageName, ImageNamePatch, s, {
+    let regex = Regex::new(r"^(?:(?<host>[^:\/.]+(?:\.[^:\/.]+)+)(?::(?<port>\d{1,5}))?\/)?(?<path>[a-zA-Z0-9-]{1,63}(?:\/[a-zA-Z0-9-]{1,63})*)(?:(?<version_char>[:@])(?<version_value>[a-zA-Z0-9_.:-]{1,128}))?$").unwrap();
+    let Some(captures) = regex.captures(s) else {
+        return Err(Error::custom("Not matching image name pattern"));
+    };
+    Ok(ImageNamePatch {
+        host: Some(captures.name("host").map(|m| m.as_str().into())),
+        port: Some(captures.name("port").map(|m| m.as_str().parse().unwrap())),
+        path: Some(captures["path"].into()),
+        version: Some(
+            match (
+                captures.name("version_char").map(|m| m.as_str()),
+                captures.name("version_value"),
+            ) {
+                (Some(":"), Some(value)) => Some(ImageVersion::Tag(value.as_str().into())),
+                (Some("@"), Some(value)) => Some(ImageVersion::Digest(value.as_str().into())),
+                (None, None) => None,
+                _ => return Err(Error::custom("Invalid version format")),
+            },
+        ),
+    })
+});
 
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let regex = Regex::new(r"^(?:(?<host>[^:\/.]+(?:\.[^:\/.]+)+)(?::(?<port>\d{1,5}))?\/)?(?<path>[a-zA-Z0-9-]{1,63}(?:\/[a-zA-Z0-9-]{1,63})*)(?:(?<version_char>[:@])(?<version_value>[a-zA-Z0-9_.:-]{1,128}))?$").unwrap();
-        let Some(captures) = regex.captures(s) else {
-            return Err(Error::custom("Not matching image name pattern"));
-        };
-        Ok(ImageNamePatch {
-            host: Some(captures.name("host").map(|m| m.as_str().into())),
-            port: Some(captures.name("port").map(|m| m.as_str().parse().unwrap())),
-            path: Some(captures["path"].into()),
-            version: Some(
-                match (
-                    captures.name("version_char").map(|m| m.as_str()),
-                    captures.name("version_value"),
-                ) {
-                    (Some(":"), Some(value)) => Some(ImageVersion::Tag(value.as_str().into())),
-                    (Some("@"), Some(value)) => Some(ImageVersion::Digest(value.as_str().into())),
-                    (None, None) => None,
-                    _ => return Err(Error::custom("Invalid version format")),
-                },
-            ),
+impl_parsable_patch!(CopyResource, CopyResourcePatch, s, {
+    let parts_regex = format!(
+        r"^(?:(?<git>(?:{git_http}|{git_ssh}))|(?<url>{url})|\S+)(?: (?:{git_http}|{git_ssh}|{url}|\S+))*(?: \S+)?$",
+        git_http = GIT_HTTP_REPO_REGEX,
+        git_ssh = GIT_SSH_REPO_REGEX,
+        url = URL_REGEX
+    );
+    let regex = Regex::new(parts_regex.as_str()).unwrap();
+    let Some(captures) = regex.captures(s) else {
+        return Err(Error::custom("Not matching copy resources pattern"));
+    };
+    if captures.name("git").is_some() {
+        return Ok(CopyResourcePatch::AddGitRepo(s.parse().unwrap()));
+    }
+    if captures.name("url").is_some() {
+        return Ok(CopyResourcePatch::Add(s.parse().unwrap()));
+    }
+    Ok(CopyResourcePatch::Copy(s.parse().unwrap()))
+});
+
+impl_parsable_patch!(Copy, CopyPatch, s, {
+    let mut parts: Vec<String> = s.split(" ").map(|s| s.into()).collect();
+    let target = if parts.len() > 1 { parts.pop() } else { None };
+    Ok(Self {
+        paths: Some(parts.into()),
+        options: Some(CopyOptionsPatch {
+            target: Some(target),
+            chmod: Some(None),
+            chown: Some(None),
+            link: Some(None),
+        }),
+        from: Some(None),
+        exclude: Some(vec![].into()),
+        parents: Some(None),
+    })
+});
+
+impl_parsable_patch!(AddGitRepo, AddGitRepoPatch, s, {
+    let (repo, target) = match &s.split(" ").collect::<Vec<&str>>().as_slice() {
+        &[repo, target] => (repo.to_string(), Some(target.to_string())),
+        &[repo] => (repo.to_string(), None),
+        _ => return Err(Error::custom("Invalid add git repo format")),
+    };
+    Ok(Self {
+        repo: Some(repo),
+        options: Some(CopyOptionsPatch {
+            target: Some(target),
+            chmod: Some(None),
+            chown: Some(None),
+            link: Some(None),
+        }),
+        exclude: Some(vec![].into()),
+        keep_git_dir: Some(None),
+    })
+});
+
+impl_parsable_patch!(Add, AddPatch, s, {
+    let mut parts: Vec<_> = s.split(" ").collect();
+    let target = if parts.len() > 1 {
+        parts.pop().map(str::to_string)
+    } else {
+        None
+    };
+    let parts: Vec<_> = parts
+        .iter()
+        .map(|s| {
+            Url::parse(s)
+                .map(Resource::Url)
+                .ok()
+                .unwrap_or(Resource::File(s.into()))
         })
-    }
-}
-impl_parsable_patch!(ImageName, ImageNamePatch);
+        .collect();
+    Ok(Self {
+        files: Some(parts.into()),
+        options: Some(CopyOptionsPatch {
+            target: Some(target),
+            chmod: Some(None),
+            chown: Some(None),
+            link: Some(None),
+        }),
+        checksum: Some(None),
+    })
+});
 
-impl FromStr for CopyResourcePatch {
-    type Err = Error;
+impl_parsable_patch!(User, UserPatch, s, {
+    let regex = Regex::new(r"^(?<user>[a-zA-Z0-9_]+)(?::(?<group>[a-zA-Z0-9_]+))?$").unwrap();
+    let Some(captures) = regex.captures(s) else {
+        return Err(Error::custom("Not matching chown pattern"));
+    };
+    Ok(Self {
+        user: Some(captures["user"].into()),
+        group: Some(captures.name("group").map(|m| m.as_str().into())),
+    })
+});
 
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let parts_regex = format!(
-            r"^(?:(?<git>(?:{git_http}|{git_ssh}))|(?<url>{url})|\S+)(?: (?:{git_http}|{git_ssh}|{url}|\S+))*(?: \S+)?$",
-            git_http = GIT_HTTP_REPO_REGEX,
-            git_ssh = GIT_SSH_REPO_REGEX,
-            url = URL_REGEX
-        );
-        let regex = Regex::new(parts_regex.as_str()).unwrap();
-        let Some(captures) = regex.captures(s) else {
-            return Err(Error::custom("Not matching copy resources pattern"));
-        };
-        if captures.name("git").is_some() {
-            return Ok(CopyResourcePatch::AddGitRepo(s.parse().unwrap()));
-        }
-        if captures.name("url").is_some() {
-            return Ok(CopyResourcePatch::Add(s.parse().unwrap()));
-        }
-        Ok(CopyResourcePatch::Copy(s.parse().unwrap()))
-    }
-}
-impl_parsable_patch!(CopyResource, CopyResourcePatch);
-
-impl FromStr for CopyPatch {
-    type Err = Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let mut parts: Vec<String> = s.split(" ").map(|s| s.into()).collect();
-        let target = if parts.len() > 1 { parts.pop() } else { None };
-        Ok(Self {
-            paths: Some(parts.into()),
-            options: Some(CopyOptionsPatch {
-                target: Some(target),
-                chmod: Some(None),
-                chown: Some(None),
-                link: Some(None),
-            }),
-            from: Some(None),
-            exclude: Some(vec![].into()),
-            parents: Some(None),
-        })
-    }
-}
-impl_parsable_patch!(Copy, CopyPatch);
-
-impl FromStr for AddGitRepoPatch {
-    type Err = Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let (repo, target) = match &s.split(" ").collect::<Vec<&str>>().as_slice() {
-            &[repo, target] => (repo.to_string(), Some(target.to_string())),
-            &[repo] => (repo.to_string(), None),
-            _ => return Err(Error::custom("Invalid add git repo format")),
-        };
-        Ok(Self {
-            repo: Some(repo),
-            options: Some(CopyOptionsPatch {
-                target: Some(target),
-                chmod: Some(None),
-                chown: Some(None),
-                link: Some(None),
-            }),
-            exclude: Some(vec![].into()),
-            keep_git_dir: Some(None),
-        })
-    }
-}
-impl_parsable_patch!(AddGitRepo, AddGitRepoPatch);
-
-impl FromStr for AddPatch {
-    type Err = Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let mut parts: Vec<_> = s.split(" ").collect();
-        let target = if parts.len() > 1 {
-            parts.pop().map(str::to_string)
-        } else {
-            None
-        };
-        let parts: Vec<_> = parts
-            .iter()
-            .map(|s| {
-                Url::parse(s)
-                    .map(Resource::Url)
-                    .ok()
-                    .unwrap_or(Resource::File(s.into()))
-            })
-            .collect();
-        Ok(Self {
-            files: Some(parts.into()),
-            options: Some(CopyOptionsPatch {
-                target: Some(target),
-                chmod: Some(None),
-                chown: Some(None),
-                link: Some(None),
-            }),
-            checksum: Some(None),
-        })
-    }
-}
-impl_parsable_patch!(Add, AddPatch);
-
-impl FromStr for UserPatch {
-    type Err = Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let regex = Regex::new(r"^(?<user>[a-zA-Z0-9_]+)(?::(?<group>[a-zA-Z0-9_]+))?$").unwrap();
-        let Some(captures) = regex.captures(s) else {
-            return Err(Error::custom("Not matching chown pattern"));
-        };
-        Ok(Self {
-            user: Some(captures["user"].into()),
-            group: Some(captures.name("group").map(|m| m.as_str().into())),
-        })
-    }
-}
-impl_parsable_patch!(User, UserPatch);
-
-impl FromStr for PortPatch {
-    type Err = Error;
-
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        let regex = Regex::new(r"^(?<port>\d+)(?:/(?<protocol>(tcp|udp)))?$").unwrap();
-        let Some(captures) = regex.captures(s) else {
-            return Err(Error::custom("Not matching chown pattern"));
-        };
-        Ok(Self {
-            port: Some(captures["port"].parse().map_err(Error::custom)?),
-            protocol: Some(captures.name("protocol").map(|m| match m.as_str() {
-                "tcp" => PortProtocol::Tcp,
-                "udp" => PortProtocol::Udp,
-                _ => unreachable!(),
-            })),
-        })
-    }
-}
-impl_parsable_patch!(Port, PortPatch);
-
+impl_parsable_patch!(Port, PortPatch, s, {
+    let regex = Regex::new(r"^(?<port>\d+)(?:/(?<protocol>(tcp|udp)))?$").unwrap();
+    let Some(captures) = regex.captures(s) else {
+        return Err(Error::custom("Not matching chown pattern"));
+    };
+    Ok(Self {
+        port: Some(captures["port"].parse().map_err(Error::custom)?),
+        protocol: Some(captures.name("protocol").map(|m| match m.as_str() {
+            "tcp" => PortProtocol::Tcp,
+            "udp" => PortProtocol::Udp,
+            _ => unreachable!(),
+        })),
+    })
+});
 
 #[cfg(test)]
 mod test_from_str {
