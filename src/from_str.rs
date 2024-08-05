@@ -1,12 +1,43 @@
-use crate::{deserialize_struct::OptionPatch, dofigen_struct::*};
+use crate::dofigen_struct::*;
+use crate::serde_permissive::ParsableStruct;
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
 use std::str::FromStr;
 use url::Url;
+use struct_patch::Patch;
+
 
 const GIT_HTTP_REPO_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+\\.git(?:#[a-zA-Z0-9_/.-]*(?::[a-zA-Z0-9_/-]+)?)?";
 const GIT_SSH_REPO_REGEX: &str = "[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+:[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+(?:#[a-zA-Z0-9_/.-]+)?(?::[a-zA-Z0-9_/-]+)?";
 const URL_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+(/[a-zA-Z0-9_.-]+)*";
+
+macro_rules! impl_parsable_patch {
+    ($struct:ty, $patch:ty) => {
+        impl Patch<ParsableStruct<$patch>> for $struct {
+            fn apply(&mut self, patch: ParsableStruct<$patch>) {
+                self.apply(patch.0);
+            }
+
+            fn into_patch(self) -> ParsableStruct<$patch> {
+                ParsableStruct(self.into_patch())
+            }
+
+            fn into_patch_by_diff(self, previous_struct: Self) -> ParsableStruct<$patch> {
+                ParsableStruct(self.into_patch_by_diff(previous_struct))
+            }
+
+            fn new_empty_patch() -> ParsableStruct<$patch> {
+                ParsableStruct(Self::new_empty_patch())
+            }
+        }
+
+        impl From<ParsableStruct<$patch>> for $struct {
+            fn from(value: ParsableStruct<$patch>) -> Self {
+                value.0.into()
+            }
+        }
+    };
+}
 
 impl FromStr for ImageNamePatch {
     type Err = Error;
@@ -34,6 +65,7 @@ impl FromStr for ImageNamePatch {
         })
     }
 }
+impl_parsable_patch!(ImageName, ImageNamePatch);
 
 impl FromStr for CopyResourcePatch {
     type Err = Error;
@@ -58,6 +90,7 @@ impl FromStr for CopyResourcePatch {
         Ok(CopyResourcePatch::Copy(s.parse().unwrap()))
     }
 }
+impl_parsable_patch!(CopyResource, CopyResourcePatch);
 
 impl FromStr for CopyPatch {
     type Err = Error;
@@ -70,7 +103,7 @@ impl FromStr for CopyPatch {
             options: Some(CopyOptionsPatch {
                 target: Some(target),
                 chmod: Some(None),
-                chown: Some(OptionPatch::new(None)),
+                chown: Some(None),
                 link: Some(None),
             }),
             from: Some(None),
@@ -79,6 +112,7 @@ impl FromStr for CopyPatch {
         })
     }
 }
+impl_parsable_patch!(Copy, CopyPatch);
 
 impl FromStr for AddGitRepoPatch {
     type Err = Error;
@@ -94,7 +128,7 @@ impl FromStr for AddGitRepoPatch {
             options: Some(CopyOptionsPatch {
                 target: Some(target),
                 chmod: Some(None),
-                chown: Some(OptionPatch::new(None)),
+                chown: Some(None),
                 link: Some(None),
             }),
             exclude: Some(vec![].into()),
@@ -102,6 +136,7 @@ impl FromStr for AddGitRepoPatch {
         })
     }
 }
+impl_parsable_patch!(AddGitRepo, AddGitRepoPatch);
 
 impl FromStr for AddPatch {
     type Err = Error;
@@ -127,13 +162,14 @@ impl FromStr for AddPatch {
             options: Some(CopyOptionsPatch {
                 target: Some(target),
                 chmod: Some(None),
-                chown: Some(OptionPatch::new(None)),
+                chown: Some(None),
                 link: Some(None),
             }),
             checksum: Some(None),
         })
     }
 }
+impl_parsable_patch!(Add, AddPatch);
 
 impl FromStr for UserPatch {
     type Err = Error;
@@ -149,6 +185,7 @@ impl FromStr for UserPatch {
         })
     }
 }
+impl_parsable_patch!(User, UserPatch);
 
 impl FromStr for PortPatch {
     type Err = Error;
@@ -168,11 +205,12 @@ impl FromStr for PortPatch {
         })
     }
 }
+impl_parsable_patch!(Port, PortPatch);
+
 
 #[cfg(test)]
 mod test_from_str {
     use super::*;
-    use crate::deserialize_struct::OptionPatch;
     use pretty_assertions_sorted::assert_eq_sorted;
 
     mod image_name {
@@ -250,7 +288,7 @@ mod test_from_str {
                     paths: Some(vec!["src".into()]),
                     options: Some(CopyOptionsPatch {
                         target: Some(None),
-                        chown: Some(OptionPatch::new(None)),
+                        chown: Some(None),
                         chmod: Some(None),
                         link: Some(None),
                     }),
@@ -270,7 +308,7 @@ mod test_from_str {
                     paths: Some(vec!["src".into()]),
                     options: Some(CopyOptionsPatch {
                         target: Some(Some("/app".into())),
-                        chown: Some(OptionPatch::new(None)),
+                        chown: Some(None),
                         chmod: Some(None),
                         link: Some(None),
                     }),
@@ -290,7 +328,7 @@ mod test_from_str {
                     paths: Some(vec!["src1".into(), "src2".into()]),
                     options: Some(CopyOptionsPatch {
                         target: Some(Some("/app".into())),
-                        chown: Some(OptionPatch::new(None)),
+                        chown: Some(None),
                         chmod: Some(None),
                         link: Some(None),
                     }),
@@ -315,7 +353,7 @@ mod test_from_str {
                     repo: Some("git@github.com:lenra-io/dofigen.git".into()),
                     options: Some(CopyOptionsPatch {
                         target: Some(None),
-                        chown: Some(OptionPatch::new(None)),
+                        chown: Some(None),
                         chmod: Some(None),
                         link: Some(None),
                     }),
@@ -335,7 +373,7 @@ mod test_from_str {
                     repo: Some("git@github.com:lenra-io/dofigen.git".into()),
                     options: Some(CopyOptionsPatch {
                         target: Some(Some("/app".into())),
-                        chown: Some(OptionPatch::new(None)),
+                        chown: Some(None),
                         chmod: Some(None),
                         link: Some(None),
                     }),
@@ -355,7 +393,7 @@ mod test_from_str {
                     repo: Some("https://github.com/lenra-io/dofigen.git".into()),
                     options: Some(CopyOptionsPatch {
                         target: Some(None),
-                        chown: Some(OptionPatch::new(None)),
+                        chown: Some(None),
                         chmod: Some(None),
                         link: Some(None),
                     }),
@@ -375,7 +413,7 @@ mod test_from_str {
                     repo: Some("https://github.com/lenra-io/dofigen.git".into()),
                     options: Some(CopyOptionsPatch {
                         target: Some(Some("/app".into())),
-                        chown: Some(OptionPatch::new(None)),
+                        chown: Some(None),
                         chmod: Some(None),
                         link: Some(None),
                     }),

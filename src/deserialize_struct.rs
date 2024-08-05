@@ -187,69 +187,69 @@ where
     deserializer.deserialize_any(visitor)
 }
 
-#[derive(Debug, Clone, PartialEq, Default)]
-// #[derive(Deserialize)]
-// #[serde(from = "Option<T>")]
-pub struct OptionPatch<T>(Option<T>);
+// #[derive(Debug, Clone, PartialEq, Default)]
+// // #[derive(Deserialize)]
+// // #[serde(from = "Option<T>")]
+// pub struct OptionPatch<T>(Option<T>);
 
-impl<T> OptionPatch<T> {
-    pub fn new(value: Option<T>) -> Self {
-        OptionPatch(value)
-    }
-}
+// impl<T> OptionPatch<T> {
+//     pub fn new(value: Option<T>) -> Self {
+//         OptionPatch(value)
+//     }
+// }
 
-impl<T, P> Patch<OptionPatch<P>> for Option<T>
-where
-    T: Patch<P> + Default + Clone,
-{
-    fn apply(&mut self, patch: OptionPatch<P>) {
-        match self {
-            Some(value) => match patch.0 {
-                Some(patch_value) => {
-                    value.apply(patch_value);
-                }
-                None => {
-                    *self = None;
-                }
-            },
-            None => {
-                if let Some(patch_value) = patch.0 {
-                    let mut value = T::default();
-                    value.apply(patch_value);
-                    *self = Some(value);
-                }
-            }
-        }
-    }
+// impl<T, P> Patch<OptionPatch<P>> for Option<T>
+// where
+//     T: Patch<P> + Default + Clone,
+// {
+//     fn apply(&mut self, patch: OptionPatch<P>) {
+//         match self {
+//             Some(value) => match patch.0 {
+//                 Some(patch_value) => {
+//                     value.apply(patch_value);
+//                 }
+//                 None => {
+//                     *self = None;
+//                 }
+//             },
+//             None => {
+//                 if let Some(patch_value) = patch.0 {
+//                     let mut value = T::default();
+//                     value.apply(patch_value);
+//                     *self = Some(value);
+//                 }
+//             }
+//         }
+//     }
 
-    fn into_patch(self) -> OptionPatch<P> {
-        match self {
-            Some(value) => OptionPatch(Some(value.into_patch())),
-            None => OptionPatch(None),
-        }
-    }
+//     fn into_patch(self) -> OptionPatch<P> {
+//         match self {
+//             Some(value) => OptionPatch(Some(value.into_patch())),
+//             None => OptionPatch(None),
+//         }
+//     }
 
-    fn into_patch_by_diff(self, previous_struct: Self) -> OptionPatch<P> {
-        todo!()
-    }
+//     fn into_patch_by_diff(self, previous_struct: Self) -> OptionPatch<P> {
+//         todo!()
+//     }
 
-    fn new_empty_patch() -> OptionPatch<P> {
-        OptionPatch(None)
-    }
-}
+//     fn new_empty_patch() -> OptionPatch<P> {
+//         OptionPatch(None)
+//     }
+// }
 
-impl<'de, T> Deserialize<'de> for OptionPatch<T>
-where
-    T: DeserializeOwned,
-{
-    fn deserialize<D>(deserializer: D) -> Result<OptionPatch<T>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value: Option<T> = Deserialize::deserialize(deserializer)?;
-        Ok(OptionPatch(value))
-    }
-}
+// impl<'de, T> Deserialize<'de> for OptionPatch<T>
+// where
+//     T: DeserializeOwned,
+// {
+//     fn deserialize<D>(deserializer: D) -> Result<OptionPatch<T>, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         let value: Option<T> = Deserialize::deserialize(deserializer)?;
+//         Ok(OptionPatch(value))
+//     }
+// }
 
 #[derive(Debug, Clone, PartialEq)]
 enum VecPatchCommand<T> {
@@ -1142,27 +1142,27 @@ impl From<CopyResourcePatch> for CopyResource {
     }
 }
 
-macro_rules! impl_from_patch {
-    ($struct:ty, $patch:ty) => {
-        impl From<$patch> for $struct {
-            fn from(patch: $patch) -> Self {
-                let mut s = Self::default();
-                s.apply(patch);
-                s
-            }
-        }
-    };
-}
+// macro_rules! impl_from_patch {
+//     ($struct:ty, $patch:ty) => {
+//         impl From<$patch> for $struct {
+//             fn from(patch: $patch) -> Self {
+//                 let mut s = Self::default();
+//                 s.apply(patch);
+//                 s
+//             }
+//         }
+//     };
+// }
 
-impl_from_patch!(Image, ImagePatch);
-impl_from_patch!(Stage, StagePatch);
-impl_from_patch!(Artifact, ArtifactPatch);
-impl_from_patch!(ImageName, ImageNamePatch);
-impl_from_patch!(User, UserPatch);
-impl_from_patch!(Copy, CopyPatch);
-impl_from_patch!(Add, AddPatch);
-impl_from_patch!(AddGitRepo, AddGitRepoPatch);
-impl_from_patch!(Port, PortPatch);
+// impl_from_patch!(Image, ImagePatch);
+// impl_from_patch!(Stage, StagePatch);
+// impl_from_patch!(Artifact, ArtifactPatch);
+// impl_from_patch!(ImageName, ImageNamePatch);
+// impl_from_patch!(User, UserPatch);
+// impl_from_patch!(Copy, CopyPatch);
+// impl_from_patch!(Add, AddPatch);
+// impl_from_patch!(AddGitRepo, AddGitRepoPatch);
+// impl_from_patch!(Port, PortPatch);
 
 #[cfg(test)]
 mod test {
@@ -1179,7 +1179,7 @@ mod test {
         #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
         struct TestStruct {
             pub name: String,
-            #[patch(name = "OptionPatch<SubTestStructPatch>")]
+            #[patch(name = "Option<SubTestStructPatch>")]
             pub sub: Option<SubTestStruct>,
         }
 

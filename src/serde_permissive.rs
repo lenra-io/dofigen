@@ -11,7 +11,7 @@ use crate::dofigen_struct::*;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct ParsableStruct<T>(T)
+pub struct ParsableStruct<T>(pub(crate) T)
 where
     T: FromStr + Sized;
 
@@ -110,42 +110,6 @@ where
     println!("deserialize_permissive_type");
     todo!()
 }
-
-macro_rules! impl_parsable_patch {
-    ($struct:ty, $patch:ty) => {
-        impl Patch<ParsableStruct<$patch>> for $struct {
-            fn apply(&mut self, patch: ParsableStruct<$patch>) {
-                self.apply(patch.0);
-            }
-
-            fn into_patch(self) -> ParsableStruct<$patch> {
-                ParsableStruct(self.into_patch())
-            }
-
-            fn into_patch_by_diff(self, previous_struct: Self) -> ParsableStruct<$patch> {
-                ParsableStruct(self.into_patch_by_diff(previous_struct))
-            }
-
-            fn new_empty_patch() -> ParsableStruct<$patch> {
-                ParsableStruct(Self::new_empty_patch())
-            }
-        }
-
-        impl From<ParsableStruct<$patch>> for $struct {
-            fn from(value: ParsableStruct<$patch>) -> Self {
-                value.0.into()
-            }
-        }
-    };
-}
-
-impl_parsable_patch!(ImageName, ImageNamePatch);
-impl_parsable_patch!(User, UserPatch);
-impl_parsable_patch!(CopyResource, CopyResourcePatch);
-impl_parsable_patch!(Copy, CopyPatch);
-impl_parsable_patch!(Add, AddPatch);
-impl_parsable_patch!(AddGitRepo, AddGitRepoPatch);
-impl_parsable_patch!(Port, PortPatch);
 
 #[cfg(test)]
 mod test {

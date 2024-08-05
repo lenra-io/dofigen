@@ -1,10 +1,11 @@
-use crate::deserialize_struct::{OptionPatch, VecDeepPatch, VecPatch};
+use crate::deserialize_struct::{VecDeepPatch, VecPatch};
 #[cfg(feature = "permissive")]
 use crate::serde_permissive::ParsableStruct;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
+use struct_patch::std_impls::*;
 use struct_patch::Patch;
 use url::Url;
 
@@ -16,6 +17,7 @@ use url::Url;
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
+    from_patch,
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     attribute(serde(deny_unknown_fields, default)),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
@@ -44,12 +46,13 @@ pub struct Image {
     )]
     #[patch(attribute(serde(alias = "port", alias = "ports")))]
     pub expose: Vec<Port>,
-    #[patch(name = "OptionPatch<HealthcheckPatch>")]
+    #[patch(name = "Option<HealthcheckPatch>")]
     pub healthcheck: Option<Healthcheck>,
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
+    from_patch,
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     attribute(serde(deny_unknown_fields, default)),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
@@ -59,19 +62,16 @@ pub struct Stage {
     pub name: Option<String>,
     #[cfg_attr(
         feature = "permissive",
-        patch(name = "OptionPatch<ParsableStruct<ImageNamePatch>>")
+        patch(name = "Option<ParsableStruct<ImageNamePatch>>")
     )]
-    #[cfg_attr(
-        not(feature = "permissive"),
-        patch(name = "OptionPatch<ImageNamePatch>")
-    )]
+    #[cfg_attr(not(feature = "permissive"), patch(name = "Option<ImageNamePatch>"))]
     #[patch(attribute(serde(alias = "image")))]
     pub from: Option<ImageName>,
     #[cfg_attr(
         feature = "permissive",
-        patch(name = "OptionPatch<ParsableStruct<UserPatch>>")
+        patch(name = "Option<ParsableStruct<UserPatch>>")
     )]
-    #[cfg_attr(not(feature = "permissive"), patch(name = "OptionPatch<UserPatch>"))]
+    #[cfg_attr(not(feature = "permissive"), patch(name = "Option<UserPatch>"))]
     pub user: Option<User>,
     pub workdir: Option<String>,
     #[patch(attribute(serde(alias = "envs")))]
@@ -89,7 +89,7 @@ pub struct Stage {
         patch(name = "VecDeepPatch<CopyResource, CopyResourcePatch>")
     )]
     pub copy: Vec<CopyResource>,
-    #[patch(name = "OptionPatch<RootPatch>")]
+    #[patch(name = "Option<RootPatch>")]
     pub root: Option<Root>,
     #[patch(attribute(serde(alias = "script")))]
     #[patch(name = "VecPatch<String>")]
@@ -100,9 +100,12 @@ pub struct Stage {
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
-#[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(deny_unknown_fields, default)]
+#[patch(
+    from_patch,
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
 pub struct Artifact {
     pub builder: String,
     pub source: String,
@@ -111,9 +114,12 @@ pub struct Artifact {
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
-#[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(deny_unknown_fields, default)]
+#[patch(
+    from_patch,
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
 pub struct Root {
     #[serde(alias = "script")]
     #[patch(name = "VecPatch<String>")]
@@ -124,9 +130,12 @@ pub struct Root {
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
-#[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(deny_unknown_fields, default)]
+#[patch(
+    from_patch,
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
 pub struct Healthcheck {
     pub cmd: String,
     pub interval: Option<String>,
@@ -136,9 +145,12 @@ pub struct Healthcheck {
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
-#[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-#[serde(deny_unknown_fields, default)]
+#[patch(
+    from_patch,
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
 pub struct ImageName {
     pub host: Option<String>,
     pub port: Option<u16>,
@@ -182,6 +194,7 @@ pub struct UnknownPatch {
 /// See https://docs.docker.com/reference/dockerfile/#copy
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
+    from_patch,
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     attribute(serde(deny_unknown_fields, default)),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
@@ -205,6 +218,7 @@ pub struct Copy {
 /// See https://docs.docker.com/reference/dockerfile/#adding-private-git-repositories
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
+    from_patch,
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     attribute(serde(deny_unknown_fields, default)),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
@@ -224,6 +238,7 @@ pub struct AddGitRepo {
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
+    from_patch,
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     attribute(serde(deny_unknown_fields, default)),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
@@ -240,13 +255,16 @@ pub struct Add {
 
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
-#[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
-#[serde(deny_unknown_fields, default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[patch(
+    from_patch,
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
 pub struct CopyOptions {
     pub target: Option<String>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    #[patch(name = "OptionPatch<UserPatch>")]
+    #[patch(name = "Option<UserPatch>")]
     pub chown: Option<User>,
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     pub chmod: Option<String>,
@@ -255,9 +273,12 @@ pub struct CopyOptions {
 }
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
-#[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
-#[serde(deny_unknown_fields, default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[patch(
+    from_patch,
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
 pub struct User {
     pub user: String,
     pub group: Option<String>,
@@ -265,6 +286,7 @@ pub struct User {
 
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
+    from_patch,
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     attribute(serde(deny_unknown_fields, default)),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
@@ -298,9 +320,12 @@ pub enum GitRepo {
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
-#[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
-#[serde(deny_unknown_fields, default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[patch(
+    from_patch,
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
 pub struct SshGitRepo {
     pub user: String,
     pub host: String,
@@ -651,13 +676,13 @@ mod test {
                         extend: vec![],
                         value: ImagePatch {
                             stage: Some(StagePatch {
-                                from: Some(OptionPatch::new(Some(
+                                from: Some(Some(
                                     ImageNamePatch {
                                         path: Some("ubuntu".into()),
                                         ..Default::default()
                                     }
                                     .into() // To manage permissive
-                                ))),
+                                )),
                                 ..Default::default()
                             }),
                             ..Default::default()
