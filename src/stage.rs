@@ -35,12 +35,10 @@ where
 {
     pub fn merge<T>(&self, context: &mut LoadContext) -> Result<T>
     where
-        T: Patch<P> + DeserializeOwned + Default,
+        T: Patch<P> + From<P>,
     {
         if self.extend.is_empty() {
-            let mut ret = T::default();
-            ret.apply(self.value.clone());
-            return Ok(ret);
+            return Ok(self.value.clone().into());
         }
 
         // load extends files

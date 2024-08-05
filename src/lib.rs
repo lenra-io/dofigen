@@ -359,6 +359,8 @@ pub fn generate_json_schema() -> String {
 #[cfg(feature = "permissive")]
 #[cfg(test)]
 mod test {
+    use std::result;
+
     use super::*;
     use pretty_assertions_sorted::assert_eq_sorted;
 
@@ -543,7 +545,7 @@ from: alpine
         let result = from(yaml.into());
         assert!(
             result.is_err(),
-            "The parsing must fail since from and image are not compatible"
+            "The parsing must fail since from and image are not compatible",
         );
     }
 
@@ -561,7 +563,8 @@ test: Fake value
 
         // Check the error message
         let error = result.unwrap_err();
-        let expected = "Error while deserializing the document at line 3, column 1: unknown field `test`, expected one of ";
+        let expected =
+            "Error while deserializing the document at line 2, column 1: unknown field `test`";
         assert_eq_sorted!(
             &error.to_string().as_str()[..expected.len()],
             expected,

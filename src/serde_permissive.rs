@@ -111,7 +111,7 @@ where
     todo!()
 }
 
-macro_rules! impl_ParsablePatch {
+macro_rules! impl_parsable_patch {
     ($struct:ty, $patch:ty) => {
         impl Patch<ParsableStruct<$patch>> for $struct {
             fn apply(&mut self, patch: ParsableStruct<$patch>) {
@@ -131,77 +131,21 @@ macro_rules! impl_ParsablePatch {
             }
         }
 
-        impl_from_patch!($struct, $patch);
-    };
-}
-
-macro_rules! impl_from_patch {
-    ($struct:ty, $patch:ty) => {
-        impl From<$patch> for $struct {
-            fn from(patch: $patch) -> Self {
-                let mut s = Self::default();
-                s.apply(patch);
-                s
+        impl From<ParsableStruct<$patch>> for $struct {
+            fn from(value: ParsableStruct<$patch>) -> Self {
+                value.0.into()
             }
         }
     };
 }
 
-impl Patch<CopyResourcePatch> for CopyResource {
-    fn apply(&mut self, patch: CopyResourcePatch) {
-        match (self, patch) {
-            (CopyResource::Copy(s), CopyResourcePatch::Copy(p)) => s.apply(p),
-            (CopyResource::Add(s), CopyResourcePatch::Add(p)) => s.apply(p),
-            (CopyResource::AddGitRepo(s), CopyResourcePatch::AddGitRepo(p)) => s.apply(p),
-            _ => todo!(),
-        }
-    }
-
-    fn into_patch(self) -> CopyResourcePatch {
-        match self {
-            CopyResource::Copy(s) => CopyResourcePatch::Copy(s.into_patch()),
-            CopyResource::Add(s) => CopyResourcePatch::Add(s.into_patch()),
-            CopyResource::AddGitRepo(s) => CopyResourcePatch::AddGitRepo(s.into_patch()),
-        }
-    }
-
-    fn into_patch_by_diff(self, previous_struct: Self) -> CopyResourcePatch {
-        match (self, previous_struct) {
-            (CopyResource::Copy(s), CopyResource::Copy(p)) => {
-                CopyResourcePatch::Copy(s.into_patch_by_diff(p))
-            }
-            (CopyResource::Add(s), CopyResource::Add(p)) => {
-                CopyResourcePatch::Add(s.into_patch_by_diff(p))
-            }
-            (CopyResource::AddGitRepo(s), CopyResource::AddGitRepo(p)) => {
-                CopyResourcePatch::AddGitRepo(s.into_patch_by_diff(p))
-            }
-            _ => todo!(),
-        }
-    }
-
-    fn new_empty_patch() -> CopyResourcePatch {
-        todo!()
-    }
-}
-
-impl Default for CopyResourcePatch {
-    fn default() -> Self {
-        CopyResourcePatch::Unknown(UnknownPatch::default())
-    }
-}
-
-impl_ParsablePatch!(ImageName, ImageNamePatch);
-impl_ParsablePatch!(User, UserPatch);
-impl_ParsablePatch!(CopyResource, CopyResourcePatch);
-impl_ParsablePatch!(Copy, CopyPatch);
-impl_ParsablePatch!(Add, AddPatch);
-impl_ParsablePatch!(AddGitRepo, AddGitRepoPatch);
-impl_ParsablePatch!(Port, PortPatch);
-
-impl_from_patch!(Image, ImagePatch);
-impl_from_patch!(Stage, StagePatch);
-impl_from_patch!(Artifact, ArtifactPatch);
+impl_parsable_patch!(ImageName, ImageNamePatch);
+impl_parsable_patch!(User, UserPatch);
+impl_parsable_patch!(CopyResource, CopyResourcePatch);
+impl_parsable_patch!(Copy, CopyPatch);
+impl_parsable_patch!(Add, AddPatch);
+impl_parsable_patch!(AddGitRepo, AddGitRepoPatch);
+impl_parsable_patch!(Port, PortPatch);
 
 #[cfg(test)]
 mod test {

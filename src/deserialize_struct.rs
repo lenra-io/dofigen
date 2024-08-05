@@ -1,20 +1,14 @@
-// #[cfg(feature = "permissive")]
-// use crate::serde_permissive::{OneOrManyVec as Vec, ParsableStruct};
 use serde::{
     de::{self, DeserializeOwned, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
 use serde_yaml::Value;
 use serde_yaml::{self, from_value};
-use std::{
-    collections::BTreeMap,
-    ops::{Deref, DerefMut},
-    usize,
-};
+use std::{collections::BTreeMap, ops::Deref, usize};
 use std::{collections::HashMap, fmt};
 use struct_patch::Patch;
 
-use crate::{dofigen_struct::Extend, ImageName, ImageNamePatch, Resource, User, UserPatch};
+use crate::dofigen_struct::*;
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
@@ -204,15 +198,6 @@ impl<T> OptionPatch<T> {
     }
 }
 
-// impl<T, P> From<Option<T>> for OptionPatch<P>
-// where
-//     T: Patch<P>,
-// {
-//     fn from(value: Option<T>) -> Self {
-//         OptionPatch(value.map(|v| v.into_patch()))
-//     }
-// }
-
 impl<T, P> Patch<OptionPatch<P>> for Option<T>
 where
     T: Patch<P> + Default + Clone,
@@ -252,18 +237,6 @@ where
         OptionPatch(None)
     }
 }
-
-// impl<T, P> From<OptionPatch<P>> for Option<T>
-// where
-//     T: From<P>,
-// {
-//     // fn into(self) -> Option<T> {
-//     //     self.0.map(|v| v.into())
-//     // }
-//     fn from(patch: OptionPatch<P>) -> Self {
-//         patch.0.map(|v| v.into())
-//     }
-// }
 
 impl<'de, T> Deserialize<'de> for OptionPatch<T>
 where
@@ -325,6 +298,12 @@ where
 {
     struct VecPatchVisitor<T>(Option<T>);
 
+    fn map_vec<T>(value: T) -> VecPatch<T> {
+        VecPatch {
+            commands: vec![VecPatchCommand::ReplaceAll(vec![value])],
+        }
+    }
+
     impl<'de, T> Visitor<'de> for VecPatchVisitor<T>
     where
         T: Clone + DeserializeOwned,
@@ -332,7 +311,101 @@ where
         type Value = VecPatch<T>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a sequence or a map")
+            #[cfg(not(feature = "permissive"))]
+            let expected = "a sequence or a map";
+
+            #[cfg(feature = "permissive")]
+            let expected = "any type";
+
+            formatter.write_str(expected)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I8Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I16Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I32Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I128Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U8Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U16Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U32Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U128Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::StrDeserializer::new(v)).map(map_vec)
         }
 
         fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
@@ -732,7 +805,7 @@ where
 
 impl<'de, T, P> Deserialize<'de> for VecDeepPatch<T, P>
 where
-    T: Clone + DeserializeOwned + Default + Patch<P> + From<P>,
+    T: Clone + Patch<P> + From<P>,
     P: Clone + DeserializeOwned,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -746,20 +819,125 @@ where
 fn deserialize_vec_deep_patch<'de, D, T, P>(deserializer: D) -> Result<VecDeepPatch<T, P>, D::Error>
 where
     D: Deserializer<'de>,
-    T: Clone + DeserializeOwned + Default + Patch<P> + From<P>,
+    T: Clone + Patch<P> + From<P>,
     P: Clone + DeserializeOwned,
 {
     struct VecDeepPatchVisitor<T, P>(Option<BTreeMap<T, P>>);
 
+    fn map_vec<T, P>(value: P) -> VecDeepPatch<T, P>
+    where
+        T: Clone + Patch<P> + From<P>,
+        P: Clone,
+    {
+        let replacer: Vec<T> = vec![value].iter().map(|p| (*p).clone().into()).collect();
+        VecDeepPatch {
+            commands: vec![VecDeepPatchCommand::ReplaceAll(replacer)],
+        }
+    }
+
     impl<'de, T, P> Visitor<'de> for VecDeepPatchVisitor<T, P>
     where
-        T: Clone + DeserializeOwned + Patch<P> + From<P> + Default,
+        T: Clone + Patch<P> + From<P>,
         P: Clone + DeserializeOwned,
     {
         type Value = VecDeepPatch<T, P>;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a sequence or a map")
+            #[cfg(not(feature = "permissive"))]
+            let expected = "a sequence or a map";
+
+            #[cfg(feature = "permissive")]
+            let expected = "any type";
+
+            formatter.write_str(expected)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I8Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I16Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I32Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::I128Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U8Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U16Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U32Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::U128Deserializer::new(v)).map(map_vec)
+        }
+
+        #[cfg(feature = "permissive")]
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: DeError,
+        {
+            Deserialize::deserialize(de::value::StrDeserializer::new(v)).map(map_vec)
         }
 
         fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
@@ -785,44 +963,51 @@ where
                 match key {
                     StringOrNumber::String(key) => match key.as_str() {
                         "_" => {
-                            patch
-                                .commands
-                                .push(VecDeepPatchCommand::ReplaceAll(map.next_value()?));
+                            let value: Vec<P> = map.next_value()?;
+                            let value: Vec<T> = value.iter().map(|p| p.clone().into()).collect();
+                            patch.commands.push(VecDeepPatchCommand::ReplaceAll(value));
                         }
                         "+" => {
-                            patch
-                                .commands
-                                .push(VecDeepPatchCommand::Append(map.next_value()?));
+                            let value: Vec<P> = map.next_value()?;
+                            let value: Vec<T> = value.iter().map(|p| p.clone().into()).collect();
+                            patch.commands.push(VecDeepPatchCommand::Append(value));
                         }
                         key => {
                             if key.starts_with('+') {
-                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
-                                patch.commands.push(VecDeepPatchCommand::InsertBefore(
-                                    pos,
-                                    map.next_value()?,
-                                ));
-                            } else if key.ends_with('+') {
+                                let value: Vec<P> = map.next_value()?;
+                                let value: Vec<T> =
+                                    value.iter().map(|p| p.clone().into()).collect();
                                 let pos = key[..key.len() - 1].parse::<usize>().unwrap();
                                 patch
                                     .commands
-                                    .push(VecDeepPatchCommand::InsertAfter(pos, map.next_value()?));
+                                    .push(VecDeepPatchCommand::InsertBefore(pos, value));
+                            } else if key.ends_with('+') {
+                                let value: Vec<P> = map.next_value()?;
+                                let value: Vec<T> =
+                                    value.iter().map(|p| p.clone().into()).collect();
+                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
+                                patch
+                                    .commands
+                                    .push(VecDeepPatchCommand::InsertAfter(pos, value));
                             } else if key.ends_with('<') {
                                 let pos = key[..key.len() - 1].parse::<usize>().unwrap();
                                 patch
                                     .commands
                                     .push(VecDeepPatchCommand::Patch(pos, map.next_value()?));
                             } else {
+                                let value: P = map.next_value()?;
                                 let pos = key.parse::<usize>().unwrap();
                                 patch
                                     .commands
-                                    .push(VecDeepPatchCommand::Replace(pos, map.next_value()?));
+                                    .push(VecDeepPatchCommand::Replace(pos, value.into()));
                             }
                         }
                     },
                     StringOrNumber::Number(pos) => {
+                        let value: P = map.next_value()?;
                         patch
                             .commands
-                            .push(VecDeepPatchCommand::Replace(pos, map.next_value()?));
+                            .push(VecDeepPatchCommand::Replace(pos, value.into()));
                     }
                 }
             }
@@ -879,7 +1064,8 @@ where
 
             Ok(Extend {
                 extend: extend.to_vec(),
-                value: from_value(Value::Mapping(value_map)).unwrap(),
+                value: from_value(Value::Mapping(value_map))
+                    .map_err(|err| serde::de::Error::custom(format!("{}", err)))?,
             })
         } else {
             Err(serde::de::Error::custom("Expected a map"))
@@ -900,6 +1086,83 @@ where
         deserializer.deserialize_map(visitor)
     }
 }
+
+impl Patch<CopyResourcePatch> for CopyResource {
+    fn apply(&mut self, patch: CopyResourcePatch) {
+        match (self, patch) {
+            (CopyResource::Copy(s), CopyResourcePatch::Copy(p)) => s.apply(p),
+            (CopyResource::Add(s), CopyResourcePatch::Add(p)) => s.apply(p),
+            (CopyResource::AddGitRepo(s), CopyResourcePatch::AddGitRepo(p)) => s.apply(p),
+            _ => todo!(),
+        }
+    }
+
+    fn into_patch(self) -> CopyResourcePatch {
+        match self {
+            CopyResource::Copy(s) => CopyResourcePatch::Copy(s.into_patch()),
+            CopyResource::Add(s) => CopyResourcePatch::Add(s.into_patch()),
+            CopyResource::AddGitRepo(s) => CopyResourcePatch::AddGitRepo(s.into_patch()),
+        }
+    }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> CopyResourcePatch {
+        match (self, previous_struct) {
+            (CopyResource::Copy(s), CopyResource::Copy(p)) => {
+                CopyResourcePatch::Copy(s.into_patch_by_diff(p))
+            }
+            (CopyResource::Add(s), CopyResource::Add(p)) => {
+                CopyResourcePatch::Add(s.into_patch_by_diff(p))
+            }
+            (CopyResource::AddGitRepo(s), CopyResource::AddGitRepo(p)) => {
+                CopyResourcePatch::AddGitRepo(s.into_patch_by_diff(p))
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn new_empty_patch() -> CopyResourcePatch {
+        CopyResourcePatch::default()
+    }
+}
+
+impl Default for CopyResourcePatch {
+    fn default() -> Self {
+        CopyResourcePatch::Unknown(UnknownPatch::default())
+    }
+}
+
+impl From<CopyResourcePatch> for CopyResource {
+    fn from(patch: CopyResourcePatch) -> Self {
+        match patch {
+            CopyResourcePatch::Copy(p) => CopyResource::Copy(p.into()),
+            CopyResourcePatch::Add(p) => CopyResource::Add(p.into()),
+            CopyResourcePatch::AddGitRepo(p) => CopyResource::AddGitRepo(p.into()),
+            CopyResourcePatch::Unknown(p) => panic!("Unknown patch: {:?}", p),
+        }
+    }
+}
+
+macro_rules! impl_from_patch {
+    ($struct:ty, $patch:ty) => {
+        impl From<$patch> for $struct {
+            fn from(patch: $patch) -> Self {
+                let mut s = Self::default();
+                s.apply(patch);
+                s
+            }
+        }
+    };
+}
+
+impl_from_patch!(Image, ImagePatch);
+impl_from_patch!(Stage, StagePatch);
+impl_from_patch!(Artifact, ArtifactPatch);
+impl_from_patch!(ImageName, ImageNamePatch);
+impl_from_patch!(User, UserPatch);
+impl_from_patch!(Copy, CopyPatch);
+impl_from_patch!(Add, AddPatch);
+impl_from_patch!(AddGitRepo, AddGitRepoPatch);
+impl_from_patch!(Port, PortPatch);
 
 #[cfg(test)]
 mod test {
