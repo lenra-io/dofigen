@@ -5,7 +5,7 @@ use struct_patch::Patch;
 
 use crate::{
     dofigen_struct::Stage, generator::GenerationContext, script_runner::ScriptRunner, Error,
-    Extend, ImageName, ImagePatch, Resource, Result, User,
+    Extend, ImageName, Resource, Result, User,
 };
 
 pub trait BaseStage: ScriptRunner {
@@ -36,6 +36,7 @@ where
     pub fn merge<T>(&self, context: &mut LoadContext) -> Result<T>
     where
         T: Patch<P> + From<P>,
+        P: Default,
     {
         if self.extend.is_empty() {
             return Ok(self.value.clone().into());
@@ -71,11 +72,8 @@ impl LoadContext {
 }
 
 impl Resource {
-    pub fn load<T>(&self, context: &mut LoadContext) -> Result<T>
-    where
-        T: DeserializeOwned,
-    {
-        let ret = match self {
+    fn load_resource_content(&self, context: &mut LoadContext) -> Result<String> {
+        match self {
             Resource::File(path) => {
                 let canonical_path = fs::canonicalize(path)
                     .map_err(|err| {
@@ -84,19 +82,46 @@ impl Resource {
                     .to_str()
                     .unwrap()
                     .to_string();
-                let str = if let Some(value) = context.resources.get(&canonical_path) {
-                    value.clone()
+                if let Some(value) = context.resources.get(&canonical_path) {
+                    Ok(value.clone())
                 } else {
-                    fs::read_to_string(path).map_err(|err| {
+                    let str = fs::read_to_string(path).map_err(|err| {
                         Error::Custom(format!("Could not read file {:?}: {}", path, err))
-                    })?
-                };
-                context.resources.insert(canonical_path, str.clone());
-                serde_yaml::from_str(str.as_str()).map_err(Error::from)?
+                    })?;
+                    context.resources.insert(canonical_path, str.clone());
+                    Ok(str)
+                }
             }
-            Resource::Url(url) => todo!(),
-        };
-        Ok(ret)
+            Resource::Url(url) => {
+                if let Some(value) = context.resources.get(&url.to_string()) {
+                    Ok(value.clone())
+                } else {
+                    let response = reqwest::blocking::get(url.as_str()).map_err(|err| {
+                        Error::Custom(format!("Could not get url {:?}: {}", url, err))
+                    })?;
+                    Ok(response.text().map_err(|err| {
+                        Error::Custom(format!(
+                            "Could not read response from url {:?}: {}",
+                            url, err
+                        ))
+                    })?)
+                }
+            }
+        }
+    }
+
+    pub fn load<T>(&self, context: &mut LoadContext) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        Ok(
+            serde_yaml::from_str(self.load_resource_content(context)?.as_str()).map_err(|err| {
+                Error::Custom(format!(
+                    "Could not deserialize resource {:?}: {}",
+                    self, err
+                ))
+            })?,
+        )
     }
 }
 

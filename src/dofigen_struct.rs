@@ -5,14 +5,8 @@ use crate::serde_permissive::ParsableStruct;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
-use struct_patch::std_impls::*;
 use struct_patch::Patch;
 use url::Url;
-
-// #[cfg(feature = "permissive")]
-// pub type PermissiveStruct<T> = ParsableStruct<T>;
-// #[cfg(not(feature = "permissive"))]
-// pub type PermissiveStruct<T> = Box<T>;
 
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
@@ -333,8 +327,10 @@ pub struct SshGitRepo {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
+// #[serde(deny_unknown_fields, default)]
 pub struct Extend<T> {
     pub extend: Vec<Resource>,
+    // #[serde(flatten)]
     pub value: T,
 }
 
@@ -387,6 +383,145 @@ mod test {
 
     mod deserialize {
         use super::*;
+
+        mod image {
+            use super::*;
+
+            #[test]
+            fn empty() {
+                let data = r#""#;
+
+                let image: ImagePatch = serde_yaml::from_str(data).unwrap();
+                let image: Image = image.into();
+
+                assert_eq_sorted!(image, Image::default());
+            }
+
+            #[test]
+            fn from() {
+                let data = r#"
+                from:
+                  path: ubuntu
+                "#;
+
+                let image: ImagePatch = serde_yaml::from_str(data).unwrap();
+                let image: Image = image.into();
+
+                assert_eq_sorted!(
+                    image,
+                    Image {
+                        stage: Stage {
+                            from: Some(ImageName {
+                                path: "ubuntu".into(),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
+                );
+            }
+
+            #[ignore]
+            // Not managed yet by serde: https://serde.rs/field-attrs.html#flatten
+            #[test]
+            fn duplicate_from() {
+                let data = r#"
+                from:
+                    path: ubuntu
+                from:
+                    path: alpine
+                "#;
+
+                let image: serde_yaml::Result<ImagePatch> = serde_yaml::from_str(data);
+
+                println!("{:?}", image);
+
+                assert!(image.is_err());
+            }
+
+            #[ignore]
+            // Not managed yet by serde: https://serde.rs/field-attrs.html#flatten
+            #[test]
+            fn duplicate_from_and_alias() {
+                let data = r#"
+                from:
+                  path: ubuntu
+                image:
+                  path: alpine
+                "#;
+
+                let image: serde_yaml::Result<ImagePatch> = serde_yaml::from_str(data);
+
+                println!("{:?}", image);
+
+                assert!(image.is_err());
+            }
+        }
+
+        mod stage {
+            use super::*;
+
+            #[test]
+            fn empty() {
+                let data = r#""#;
+
+                let stage: StagePatch = serde_yaml::from_str(data).unwrap();
+                let stage: Stage = stage.into();
+
+                assert_eq_sorted!(stage, Stage::default());
+            }
+
+            #[test]
+            fn from() {
+                let data = r#"
+                from:
+                  path: ubuntu
+                "#;
+
+                let stage: StagePatch = serde_yaml::from_str(data).unwrap();
+                let stage: Stage = stage.into();
+
+                assert_eq_sorted!(
+                    stage,
+                    Stage {
+                        from: Some(ImageName {
+                            path: "ubuntu".into(),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }
+                );
+            }
+
+            #[test]
+            fn duplicate_from() {
+                let data = r#"
+                from:
+                    path: ubuntu
+                from:
+                    path: alpine
+                "#;
+
+                let stage: serde_yaml::Result<StagePatch> = serde_yaml::from_str(data);
+
+                assert!(stage.is_err());
+            }
+
+            #[test]
+            fn duplicate_from_and_alias() {
+                let data = r#"
+                from:
+                  path: ubuntu
+                image:
+                  path: alpine
+                "#;
+
+                let stage: serde_yaml::Result<StagePatch> = serde_yaml::from_str(data);
+
+                assert!(stage.is_err());
+            }
+        }
 
         mod user {
             use super::*;

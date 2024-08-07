@@ -2,10 +2,10 @@ use serde::{
     de::{self, DeserializeOwned, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
-use serde_yaml::Value;
 use serde_yaml::{self, from_value};
+use serde_yaml::{from_str, Value};
+use std::{fmt, marker::PhantomData};
 use std::{collections::BTreeMap, ops::Deref, usize};
-use std::{collections::HashMap, fmt};
 use struct_patch::Patch;
 
 use crate::dofigen_struct::*;
@@ -186,70 +186,6 @@ where
 
     deserializer.deserialize_any(visitor)
 }
-
-// #[derive(Debug, Clone, PartialEq, Default)]
-// // #[derive(Deserialize)]
-// // #[serde(from = "Option<T>")]
-// pub struct OptionPatch<T>(Option<T>);
-
-// impl<T> OptionPatch<T> {
-//     pub fn new(value: Option<T>) -> Self {
-//         OptionPatch(value)
-//     }
-// }
-
-// impl<T, P> Patch<OptionPatch<P>> for Option<T>
-// where
-//     T: Patch<P> + Default + Clone,
-// {
-//     fn apply(&mut self, patch: OptionPatch<P>) {
-//         match self {
-//             Some(value) => match patch.0 {
-//                 Some(patch_value) => {
-//                     value.apply(patch_value);
-//                 }
-//                 None => {
-//                     *self = None;
-//                 }
-//             },
-//             None => {
-//                 if let Some(patch_value) = patch.0 {
-//                     let mut value = T::default();
-//                     value.apply(patch_value);
-//                     *self = Some(value);
-//                 }
-//             }
-//         }
-//     }
-
-//     fn into_patch(self) -> OptionPatch<P> {
-//         match self {
-//             Some(value) => OptionPatch(Some(value.into_patch())),
-//             None => OptionPatch(None),
-//         }
-//     }
-
-//     fn into_patch_by_diff(self, previous_struct: Self) -> OptionPatch<P> {
-//         todo!()
-//     }
-
-//     fn new_empty_patch() -> OptionPatch<P> {
-//         OptionPatch(None)
-//     }
-// }
-
-// impl<'de, T> Deserialize<'de> for OptionPatch<T>
-// where
-//     T: DeserializeOwned,
-// {
-//     fn deserialize<D>(deserializer: D) -> Result<OptionPatch<T>, D::Error>
-//     where
-//         D: Deserializer<'de>,
-//     {
-//         let value: Option<T> = Deserialize::deserialize(deserializer)?;
-//         Ok(OptionPatch(value))
-//     }
-// }
 
 #[derive(Debug, Clone, PartialEq)]
 enum VecPatchCommand<T> {
@@ -507,7 +443,7 @@ where
             (VecPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
             (_, VecPatchCommand::Append(_)) => std::cmp::Ordering::Less,
         });
-        let mut reseted = false;
+        let mut reset = false;
         let mut last_modified_position: usize = usize::MAX;
         // initial array length
         let initial_len = self.len();
@@ -519,15 +455,15 @@ where
         for command in commands {
             match command {
                 VecPatchCommand::ReplaceAll(elements) => {
-                    if reseted {
+                    if reset {
                         panic!("Cannot replace the list twice");
                     }
-                    reseted = true;
+                    reset = true;
                     self.clear();
                     self.extend(elements.into_iter());
                 }
                 VecPatchCommand::Replace(pos, elements) => {
-                    if reseted {
+                    if reset {
                         panic!("Cannot replace element at position {} after a reset", pos);
                     }
                     if pos >= initial_len {
@@ -544,7 +480,7 @@ where
                     last_modified_position = pos;
                 }
                 VecPatchCommand::InsertBefore(pos, elements) => {
-                    if reseted {
+                    if reset {
                         panic!(
                             "Cannot insert before element at position {} after a reset",
                             pos
@@ -563,7 +499,7 @@ where
                     adapted_positions[pos as usize] += added;
                 }
                 VecPatchCommand::InsertAfter(pos, elements) => {
-                    if reseted {
+                    if reset {
                         panic!(
                             "Cannot insert after element at position {} after a reset",
                             pos
@@ -600,6 +536,10 @@ where
 
     fn into_patch_by_diff(self, previous_struct: Self) -> VecPatch<T> {
         todo!()
+        // the diff is computed by comparing the two arrays
+        // let mut commands = vec![];
+
+        // VecPatch { commands }
     }
 
     fn new_empty_patch() -> VecPatch<T> {
@@ -683,7 +623,7 @@ where
             (VecDeepPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
             (_, VecDeepPatchCommand::Append(_)) => std::cmp::Ordering::Less,
         });
-        let mut reseted = false;
+        let mut reset = false;
         let mut last_modified_position: usize = usize::MAX;
         // initial array length
         let initial_len = self.len();
@@ -695,15 +635,15 @@ where
         for command in commands {
             match command {
                 VecDeepPatchCommand::ReplaceAll(elements) => {
-                    if reseted {
+                    if reset {
                         panic!("Cannot replace the list twice");
                     }
-                    reseted = true;
+                    reset = true;
                     self.clear();
                     self.extend(elements.into_iter());
                 }
                 VecDeepPatchCommand::Replace(pos, elements) => {
-                    if reseted {
+                    if reset {
                         panic!("Cannot replace element at position {} after a reset", pos);
                     }
                     if pos >= initial_len {
@@ -720,7 +660,7 @@ where
                     last_modified_position = pos;
                 }
                 VecDeepPatchCommand::Patch(pos, element) => {
-                    if reseted {
+                    if reset {
                         panic!("Cannot patch element at position {} after a reset", pos);
                     }
                     if pos >= initial_len {
@@ -740,7 +680,7 @@ where
                     last_modified_position = pos;
                 }
                 VecDeepPatchCommand::InsertBefore(pos, elements) => {
-                    if reseted {
+                    if reset {
                         panic!(
                             "Cannot insert before element at position {} after a reset",
                             pos
@@ -759,7 +699,7 @@ where
                     adapted_positions[pos as usize] += added;
                 }
                 VecDeepPatchCommand::InsertAfter(pos, elements) => {
-                    if reseted {
+                    if reset {
                         panic!(
                             "Cannot insert after element at position {} after a reset",
                             pos
@@ -822,7 +762,7 @@ where
     T: Clone + Patch<P> + From<P>,
     P: Clone + DeserializeOwned,
 {
-    struct VecDeepPatchVisitor<T, P>(Option<BTreeMap<T, P>>);
+    struct VecDeepPatchVisitor<T, P>(PhantomData<fn() -> BTreeMap<T, P>>);
 
     fn map_vec<T, P>(value: P) -> VecDeepPatch<T, P>
     where
@@ -1015,7 +955,7 @@ where
         }
     }
 
-    let visitor: VecDeepPatchVisitor<T, P> = VecDeepPatchVisitor(None);
+    let visitor: VecDeepPatchVisitor<T, P> = VecDeepPatchVisitor(PhantomData);
 
     deserializer.deserialize_any(visitor)
 }
@@ -1032,12 +972,14 @@ where
         formatter.write_str("a map")
     }
 
-    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
     where
         A: MapAccess<'de>,
     {
+        // TODO: get the extends from the key 'extend' or 'extends'
+        // Parse all the other keys and values as the Extend value
         // TODO: implement without Value
-        let mut val: Value = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
+        let val: Value = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
         if let Value::Mapping(mut value_map) = val {
             let keys = value_map
                 .keys()
@@ -1061,7 +1003,6 @@ where
             } else {
                 OneOrManyVec::new(vec![])
             };
-
             Ok(Extend {
                 extend: extend.to_vec(),
                 value: from_value(Value::Mapping(value_map))
@@ -1141,28 +1082,6 @@ impl From<CopyResourcePatch> for CopyResource {
         }
     }
 }
-
-// macro_rules! impl_from_patch {
-//     ($struct:ty, $patch:ty) => {
-//         impl From<$patch> for $struct {
-//             fn from(patch: $patch) -> Self {
-//                 let mut s = Self::default();
-//                 s.apply(patch);
-//                 s
-//             }
-//         }
-//     };
-// }
-
-// impl_from_patch!(Image, ImagePatch);
-// impl_from_patch!(Stage, StagePatch);
-// impl_from_patch!(Artifact, ArtifactPatch);
-// impl_from_patch!(ImageName, ImageNamePatch);
-// impl_from_patch!(User, UserPatch);
-// impl_from_patch!(Copy, CopyPatch);
-// impl_from_patch!(Add, AddPatch);
-// impl_from_patch!(AddGitRepo, AddGitRepoPatch);
-// impl_from_patch!(Port, PortPatch);
 
 #[cfg(test)]
 mod test {

@@ -1,13 +1,10 @@
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{
-    de::{self, DeserializeOwned, Error as DeError, MapAccess, Visitor},
+    de::{self, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
 use std::{fmt, ops::Deref, str::FromStr};
-use struct_patch::*;
-
-use crate::dofigen_struct::*;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
@@ -98,17 +95,6 @@ where
     let visitor: PermissiveStructVisitor<T> = PermissiveStructVisitor(None);
 
     deserializer.deserialize_any(visitor)
-}
-
-pub fn deserialize_permissive_type<'de, T2, D, T>(deserializer: D) -> Result<T, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Deserialize<'de> + From<T2>,
-{
-    // let tmp:T2 = deserializer.deserialize_any()?;
-    // Ok(T::from(tmp))
-    println!("deserialize_permissive_type");
-    todo!()
 }
 
 #[cfg(test)]
