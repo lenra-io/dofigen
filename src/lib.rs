@@ -10,7 +10,6 @@ mod errors;
 #[cfg(feature = "permissive")]
 mod from_str;
 mod generator;
-// mod merge;
 mod script_runner;
 #[cfg(feature = "permissive")]
 mod serde_permissive;
@@ -22,11 +21,7 @@ use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]
 use schemars::schema_for;
 pub use stage::*;
-// pub use merge::*;
 use std::{fs, io::Read};
-// #[macro_use]
-// extern crate pretty_assertions_sorted;
-// use pretty_assertions_sorted::*;
 
 pub const DOCKERFILE_VERSION: &str = "1.7";
 
@@ -122,7 +117,10 @@ const FILE_HEADER_LINES: [&str; 3] = [
 /// );
 /// ```
 pub fn from(input: String) -> Result<Image> {
-    merge_extended_image(serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))?)
+    merge_extended_image(
+        serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))?,
+        &mut LoadContext::new(),
+    )
 }
 
 /// Parse an Image from a reader.
@@ -208,7 +206,10 @@ pub fn from(input: String) -> Result<Image> {
 /// );
 /// ```
 pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
-    merge_extended_image(serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))?)
+    merge_extended_image(
+        serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))?,
+        &mut LoadContext::new(),
+    )
 }
 
 /// Parse an Image from a YAML or JSON file path.
@@ -218,6 +219,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
         Some(os_str) => match os_str.to_str() {
             Some("yml" | "yaml" | "json") => merge_extended_image(
                 serde_yaml::from_reader(file).map_err(|err| Error::Deserialize(err))?,
+                &mut LoadContext::from_path(path.parent().unwrap().to_path_buf()),
             ),
             Some(ext) => Err(Error::Custom(format!(
                 "Not managed Dofigen file extension {}",
@@ -229,8 +231,8 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
     }
 }
 
-fn merge_extended_image(image: Extend<ImagePatch>) -> Result<Image> {
-    image.merge(&mut LoadContext::new())
+fn merge_extended_image(image: Extend<ImagePatch>, context: &mut LoadContext) -> Result<Image> {
+    image.merge(context)
 }
 
 /// Generates the Dockerfile content from an Image.

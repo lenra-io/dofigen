@@ -256,7 +256,7 @@ mod test_from_str {
             assert_eq_sorted!(
                 result,
                 CopyPatch {
-                    paths: Some(vec!["src".into()]),
+                    paths: Some(vec!["src".to_string()].into_patch()),
                     options: Some(CopyOptionsPatch {
                         target: Some(None),
                         chown: Some(None),
@@ -276,7 +276,7 @@ mod test_from_str {
             assert_eq_sorted!(
                 result,
                 CopyPatch {
-                    paths: Some(vec!["src".into()]),
+                    paths: Some(vec!["src".to_string()].into_patch()),
                     options: Some(CopyOptionsPatch {
                         target: Some(Some("/app".into())),
                         chown: Some(None),
@@ -296,7 +296,7 @@ mod test_from_str {
             assert_eq_sorted!(
                 result,
                 CopyPatch {
-                    paths: Some(vec!["src1".into(), "src2".into()]),
+                    paths: Some(vec!["src1".to_string(), "src2".to_string()].into_patch()),
                     options: Some(CopyOptionsPatch {
                         target: Some(Some("/app".into())),
                         chown: Some(None),

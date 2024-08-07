@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 use serde::de::DeserializeOwned;
 use struct_patch::Patch;
@@ -60,12 +60,20 @@ where
 }
 
 pub struct LoadContext {
+    pwd: PathBuf,
+    current_resource: Option<Resource>,
     resources: HashMap<String, String>,
 }
 
 impl LoadContext {
     pub fn new() -> Self {
+        Self::from_path(PathBuf::from(".").canonicalize().unwrap())
+    }
+
+    pub fn from_path(path: PathBuf) -> Self {
         Self {
+            pwd: path,
+            current_resource: None,
             resources: HashMap::new(),
         }
     }
@@ -73,22 +81,37 @@ impl LoadContext {
 
 impl Resource {
     fn load_resource_content(&self, context: &mut LoadContext) -> Result<String> {
-        match self {
+        let resource = match self {
             Resource::File(path) => {
-                let canonical_path = fs::canonicalize(path)
-                    .map_err(|err| {
-                        Error::Custom(format!("Could not canonicalize path {:?}: {}", path, err))
-                    })?
-                    .to_str()
-                    .unwrap()
-                    .to_string();
-                if let Some(value) = context.resources.get(&canonical_path) {
+                if path.is_absolute() {
+                    Resource::File(path.clone())
+                } else {
+                    if let Some(current_resource) = context.current_resource.as_ref() {
+                        match current_resource {
+                            Resource::File(parent) => {
+                                Resource::File(parent.parent().unwrap().join(path))
+                            }
+                            Resource::Url(url) => {
+                                Resource::Url(url.join(path.to_str().unwrap()).unwrap())
+                            }
+                        }
+                    } else {
+                        Resource::File(context.pwd.join(path))
+                    }
+                }
+            }
+            Resource::Url(url) => Resource::Url(url.clone()),
+        };
+        match resource {
+            Resource::File(path) => {
+                let str_path = path.to_str().unwrap().to_string();
+                if let Some(value) = context.resources.get(&str_path) {
                     Ok(value.clone())
                 } else {
-                    let str = fs::read_to_string(path).map_err(|err| {
+                    let str = fs::read_to_string(path.clone()).map_err(|err| {
                         Error::Custom(format!("Could not read file {:?}: {}", path, err))
                     })?;
-                    context.resources.insert(canonical_path, str.clone());
+                    context.resources.insert(str_path, str.clone());
                     Ok(str)
                 }
             }

@@ -2,10 +2,10 @@ use serde::{
     de::{self, DeserializeOwned, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
+use serde_yaml::Value;
 use serde_yaml::{self, from_value};
-use serde_yaml::{from_str, Value};
-use std::{fmt, marker::PhantomData};
 use std::{collections::BTreeMap, ops::Deref, usize};
+use std::{fmt, marker::PhantomData};
 use struct_patch::Patch;
 
 use crate::dofigen_struct::*;
