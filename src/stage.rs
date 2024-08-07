@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{collections::HashMap, fs};
 
 use serde::de::DeserializeOwned;
 use struct_patch::Patch;
@@ -60,20 +60,21 @@ where
 }
 
 pub struct LoadContext {
-    pwd: PathBuf,
     current_resource: Option<Resource>,
     resources: HashMap<String, String>,
 }
 
 impl LoadContext {
     pub fn new() -> Self {
-        Self::from_path(PathBuf::from(".").canonicalize().unwrap())
+        Self {
+            current_resource: None,
+            resources: HashMap::new(),
+        }
     }
 
-    pub fn from_path(path: PathBuf) -> Self {
+    pub fn from_resource(resource: Resource) -> Self {
         Self {
-            pwd: path,
-            current_resource: None,
+            current_resource: Some(resource),
             resources: HashMap::new(),
         }
     }
@@ -88,15 +89,20 @@ impl Resource {
                 } else {
                     if let Some(current_resource) = context.current_resource.as_ref() {
                         match current_resource {
-                            Resource::File(parent) => {
-                                Resource::File(parent.parent().unwrap().join(path))
-                            }
+                            Resource::File(file) => Resource::File(
+                                file.parent()
+                                    .ok_or(Error::Custom(format!(
+                                        "The current resource does not have parent dir {:?}",
+                                        file
+                                    )))?
+                                    .join(path),
+                            ),
                             Resource::Url(url) => {
                                 Resource::Url(url.join(path.to_str().unwrap()).unwrap())
                             }
                         }
                     } else {
-                        Resource::File(context.pwd.join(path))
+                        Resource::File(path.canonicalize().unwrap())
                     }
                 }
             }

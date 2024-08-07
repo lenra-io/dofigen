@@ -43,4 +43,5 @@ struct-patch = { version = "0.7.0", path = "../../external/struct-patch/struct-p
 reqwest = { version = "0.12.5", features = ["blocking"] }
 
 [dev-dependencies]
+httptest = "0.16.1"
 pretty_assertions_sorted = "1.2.3"

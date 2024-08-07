@@ -21,7 +21,7 @@ use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]
 use schemars::schema_for;
 pub use stage::*;
-use std::{fs, io::Read};
+use std::io::Read;
 
 pub const DOCKERFILE_VERSION: &str = "1.7";
 
@@ -214,13 +214,15 @@ pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
 
 /// Parse an Image from a YAML or JSON file path.
 pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
-    let file = fs::File::open(path).unwrap();
     match path.extension() {
         Some(os_str) => match os_str.to_str() {
-            Some("yml" | "yaml" | "json") => merge_extended_image(
-                serde_yaml::from_reader(file).map_err(|err| Error::Deserialize(err))?,
-                &mut LoadContext::from_path(path.parent().unwrap().to_path_buf()),
-            ),
+            Some("yml" | "yaml" | "json") => from_resource(Resource::File(
+                path.canonicalize()
+                    .map_err(|error| {
+                        Error::Custom(format!("Failed to canonicalize path {:?}: {}", path, error))
+                    })?
+                    .to_path_buf(),
+            )),
             Some(ext) => Err(Error::Custom(format!(
                 "Not managed Dofigen file extension {}",
                 ext
@@ -229,6 +231,12 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
         },
         None => Err(Error::Custom("The Dofigen file has no extension".into())),
     }
+}
+
+/// Parse an Image from a YAML or JSON file resource (path or URL).
+pub fn from_resource(resource: Resource) -> Result<Image> {
+    let mut context = LoadContext::from_resource(resource.clone());
+    merge_extended_image(resource.load(&mut context)?, &mut context)
 }
 
 fn merge_extended_image(image: Extend<ImagePatch>, context: &mut LoadContext) -> Result<Image> {

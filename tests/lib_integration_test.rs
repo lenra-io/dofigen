@@ -1,7 +1,4 @@
-use std::{
-    fs::ReadDir,
-    path::{Path, PathBuf},
-};
+use std::path::PathBuf;
 
 use dofigen_lib::*;
 use pretty_assertions_sorted::assert_eq_sorted;
@@ -373,4 +370,39 @@ fn filter_to_map<'a>(
         .collect::<std::collections::HashMap<String, String>>();
 
     (results, files)
+}
+
+#[cfg(feature = "permissive")]
+#[test]
+fn test_load_url() {
+    use httptest::{matchers::*, responders::*, Expectation, Server};
+    use url::Url;
+
+    let test_case_dir = PathBuf::from("tests/cases/");
+    let server = Server::run();
+    let files = vec!["springboot-maven.base.yml", "springboot-maven.override.yml"];
+    for file in files {
+        server.expect(
+            Expectation::matching(request::method_path("GET", format!("/{}", file))).respond_with(
+                status_code(200).body(
+                    std::fs::read_to_string(test_case_dir.join(file)).unwrap(),
+                ),
+            ),
+        );
+    }
+
+    let url = server.url("/springboot-maven.override.yml");
+
+    println!("URL: {}", url);
+
+    let url = url.to_string();
+    let url: Url = url.parse().unwrap();
+
+    let image: Image = from_resource(Resource::Url(url)).unwrap();
+
+    let yaml = serde_yaml::to_string(&image).unwrap();
+    assert_eq_sorted!(yaml, std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.yml")).unwrap());
+
+    let dockerfile = generate_dockerfile(&image).unwrap();
+    assert_eq_sorted!(dockerfile, std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.Dockerfile")).unwrap());
 }

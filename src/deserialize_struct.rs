@@ -534,7 +534,7 @@ where
         }
     }
 
-    fn into_patch_by_diff(self, previous_struct: Self) -> VecPatch<T> {
+    fn into_patch_by_diff(self, _previous_struct: Self) -> VecPatch<T> {
         todo!()
         // the diff is computed by comparing the two arrays
         // let mut commands = vec![];
@@ -734,7 +734,7 @@ where
         }
     }
 
-    fn into_patch_by_diff(self, previous_struct: Self) -> VecDeepPatch<T, P> {
+    fn into_patch_by_diff(self, _previous_struct: Self) -> VecDeepPatch<T, P> {
         todo!()
     }
 
