@@ -1,4 +1,4 @@
-use crate::deserialize_struct::{VecDeepPatch, VecPatch};
+use crate::deserialize_struct::*;
 #[cfg(feature = "permissive")]
 use crate::serde_permissive::ParsableStruct;
 #[cfg(feature = "json_schema")]
@@ -208,6 +208,7 @@ pub enum CopyResourcePatch {
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct UnknownPatch {
     #[serde(flatten)]
     pub options: Option<CopyOptionsPatch>,
@@ -351,13 +352,20 @@ pub enum Resource {
     Url(Url),
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[serde(untagged)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum GitRepo {
-    Http(Url),
-    Ssh(SshGitRepo),
-}
+// #[derive(Serialize, Debug, Clone, PartialEq)]
+// #[serde(untagged)]
+// pub enum GitRepo {
+//     Http(Url),
+//     Ssh(SshGitRepo),
+// }
+
+// #[derive(Deserialize, Debug, Clone, PartialEq)]
+// #[serde(untagged)]
+// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+// pub enum GitRepoPatch {
+//     Http(Url),
+//     Ssh(SshGitRepoPatch),
+// }
 
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
@@ -371,54 +379,6 @@ pub struct SshGitRepo {
     pub host: String,
     pub path: String,
 }
-
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct Extend<T> {
-    pub extend: Vec<Resource>,
-    pub value: T,
-}
-
-// #[cfg(feature = "json_schema")]
-// mod json_schema {
-//     use super::*;
-
-//     pub trait CustomSchema: JsonSchema {
-//         fn schema_name() -> String;
-//         fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema;
-//     }
-
-//     impl CustomSchema for Url {
-//         fn schema_name() -> String {
-//             "Url".to_string()
-//         }
-
-//         fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
-//             <String as JsonSchema>::json_schema(gen)
-//         }
-//     }
-// }
-
-// macro_rules! impl_from_patch {
-//     ($struct:ty, $patch:ty) => {
-//         impl From<$patch> for $struct {
-//             fn from(patch: $patch) -> Self {
-//                 let mut struct_data = <$struct>::default();
-//                 struct_data.apply(patch);
-//                 struct_data
-//             }
-//         }
-
-//         impl From<$struct> for $patch {
-//             fn from(value: $struct) -> Self {
-//                 value.into()
-//             }
-//         }
-//     };
-// }
-
-// impl_from_patch!(ImageName, ImageNamePatch);
-// impl_from_patch!(User, UserPatch);
-// impl_from_patch!(Root, RootPatch);
 
 #[cfg(test)]
 mod test {
@@ -728,146 +688,6 @@ mod test {
                         },
                         checksum: Some("sha256:abcdef123456".into()),
                     })
-                );
-            }
-        }
-
-        mod extend {
-            use super::*;
-
-            #[derive(Deserialize, Patch)]
-            #[patch(
-                attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-                attribute(serde(deny_unknown_fields, default))
-            )]
-            struct TestStruct {
-                pub name: Option<String>,
-                #[serde(flatten)]
-                #[patch(name = "TestSubStructPatch", attribute(serde(flatten)))]
-                pub sub: TestSubStruct,
-            }
-
-            #[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
-            #[patch(
-                attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-                attribute(serde(deny_unknown_fields, default))
-            )]
-            struct TestSubStruct {
-                pub level: u16,
-            }
-
-            #[test]
-            fn empty() {
-                let data = r#"{}"#;
-
-                let extend_image: Extend<TestStructPatch> = serde_yaml::from_str(data).unwrap();
-
-                assert_eq_sorted!(
-                    extend_image,
-                    Extend {
-                        extend: vec![],
-                        value: TestStructPatch {
-                            sub: Some(TestSubStructPatch::default()),
-                            ..Default::default()
-                        }
-                    }
-                );
-            }
-
-            #[test]
-            fn only_name() {
-                let data = r#"
-                name: ok
-                "#;
-
-                let extend: Extend<TestStructPatch> = serde_yaml::from_str(data).unwrap();
-
-                assert_eq_sorted!(
-                    extend,
-                    Extend {
-                        extend: vec![],
-                        value: TestStructPatch {
-                            name: Some(Some("ok".into())),
-                            sub: Some(TestSubStructPatch::default()),
-                            ..Default::default()
-                        }
-                    }
-                );
-            }
-
-            #[test]
-            fn only_sub() {
-                let data = r#"
-                level: 1
-                "#;
-
-                let extend: Extend<TestStructPatch> = serde_yaml::from_str(data).unwrap();
-
-                assert_eq_sorted!(
-                    extend,
-                    Extend {
-                        extend: vec![],
-                        value: TestStructPatch {
-                            sub: Some(TestSubStructPatch {
-                                level: Some(1),
-                                ..Default::default()
-                            }),
-                            ..Default::default()
-                        }
-                    }
-                );
-            }
-        }
-
-        mod extend_image {
-            use super::*;
-
-            #[test]
-            fn empty() {
-                let data = r#"{}"#;
-
-                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
-
-                assert_eq_sorted!(
-                    extend_image,
-                    Extend {
-                        extend: vec![],
-                        value: ImagePatch {
-                            stage: Some(StagePatch::default()),
-                            ..Default::default()
-                        }
-                    }
-                );
-            }
-
-            #[test]
-            fn only_from() {
-                let data = r#"
-                from:
-                    path: ubuntu
-                "#;
-
-                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
-
-                assert_eq_sorted!(
-                    extend_image,
-                    Extend {
-                        extend: vec![],
-                        value: ImagePatch {
-                            stage: Some(StagePatch {
-                                from: Some(Some(
-                                    ImageNamePatch {
-                                        path: Some("ubuntu".into()),
-                                        version: Some(None),
-                                        ..Default::default()
-                                    }
-                                    .into() // To manage permissive
-                                )),
-                                ..Default::default()
-                            }),
-                            ..Default::default()
-                        }
-                    }
                 );
             }
         }

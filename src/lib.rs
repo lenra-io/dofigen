@@ -14,6 +14,7 @@ mod script_runner;
 #[cfg(feature = "permissive")]
 mod serde_permissive;
 mod stage;
+use deserialize_struct::Extend;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};
 pub use dofigen_struct::*;
 pub use errors::*;
@@ -358,10 +359,38 @@ pub fn generate_dockerignore(image: &Image) -> String {
     content
 }
 
+/// Generates the effective Dofigen content from an Image.
+///
+/// # Examples
+///
+/// ```
+/// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
+///
+/// let image = Image {
+///     stage: Stage {
+///         from: Some(ImageName {
+///             path: String::from("ubuntu"),
+///             ..Default::default()
+///         }.into()),
+///         ..Default::default()
+///     },
+///     ..Default::default()
+/// };
+/// let dofigen: String = generate_effective_content(&image).unwrap();
+/// assert_eq_sorted!(
+///     dofigen,
+///     "from:\n  path: ubuntu\n"
+/// );
+/// ```
+pub fn generate_effective_content(image: &Image) -> Result<String> {
+    Ok(serde_yaml::to_string(&image)?)
+}
+
 /// Generates the JSON schema for the Image structure.
 /// This is useful to validate the structure and IDE autocompletion.
 #[cfg(feature = "json_schema")]
 pub fn generate_json_schema() -> String {
-    let schema = schema_for!(Image);
+    let schema = schema_for!(ImagePatch);
     serde_json::to_string_pretty(&schema).unwrap()
 }

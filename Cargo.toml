@@ -24,7 +24,6 @@ required-features = ["cli"]
 
 [features]
 default = ["permissive"]
-# default = ["permissive", "json_schema"]
 cli = ["clap"]
 json_schema = ["schemars", "serde_json"]
 permissive = []
@@ -35,7 +34,7 @@ serde_yaml = "0.9.34"
 serde_json = { version = "1.0.120", optional = true }
 thiserror = "1.0.61"
 clap = { version = "4.5", features = ["derive"], optional = true }
-schemars = { version = "0.8.21", optional = true }
+schemars = { version = "0.8.21", optional = true, features = ["url"] }
 regex = "1.10.5"
 url = { version = "2.5.2", features = ["serde"] }
 concat-idents = "1.1.5"

@@ -474,51 +474,51 @@ mod test_from_str {
         }
     }
 
-    // mod copy_resources {
-    //     use super::*;
+    mod copy_resources {
+        use super::*;
 
-    //     #[test]
-    //     fn copy() {
-    //         let result = CopyResource::from_str("src").unwrap();
-    //         assert_eq_sorted!(result, CopyResource::Copy(Copy::from_str("src").unwrap()));
-    //     }
+        #[test]
+        fn copy() {
+            let result = CopyResourcePatch::from_str("src").unwrap();
+            assert_eq_sorted!(result, CopyResourcePatch::Copy(CopyPatch::from_str("src").unwrap()));
+        }
 
-    //     #[test]
-    //     fn add_git_repo_ssh() {
-    //         let result = CopyResource::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
-    //         assert_eq_sorted!(
-    //             result,
-    //             CopyResource::AddGitRepo(
-    //                 AddGitRepo::from_str("git@github.com:lenra-io/dofigen.git").unwrap()
-    //             )
-    //         );
-    //     }
+        #[test]
+        fn add_git_repo_ssh() {
+            let result = CopyResourcePatch::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
+            assert_eq_sorted!(
+                result,
+                CopyResourcePatch::AddGitRepo(
+                    AddGitRepoPatch::from_str("git@github.com:lenra-io/dofigen.git").unwrap()
+                )
+            );
+        }
 
-    //     #[test]
-    //     fn add_git_repo_http() {
-    //         let result = CopyResource::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
-    //         assert_eq_sorted!(
-    //             result,
-    //             CopyResource::AddGitRepo(
-    //                 AddGitRepo::from_str("https://github.com/lenra-io/dofigen.git").unwrap()
-    //             )
-    //         );
-    //     }
+        #[test]
+        fn add_git_repo_http() {
+            let result = CopyResourcePatch::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
+            assert_eq_sorted!(
+                result,
+                CopyResourcePatch::AddGitRepo(
+                    AddGitRepoPatch::from_str("https://github.com/lenra-io/dofigen.git").unwrap()
+                )
+            );
+        }
 
-    //     #[test]
-    //     fn add() {
-    //         let result =
-    //             CopyResource::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
-    //                 .unwrap();
-    //         assert_eq_sorted!(
-    //             result,
-    //             CopyResource::Add(
-    //                 Add::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
-    //                     .unwrap()
-    //             )
-    //         );
-    //     }
-    // }
+        #[test]
+        fn add() {
+            let result =
+                CopyResourcePatch::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
+                    .unwrap();
+            assert_eq_sorted!(
+                result,
+                CopyResourcePatch::Add(
+                    AddPatch::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
+                        .unwrap()
+                )
+            );
+        }
+    }
 
     mod user {
         use pretty_assertions_sorted::assert_eq_sorted;

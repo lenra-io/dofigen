@@ -125,7 +125,7 @@ impl Resource {
                 if let Some(value) = context.resources.get(&url.to_string()) {
                     Ok(value.clone())
                 } else {
-                    let response = reqwest::blocking::get(url.as_str()).map_err(|err| {
+                    let response = reqwest::blocking::get(url.as_ref()).map_err(|err| {
                         Error::Custom(format!("Could not get url {:?}: {}", url, err))
                     })?;
                     Ok(response.text().map_err(|err| {

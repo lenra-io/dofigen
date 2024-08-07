@@ -339,7 +339,7 @@ fn test_cases() {
 
         if let Some(content) = yaml_results.get(basename.as_str()) {
             println!("Compare with YAML result");
-            let yaml = serde_yaml::to_string(&image).unwrap();
+            let yaml = generate_effective_content(&image).unwrap();
             assert_eq_sorted!(&yaml, content);
         }
 
@@ -384,9 +384,7 @@ fn test_load_url() {
     for file in files {
         server.expect(
             Expectation::matching(request::method_path("GET", format!("/{}", file))).respond_with(
-                status_code(200).body(
-                    std::fs::read_to_string(test_case_dir.join(file)).unwrap(),
-                ),
+                status_code(200).body(std::fs::read_to_string(test_case_dir.join(file)).unwrap()),
             ),
         );
     }
@@ -400,9 +398,17 @@ fn test_load_url() {
 
     let image: Image = from_resource(Resource::Url(url)).unwrap();
 
-    let yaml = serde_yaml::to_string(&image).unwrap();
-    assert_eq_sorted!(yaml, std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.yml")).unwrap());
+    let yaml = generate_effective_content(&image).unwrap();
+    assert_eq_sorted!(
+        yaml,
+        std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.yml"))
+            .unwrap()
+    );
 
     let dockerfile = generate_dockerfile(&image).unwrap();
-    assert_eq_sorted!(dockerfile, std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.Dockerfile")).unwrap());
+    assert_eq_sorted!(
+        dockerfile,
+        std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.Dockerfile"))
+            .unwrap()
+    );
 }

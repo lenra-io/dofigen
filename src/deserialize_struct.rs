@@ -1,3 +1,6 @@
+use crate::dofigen_struct::*;
+#[cfg(feature = "json_schema")]
+use schemars::{JsonSchema, schema::*};
 use serde::{
     de::{self, DeserializeOwned, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer,
@@ -8,7 +11,11 @@ use std::{collections::BTreeMap, ops::Deref, usize};
 use std::{fmt, marker::PhantomData};
 use struct_patch::Patch;
 
-use crate::dofigen_struct::*;
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct Extend<T> {
+    pub extend: Vec<Resource>,
+    pub value: T,
+}
 
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
@@ -185,6 +192,58 @@ where
     let visitor: OneOrManyVisitor<T> = OneOrManyVisitor(None);
 
     deserializer.deserialize_any(visitor)
+}
+
+#[cfg(feature = "json_schema")]
+impl<T: JsonSchema> JsonSchema for VecPatch<T> {
+    fn schema_name() -> String {
+        "VecPatch".to_string()
+    }
+
+    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
+        let array_schema: Schema = SchemaObject {
+            array: Some(Box::new(ArrayValidation {
+                items: Some(SingleOrVec::Single(Box::new(T::json_schema(generator)))),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+        .into();
+
+        SchemaObject {
+            subschemas: Some(Box::new(SubschemaValidation {
+                one_of: Some(vec![
+                    #[cfg(feature = "permissive")]
+                    T::json_schema(generator),
+                    array_schema.clone(),
+                    SchemaObject {
+                        object: Some(Box::new(ObjectValidation {
+                            pattern_properties: vec![
+                                // ReplaceAll
+                                (String::from(r"_"), array_schema.clone()),
+                                // Replace
+                                (String::from(r"^\d+$"), T::json_schema(generator)),
+                                // InsertBefore
+                                (String::from(r"^\+\d+$"), array_schema.clone()),
+                                // InsertAfter
+                                (String::from(r"^\d+\+$"), array_schema.clone()),
+                                // Append
+                                (String::from(r"^\+$"), array_schema),
+                            ]
+                            .into_iter()
+                            .collect(),
+                            ..Default::default()
+                        })),
+                        ..Default::default()
+                    }
+                    .into(),
+                ]),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+        .into()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -642,7 +701,7 @@ where
                     self.clear();
                     self.extend(elements.into_iter());
                 }
-                VecDeepPatchCommand::Replace(pos, elements) => {
+                VecDeepPatchCommand::Replace(pos, element) => {
                     if reset {
                         panic!("Cannot replace element at position {} after a reset", pos);
                     }
@@ -656,7 +715,7 @@ where
                         current_position.0 = i;
                         current_position.1 += adapted_positions[i + 1];
                     }
-                    self[current_position.1] = elements;
+                    self[current_position.1] = element;
                     last_modified_position = pos;
                 }
                 VecDeepPatchCommand::Patch(pos, element) => {
@@ -960,6 +1019,65 @@ where
     deserializer.deserialize_any(visitor)
 }
 
+#[cfg(feature = "json_schema")]
+impl<T, P> JsonSchema for VecDeepPatch<T, P>
+where
+    T: Clone + Patch<P>,
+    P: JsonSchema,
+{
+    fn schema_name() -> String {
+        "VecDeepPatch".to_string()
+    }
+
+    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
+        let type_schema = P::json_schema(generator);
+        let array_schema: Schema = SchemaObject {
+            array: Some(Box::new(ArrayValidation {
+                items: Some(SingleOrVec::Single(Box::new(type_schema.clone()))),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+        .into();
+
+        SchemaObject {
+            subschemas: Some(Box::new(SubschemaValidation {
+                one_of: Some(vec![
+                    #[cfg(feature = "permissive")]
+                    type_schema.clone(),
+                    array_schema.clone(),
+                    SchemaObject {
+                        object: Some(Box::new(ObjectValidation {
+                            pattern_properties: vec![
+                                // ReplaceAll
+                                (String::from(r"_"), array_schema.clone()),
+                                // Replace
+                                (String::from(r"^\d+$"), type_schema.clone()),
+                                // Patch
+                                (String::from(r"^\d+<$"), type_schema.clone()),
+                                // InsertBefore
+                                (String::from(r"^\+\d+$"), array_schema.clone()),
+                                // InsertAfter
+                                (String::from(r"^\d+\+$"), array_schema.clone()),
+                                // Append
+                                (String::from(r"^\+$"), array_schema),
+                            ]
+                            .into_iter()
+                            .collect(),
+                            ..Default::default()
+                        })),
+                        ..Default::default()
+                    }
+                    .into(),
+                ]),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+        .into()
+    }
+}
+
 struct ExtendVisitor<T>(Option<T>);
 
 impl<'de, T> Visitor<'de> for ExtendVisitor<T>
@@ -1086,11 +1204,10 @@ impl From<CopyResourcePatch> for CopyResource {
 #[cfg(test)]
 mod test {
     use super::*;
+    use pretty_assertions_sorted::assert_eq_sorted;
 
     mod base_patch {
-
         use super::*;
-        use pretty_assertions_sorted::assert_eq_sorted;
         use serde::Deserialize;
         use struct_patch::Patch;
 
@@ -1269,6 +1386,151 @@ mod test {
                     })
                 }
             );
+        }
+    }
+
+    mod deserialize {
+        use super::*;
+
+        mod extend {
+
+            use super::*;
+
+            #[derive(Deserialize, Patch)]
+            #[patch(
+                attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+                attribute(serde(deny_unknown_fields, default))
+            )]
+            struct TestStruct {
+                pub name: Option<String>,
+                #[serde(flatten)]
+                #[patch(name = "TestSubStructPatch", attribute(serde(flatten)))]
+                pub sub: TestSubStruct,
+            }
+
+            #[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
+            #[patch(
+                attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+                attribute(serde(deny_unknown_fields, default))
+            )]
+            struct TestSubStruct {
+                pub level: u16,
+            }
+
+            #[test]
+            fn empty() {
+                let data = r#"{}"#;
+
+                let extend_image: Extend<TestStructPatch> = serde_yaml::from_str(data).unwrap();
+
+                assert_eq_sorted!(
+                    extend_image,
+                    Extend {
+                        extend: vec![],
+                        value: TestStructPatch {
+                            sub: Some(TestSubStructPatch::default()),
+                            ..Default::default()
+                        }
+                    }
+                );
+            }
+
+            #[test]
+            fn only_name() {
+                let data = r#"
+                name: ok
+                "#;
+
+                let extend: Extend<TestStructPatch> = serde_yaml::from_str(data).unwrap();
+
+                assert_eq_sorted!(
+                    extend,
+                    Extend {
+                        extend: vec![],
+                        value: TestStructPatch {
+                            name: Some(Some("ok".into())),
+                            sub: Some(TestSubStructPatch::default()),
+                            ..Default::default()
+                        }
+                    }
+                );
+            }
+
+            #[test]
+            fn only_sub() {
+                let data = r#"
+                level: 1
+                "#;
+
+                let extend: Extend<TestStructPatch> = serde_yaml::from_str(data).unwrap();
+
+                assert_eq_sorted!(
+                    extend,
+                    Extend {
+                        extend: vec![],
+                        value: TestStructPatch {
+                            sub: Some(TestSubStructPatch {
+                                level: Some(1),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        }
+                    }
+                );
+            }
+        }
+
+        mod extend_image {
+            use super::*;
+
+            #[test]
+            fn empty() {
+                let data = r#"{}"#;
+
+                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
+
+                assert_eq_sorted!(
+                    extend_image,
+                    Extend {
+                        extend: vec![],
+                        value: ImagePatch {
+                            stage: Some(StagePatch::default()),
+                            ..Default::default()
+                        }
+                    }
+                );
+            }
+
+            #[test]
+            fn only_from() {
+                let data = r#"
+                from:
+                    path: ubuntu
+                "#;
+
+                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
+
+                assert_eq_sorted!(
+                    extend_image,
+                    Extend {
+                        extend: vec![],
+                        value: ImagePatch {
+                            stage: Some(StagePatch {
+                                from: Some(Some(
+                                    ImageNamePatch {
+                                        path: Some("ubuntu".into()),
+                                        version: Some(None),
+                                        ..Default::default()
+                                    }
+                                    .into() // To manage permissive
+                                )),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        }
+                    }
+                );
+            }
         }
     }
 }
