@@ -1,6 +1,6 @@
 use crate::dofigen_struct::*;
 #[cfg(feature = "json_schema")]
-use schemars::{JsonSchema, schema::*};
+use schemars::{schema::*, JsonSchema};
 use serde::{
     de::{self, DeserializeOwned, Error as DeError, MapAccess, Visitor},
     Deserialize, Deserializer,

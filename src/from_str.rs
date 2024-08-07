@@ -480,12 +480,16 @@ mod test_from_str {
         #[test]
         fn copy() {
             let result = CopyResourcePatch::from_str("src").unwrap();
-            assert_eq_sorted!(result, CopyResourcePatch::Copy(CopyPatch::from_str("src").unwrap()));
+            assert_eq_sorted!(
+                result,
+                CopyResourcePatch::Copy(CopyPatch::from_str("src").unwrap())
+            );
         }
 
         #[test]
         fn add_git_repo_ssh() {
-            let result = CopyResourcePatch::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
+            let result =
+                CopyResourcePatch::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
             assert_eq_sorted!(
                 result,
                 CopyResourcePatch::AddGitRepo(
@@ -496,7 +500,8 @@ mod test_from_str {
 
         #[test]
         fn add_git_repo_http() {
-            let result = CopyResourcePatch::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
+            let result =
+                CopyResourcePatch::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
             assert_eq_sorted!(
                 result,
                 CopyResourcePatch::AddGitRepo(
@@ -507,9 +512,10 @@ mod test_from_str {
 
         #[test]
         fn add() {
-            let result =
-                CopyResourcePatch::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
-                    .unwrap();
+            let result = CopyResourcePatch::from_str(
+                "https://github.com/lenra-io/dofigen/raw/main/README.md",
+            )
+            .unwrap();
             assert_eq_sorted!(
                 result,
                 CopyResourcePatch::Add(
