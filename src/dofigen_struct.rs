@@ -344,7 +344,7 @@ pub enum PortProtocol {
     Udp,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Hash, Eq)]
 #[serde(untagged)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum Resource {

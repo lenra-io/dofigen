@@ -236,7 +236,7 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
 
 /// Parse an Image from a YAML or JSON file resource (path or URL).
 pub fn from_resource(resource: Resource) -> Result<Image> {
-    let mut context = LoadContext::from_resource(resource.clone());
+    let mut context = LoadContext::new();
     merge_extended_image(resource.load(&mut context)?, &mut context)
 }
 

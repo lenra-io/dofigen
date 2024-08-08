@@ -1,12 +1,12 @@
-use std::{collections::HashMap, fs};
-
-use serde::de::DeserializeOwned;
-use struct_patch::Patch;
-
 use crate::{
     dofigen_struct::Stage, generator::GenerationContext, script_runner::ScriptRunner, Error,
     Extend, ImageName, Resource, Result, User,
 };
+use serde::de::DeserializeOwned;
+use std::{collections::HashMap, fs};
+use struct_patch::Patch;
+
+const MAX_LOAD_STACK_SIZE: usize = 10;
 
 pub trait BaseStage: ScriptRunner {
     fn name(&self, context: &GenerationContext) -> String;
@@ -46,7 +46,11 @@ where
         let mut patches: Vec<T> = self
             .extend
             .iter()
-            .map(|extend| extend.load::<Self>(context)?.merge(context))
+            .map(|extend| {
+                let ret = extend.load::<Self>(context)?.merge(context)?;
+                context.load_resource_stack.pop();
+                Ok(ret)
+            })
             .collect::<Result<Vec<_>>>()?;
 
         // for each extends file, merge it with self
@@ -60,21 +64,21 @@ where
 }
 
 pub struct LoadContext {
-    current_resource: Option<Resource>,
-    resources: HashMap<String, String>,
+    load_resource_stack: Vec<Resource>,
+    resources: HashMap<Resource, String>,
 }
 
 impl LoadContext {
     pub fn new() -> Self {
         Self {
-            current_resource: None,
+            load_resource_stack: vec![],
             resources: HashMap::new(),
         }
     }
 
     pub fn from_resource(resource: Resource) -> Self {
         Self {
-            current_resource: Some(resource),
+            load_resource_stack: vec![resource],
             resources: HashMap::new(),
         }
     }
@@ -87,7 +91,7 @@ impl Resource {
                 if path.is_absolute() {
                     Resource::File(path.clone())
                 } else {
-                    if let Some(current_resource) = context.current_resource.as_ref() {
+                    if let Some(current_resource) = context.load_resource_stack.last() {
                         match current_resource {
                             Resource::File(file) => Resource::File(
                                 file.parent()
@@ -108,21 +112,51 @@ impl Resource {
             }
             Resource::Url(url) => Resource::Url(url.clone()),
         };
-        match resource {
+        if context.load_resource_stack.contains(&resource) {
+            // push the resource to format the error message
+            context.load_resource_stack.push(resource.clone());
+            return Err(Error::Custom(format!(
+                "Circular dependency detected while loading resource {}",
+                context
+                    .load_resource_stack
+                    .iter()
+                    .map(|r| format!("{:?}", r))
+                    .collect::<Vec<_>>()
+                    .join(" -> "),
+            )));
+        }
+
+        // push the resource to the stack
+        context.load_resource_stack.push(resource.clone());
+
+        // check the stack size
+        if context.load_resource_stack.len() > MAX_LOAD_STACK_SIZE {
+            return Err(Error::Custom(format!(
+                "Max load stack size exceeded while loading resource {}",
+                context
+                    .load_resource_stack
+                    .iter()
+                    .map(|r| format!("{:?}", r))
+                    .collect::<Vec<_>>()
+                    .join(" -> "),
+            )));
+        }
+
+        // load the resource content
+        match resource.clone() {
             Resource::File(path) => {
-                let str_path = path.to_str().unwrap().to_string();
-                if let Some(value) = context.resources.get(&str_path) {
+                if let Some(value) = context.resources.get(&resource) {
                     Ok(value.clone())
                 } else {
                     let str = fs::read_to_string(path.clone()).map_err(|err| {
                         Error::Custom(format!("Could not read file {:?}: {}", path, err))
                     })?;
-                    context.resources.insert(str_path, str.clone());
+                    context.resources.insert(resource, str.clone());
                     Ok(str)
                 }
             }
             Resource::Url(url) => {
-                if let Some(value) = context.resources.get(&url.to_string()) {
+                if let Some(value) = context.resources.get(&resource) {
                     Ok(value.clone())
                 } else {
                     let response = reqwest::blocking::get(url.as_ref()).map_err(|err| {
