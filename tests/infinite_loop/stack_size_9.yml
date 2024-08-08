@@ -1,1 +1,2 @@
-from: alpine
+from:
+  path: alpine

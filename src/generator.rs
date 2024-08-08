@@ -1,8 +1,8 @@
 use crate::{
     dockerfile_struct::{DockerfileInsctruction, DockerfileLine, InstructionOption},
     script_runner::ScriptRunner,
-    Add, AddGitRepo, Artifact, BaseStage, Copy, CopyOptions, CopyResource, Image, ImageName,
-    ImageVersion, Port, PortProtocol, Resource, Result, Stage, User, DOCKERFILE_VERSION,
+    Add, AddGitRepo, Artifact, Copy, CopyOptions, CopyResource, Image, ImageName, ImageVersion,
+    Port, PortProtocol, Resource, Result, Stage, User, DOCKERFILE_VERSION,
 };
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
@@ -17,6 +17,58 @@ pub struct GenerationContext {
 pub trait DockerfileGenerator {
     fn generate_dockerfile_lines(&self, context: &GenerationContext)
         -> Result<Vec<DockerfileLine>>;
+}
+
+impl Stage {
+    pub fn name(&self, context: &GenerationContext) -> String {
+        self.name
+            .clone()
+            .unwrap_or_else(|| context.default_stage_name.clone())
+    }
+    pub fn from(&self, context: &GenerationContext) -> ImageName {
+        self.from.clone().unwrap_or(context.default_from.clone())
+    }
+
+    pub fn user(&self, context: &GenerationContext) -> Option<User> {
+        self.user.clone().or(context.user.clone())
+    }
+}
+
+impl User {
+    pub fn uid(&self) -> Option<u16> {
+        self.user.parse::<u16>().ok()
+    }
+
+    pub fn gid(&self) -> Option<u16> {
+        self.group
+            .as_ref()
+            .map(|group| group.parse::<u16>().ok())
+            .flatten()
+    }
+
+    pub fn into(&self) -> String {
+        let name = self.user.clone();
+        match &self.group {
+            Some(group) => format!("{}:{}", name, group),
+            _ => name,
+        }
+    }
+
+    // Static methods
+
+    pub fn new(user: &str) -> Self {
+        Self {
+            user: user.into(),
+            group: Some(user.into()),
+        }
+    }
+
+    pub fn new_without_group(user: &str) -> Self {
+        Self {
+            user: user.into(),
+            group: None,
+        }
+    }
 }
 
 impl ToString for ImageName {
@@ -417,11 +469,11 @@ fn string_vec_into(string_vec: Vec<String>) -> String {
 
 #[cfg(test)]
 mod test {
+    use pretty_assertions_sorted::assert_eq_sorted;
+
     use crate::*;
 
     mod builder {
-        use pretty_assertions_sorted::assert_eq_sorted;
-
         use super::*;
 
         #[test]
@@ -474,8 +526,6 @@ mod test {
     }
 
     mod image_name {
-        use pretty_assertions_sorted::assert_eq_sorted;
-
         use super::*;
 
         #[test]
@@ -557,5 +607,132 @@ mod test {
                 })
             );
         }
+    }
+
+    #[test]
+    fn test_builder_name_with_name() {
+        let builder = Stage {
+            name: Some(String::from("my-builder")),
+            ..Default::default()
+        };
+        let name = builder.name(&GenerationContext {
+            previous_builders: vec!["builder-0".into()],
+            ..Default::default()
+        });
+        assert_eq_sorted!(name, "my-builder");
+    }
+
+    #[test]
+    fn test_builder_name_without_name() {
+        let builder = Stage::default();
+        let name = builder.name(&GenerationContext {
+            previous_builders: vec!["builder-0".into(), "bob".into()],
+            default_stage_name: "builder-2".into(),
+            ..Default::default()
+        });
+        assert_eq_sorted!(name, "builder-2");
+    }
+
+    #[test]
+    fn test_builder_user_with_user() {
+        let builder = Stage {
+            user: Some(
+                User {
+                    user: "my-user".into(),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+            ..Default::default()
+        };
+        let user = builder.user(&GenerationContext::default());
+        assert_eq_sorted!(
+            user,
+            Some(User {
+                user: "my-user".into(),
+                ..Default::default()
+            })
+        );
+    }
+
+    #[test]
+    fn test_builder_user_without_user() {
+        let builder = Stage::default();
+        let user = builder.user(&GenerationContext::default());
+        assert_eq_sorted!(user, None);
+    }
+
+    #[test]
+    fn test_image_name() {
+        let stage = Stage {
+            from: Some(
+                ImageName {
+                    path: String::from("my-image"),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+            ..Default::default()
+        };
+        let name = stage.name(&GenerationContext {
+            previous_builders: vec!["builder-0".into(), "bob".into(), "john".into()],
+            default_stage_name: "runtime".into(),
+            ..Default::default()
+        });
+        assert_eq_sorted!(name, "runtime");
+    }
+
+    #[test]
+    fn test_image_user_with_user() {
+        let stage = Stage {
+            user: Some(
+                User {
+                    user: "my-user".into(),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+            from: Some(
+                ImageName {
+                    path: String::from("my-image"),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+            ..Default::default()
+        };
+        let user = stage.user(&GenerationContext::default());
+        assert_eq_sorted!(
+            user,
+            Some(User {
+                user: "my-user".into(),
+                ..Default::default()
+            })
+        );
+    }
+
+    #[test]
+    fn test_image_user_without_user() {
+        let stage = Stage {
+            from: Some(
+                ImageName {
+                    path: String::from("my-image"),
+                    ..Default::default()
+                }
+                .into(),
+            ),
+            ..Default::default()
+        };
+        let user = stage.user(&GenerationContext {
+            user: Some(User::new("1000")),
+            ..Default::default()
+        });
+        assert_eq_sorted!(
+            user,
+            Some(User {
+                user: "1000".into(),
+                group: Some("1000".into()),
+            })
+        );
     }
 }

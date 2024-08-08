@@ -1,1 +1,2 @@
-extend: stack_size_7.yml
+extend:
+  - stack_size_7.yml

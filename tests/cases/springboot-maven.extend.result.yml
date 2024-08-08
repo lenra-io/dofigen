@@ -1,3 +1,6 @@
+context:
+- /pom.xml
+- /src/main/
 builders:
 - name: maven-builder
   from:
@@ -21,9 +24,6 @@ artifacts:
 - builder: maven-builder
   source: /app/app.jar
   target: app.jar
-context:
-- /pom.xml
-- /src/main/
 cmd:
 - java
 - -jar

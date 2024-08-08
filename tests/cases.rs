@@ -2,7 +2,8 @@ use dofigen_lib::*;
 use pretty_assertions_sorted::assert_eq_sorted;
 use std::path::PathBuf;
 
-#[cfg(feature = "permissive")]
+const PERMISSIVE_SUFFIX: &str = ".permissive";
+
 #[test]
 fn test_cases() {
     // Get all the files in the tests/cases directory
@@ -24,6 +25,14 @@ fn test_cases() {
         let mut basename = path.to_str().unwrap().to_string();
         basename.truncate(basename.len() - path.extension().unwrap().to_str().unwrap().len() - 1);
 
+        if basename.ends_with(PERMISSIVE_SUFFIX) {
+            #[cfg(not(feature = "permissive"))]
+            continue;
+
+            #[cfg(feature = "permissive")]
+            basename.truncate(basename.len() - PERMISSIVE_SUFFIX.len());
+        }
+
         println!("Processing {}", basename);
 
         let image: Image = from_file_path(path).unwrap();
@@ -40,30 +49,29 @@ fn test_cases() {
             assert_eq_sorted!(&dockerfile, content);
         }
     }
+
+    fn filter_to_map<'a>(
+        files: Vec<&'a PathBuf>,
+        filter: &str,
+    ) -> (std::collections::HashMap<String, String>, Vec<&'a PathBuf>) {
+        let (results, files): (_, Vec<_>) = files
+            .into_iter()
+            .partition(|path| path.to_str().unwrap().ends_with(filter));
+
+        let results = results
+            .iter()
+            .filter_map(|path| {
+                let mut basename = path.to_str().unwrap().to_string();
+                basename.truncate(basename.len() - filter.len());
+                let content = std::fs::read_to_string(path).unwrap();
+                Some((basename, content))
+            })
+            .collect::<std::collections::HashMap<String, String>>();
+
+        (results, files)
+    }
 }
 
-fn filter_to_map<'a>(
-    files: Vec<&'a PathBuf>,
-    filter: &str,
-) -> (std::collections::HashMap<String, String>, Vec<&'a PathBuf>) {
-    let (results, files): (_, Vec<_>) = files
-        .into_iter()
-        .partition(|path| path.to_str().unwrap().ends_with(filter));
-
-    let results = results
-        .iter()
-        .filter_map(|path| {
-            let mut basename = path.to_str().unwrap().to_string();
-            basename.truncate(basename.len() - filter.len());
-            let content = std::fs::read_to_string(path).unwrap();
-            Some((basename, content))
-        })
-        .collect::<std::collections::HashMap<String, String>>();
-
-    (results, files)
-}
-
-#[cfg(feature = "permissive")]
 #[test]
 fn test_load_url() {
     use httptest::{matchers::*, responders::*, Expectation, Server};

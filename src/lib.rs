@@ -3,25 +3,24 @@
 //! `dofigen_lib` help creating Dockerfile with a simplified structure and made to cache the build with Buildkit.
 //! You also can parse the structure from YAML or JSON.
 
-mod deserialize_struct;
+mod deserialize;
 mod dockerfile_struct;
 mod dofigen_struct;
 mod errors;
+mod extend;
 #[cfg(feature = "permissive")]
 mod from_str;
 mod generator;
+#[cfg(feature = "json_schema")]
+mod json_schema;
 mod script_runner;
-#[cfg(feature = "permissive")]
-mod serde_permissive;
-mod stage;
-use deserialize_struct::Extend;
+// mod stage;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};
-pub use dofigen_struct::*;
-pub use errors::*;
 use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]
-use schemars::schema_for;
-pub use stage::*;
+use schemars::gen::*;
+pub use {deserialize::*, dofigen_struct::*, errors::*, extend::*};
+// use schemars::schema_for;
 use std::io::Read;
 
 pub const DOCKERFILE_VERSION: &str = "1.7";
@@ -391,6 +390,11 @@ pub fn generate_effective_content(image: &Image) -> Result<String> {
 /// This is useful to validate the structure and IDE autocompletion.
 #[cfg(feature = "json_schema")]
 pub fn generate_json_schema() -> String {
-    let schema = schema_for!(ImagePatch);
+    let settings = SchemaSettings::default().with(|s| {
+        s.option_nullable = true;
+        s.option_add_null_type = false;
+    });
+    let gen = settings.into_generator();
+    let schema = gen.into_root_schema_for::<Extend<ImagePatch>>();
     serde_json::to_string_pretty(&schema).unwrap()
 }

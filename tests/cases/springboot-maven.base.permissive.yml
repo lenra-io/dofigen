@@ -1,11 +1,9 @@
 builders:
   - name: maven-builder
-    from: 
-      path: maven
-      tag: 3.9-eclipse-temurin-17-alpine
+    from: maven:3.9-eclipse-temurin-17-alpine
     workdir: /app
     add:
-      - paths: ["."]
+      - "."
     root:
       run:
         - mvn package -DskipTests
@@ -13,9 +11,7 @@ builders:
       cache:
         - /root/.m2
         - /app/target
-from: 
-  path: eclipse-temurin
-  tag: 17-jre-alpine
+from: eclipse-temurin:17-jre-alpine
 artifacts:
   - builder: maven-builder
     source: /app/app.jar

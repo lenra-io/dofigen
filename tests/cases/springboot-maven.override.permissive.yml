@@ -1,5 +1,4 @@
-extend:
-  - springboot-maven.base.yml
+extend: springboot-maven.base.permissive.yml
 builders:
   0<:
     from: 

@@ -1,1 +1,2 @@
-extend: a.yml
+extend:
+  - a.yml

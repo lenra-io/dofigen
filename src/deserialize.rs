@@ -1,69 +1,48 @@
 use crate::dofigen_struct::*;
 #[cfg(feature = "json_schema")]
-use schemars::{schema::*, JsonSchema};
+use schemars::JsonSchema;
 use serde::{
-    de::{self, DeserializeOwned, Error as DeError, MapAccess, Visitor},
+    de::{self, DeserializeOwned, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
-use serde_yaml::Value;
-use serde_yaml::{self, from_value};
-use std::{collections::BTreeMap, ops::Deref, usize};
-use std::{fmt, marker::PhantomData};
+#[cfg(feature = "permissive")]
+use std::str::FromStr;
+use std::{collections::BTreeMap, fmt, marker::PhantomData, usize};
 use struct_patch::Patch;
 
-#[derive(Debug, Clone, PartialEq, Default)]
-pub struct Extend<T> {
-    pub extend: Vec<Resource>,
-    pub value: T,
+/// Implements the From trait for a struct from a patch
+macro_rules! impl_from_patch {
+    ($struct:ty, $patch:ty) => {
+        impl From<$patch> for $struct {
+            fn from(value: $patch) -> Self {
+                let mut s = Self::default();
+                s.apply(value);
+                s
+            }
+        }
+    };
 }
 
+impl_from_patch!(Image, ImagePatch);
+impl_from_patch!(Stage, StagePatch);
+impl_from_patch!(Healthcheck, HealthcheckPatch);
+impl_from_patch!(ImageName, ImageNamePatch);
+impl_from_patch!(Artifact, ArtifactPatch);
+impl_from_patch!(Root, RootPatch);
+impl_from_patch!(Port, PortPatch);
+impl_from_patch!(User, UserPatch);
+impl_from_patch!(Copy, CopyPatch);
+impl_from_patch!(Add, AddPatch);
+impl_from_patch!(AddGitRepo, AddGitRepoPatch);
+
+/// One or many values
+#[cfg(feature = "permissive")]
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct OneOrManyVec<T>(Vec<T>)
+pub struct OneOrManyVec<T>(pub Vec<T>)
 where
     T: Sized;
 
-impl<T: Sized + Clone> OneOrManyVec<T> {
-    pub fn new(value: Vec<T>) -> Self {
-        OneOrManyVec(value)
-    }
-}
-
-impl<T> Default for OneOrManyVec<T>
-where
-    T: Sized,
-{
-    fn default() -> Self {
-        OneOrManyVec(Vec::new())
-    }
-}
-
-impl<T: Sized + Clone> Deref for OneOrManyVec<T> {
-    type Target = Vec<T>;
-
-    fn deref(&self) -> &Vec<T> {
-        &self.0
-    }
-}
-
-impl<T: Sized + Clone> From<Vec<T>> for OneOrManyVec<T> {
-    fn from(value: Vec<T>) -> Self {
-        OneOrManyVec::new(value)
-    }
-}
-
-impl<T> IntoIterator for OneOrManyVec<T>
-where
-    T: Sized + Clone,
-{
-    type Item = T;
-    type IntoIter = std::vec::IntoIter<T>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
+#[cfg(feature = "permissive")]
 impl<'de, T> Deserialize<'de> for OneOrManyVec<T>
 where
     T: Sized + Clone + Deserialize<'de>,
@@ -72,10 +51,11 @@ where
     where
         D: Deserializer<'de>,
     {
-        deserialize_one_or_many_vec(deserializer).map(OneOrManyVec::new)
+        deserialize_one_or_many_vec(deserializer).map(OneOrManyVec)
     }
 }
 
+#[cfg(feature = "permissive")]
 fn deserialize_one_or_many_vec<'de, D, T>(deserializer: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
@@ -99,77 +79,77 @@ where
 
         fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I8Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I16Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I32Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I128Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U8Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U16Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U32Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U128Deserializer::new(v)).map(map_vec)
         }
 
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::StrDeserializer::new(v)).map(map_vec)
         }
@@ -194,65 +174,86 @@ where
     deserializer.deserialize_any(visitor)
 }
 
-#[cfg(feature = "json_schema")]
-impl<T: JsonSchema> JsonSchema for VecPatch<T> {
-    fn schema_name() -> String {
-        "VecPatch".to_string()
-    }
+/// A struct that can be parsed from a string
+#[cfg(feature = "permissive")]
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct ParsableStruct<T>(pub(crate) T)
+where
+    T: FromStr + Sized;
 
-    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
-        let array_schema: Schema = SchemaObject {
-            array: Some(Box::new(ArrayValidation {
-                items: Some(SingleOrVec::Single(Box::new(T::json_schema(generator)))),
-                ..Default::default()
-            })),
-            ..Default::default()
-        }
-        .into();
-
-        SchemaObject {
-            subschemas: Some(Box::new(SubschemaValidation {
-                one_of: Some(vec![
-                    #[cfg(feature = "permissive")]
-                    T::json_schema(generator),
-                    array_schema.clone(),
-                    SchemaObject {
-                        object: Some(Box::new(ObjectValidation {
-                            pattern_properties: vec![
-                                // ReplaceAll
-                                (String::from(r"_"), array_schema.clone()),
-                                // Replace
-                                (String::from(r"^\d+$"), T::json_schema(generator)),
-                                // InsertBefore
-                                (String::from(r"^\+\d+$"), array_schema.clone()),
-                                // InsertAfter
-                                (String::from(r"^\d+\+$"), array_schema.clone()),
-                                // Append
-                                (String::from(r"^\+$"), array_schema),
-                            ]
-                            .into_iter()
-                            .collect(),
-                            ..Default::default()
-                        })),
-                        ..Default::default()
-                    }
-                    .into(),
-                ]),
-                ..Default::default()
-            })),
-            ..Default::default()
-        }
-        .into()
+#[cfg(feature = "permissive")]
+impl<'de, T> Deserialize<'de> for ParsableStruct<T>
+where
+    T: FromStr + Sized + Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<ParsableStruct<T>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserialize_permissive_struct(deserializer).map(ParsableStruct)
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-enum VecPatchCommand<T> {
-    ReplaceAll(Vec<T>),
-    Replace(usize, T),
-    InsertBefore(usize, Vec<T>),
-    InsertAfter(usize, Vec<T>),
-    Append(Vec<T>),
+#[cfg(feature = "permissive")]
+impl<T: FromStr + Sized> From<T> for ParsableStruct<T> {
+    fn from(value: T) -> Self {
+        ParsableStruct(value)
+    }
+}
+
+#[cfg(feature = "permissive")]
+fn deserialize_permissive_struct<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: FromStr + Sized + Deserialize<'de>,
+{
+    struct PermissiveStructVisitor<T>(Option<T>);
+
+    impl<'de, T> Visitor<'de> for PermissiveStructVisitor<T>
+    where
+        T: Deserialize<'de> + FromStr,
+    {
+        type Value = T;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a number, a string or a map")
+        }
+
+        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            self.visit_str(v.to_string().as_str())
+        }
+
+        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            self.visit_str(v.to_string().as_str())
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            // TODO: improve error management
+            v.parse()
+                .map_err(|_| E::custom("Error while parsing a permissive struct"))
+        }
+
+        fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+        where
+            A: MapAccess<'de>,
+        {
+            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
+        }
+    }
+
+    let visitor: PermissiveStructVisitor<T> = PermissiveStructVisitor(None);
+
+    deserializer.deserialize_any(visitor)
 }
 
 /// Patch for Vec<T> that handle some commands based on the position:
@@ -266,12 +267,13 @@ pub struct VecPatch<T> {
     commands: Vec<VecPatchCommand<T>>,
 }
 
-impl<T> From<Vec<T>> for VecPatch<T> {
-    fn from(value: Vec<T>) -> Self {
-        Self {
-            commands: vec![VecPatchCommand::ReplaceAll(value)],
-        }
-    }
+#[derive(Debug, Clone, PartialEq)]
+enum VecPatchCommand<T> {
+    ReplaceAll(Vec<T>),
+    Replace(usize, T),
+    InsertBefore(usize, Vec<T>),
+    InsertAfter(usize, Vec<T>),
+    Append(Vec<T>),
 }
 
 impl<'de, T> Deserialize<'de> for VecPatch<T>
@@ -293,6 +295,7 @@ where
 {
     struct VecPatchVisitor<T>(Option<T>);
 
+    #[cfg(feature = "permissive")]
     fn map_vec<T>(value: T) -> VecPatch<T> {
         VecPatch {
             commands: vec![VecPatchCommand::ReplaceAll(vec![value])],
@@ -307,7 +310,7 @@ where
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
             #[cfg(not(feature = "permissive"))]
-            let expected = "a sequence or a map";
+            let expected = "a sequence or any type";
 
             #[cfg(feature = "permissive")]
             let expected = "any type";
@@ -318,7 +321,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I8Deserializer::new(v)).map(map_vec)
         }
@@ -326,7 +329,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I16Deserializer::new(v)).map(map_vec)
         }
@@ -334,7 +337,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I32Deserializer::new(v)).map(map_vec)
         }
@@ -342,7 +345,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(map_vec)
         }
@@ -350,7 +353,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I128Deserializer::new(v)).map(map_vec)
         }
@@ -358,7 +361,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U8Deserializer::new(v)).map(map_vec)
         }
@@ -366,7 +369,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U16Deserializer::new(v)).map(map_vec)
         }
@@ -374,7 +377,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U32Deserializer::new(v)).map(map_vec)
         }
@@ -382,7 +385,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(map_vec)
         }
@@ -390,7 +393,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U128Deserializer::new(v)).map(map_vec)
         }
@@ -398,7 +401,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::StrDeserializer::new(v)).map(map_vec)
         }
@@ -409,7 +412,7 @@ where
         {
             let replacer: Vec<T> =
                 Deserialize::deserialize(de::value::SeqAccessDeserializer::new(seq))?;
-            Ok(replacer.into())
+            Ok(replacer.into_patch())
         }
 
         fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -606,19 +609,6 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-enum VecDeepPatchCommand<T, P>
-where
-    T: Clone + Patch<P>,
-{
-    ReplaceAll(Vec<T>),
-    Replace(usize, T),
-    Patch(usize, P),
-    InsertBefore(usize, Vec<T>),
-    InsertAfter(usize, Vec<T>),
-    Append(Vec<T>),
-}
-
 /// Patch for Vec<T> that handle some commands based on the position:
 /// - `_` to replace the whole list
 /// - `+` to append to the list
@@ -634,15 +624,17 @@ where
     commands: Vec<VecDeepPatchCommand<T, P>>,
 }
 
-impl<T, P> From<Vec<T>> for VecDeepPatch<T, P>
+#[derive(Debug, Clone, PartialEq)]
+enum VecDeepPatchCommand<T, P>
 where
     T: Clone + Patch<P>,
 {
-    fn from(value: Vec<T>) -> Self {
-        Self {
-            commands: vec![VecDeepPatchCommand::ReplaceAll(value)],
-        }
-    }
+    ReplaceAll(Vec<T>),
+    Replace(usize, T),
+    Patch(usize, P),
+    InsertBefore(usize, Vec<T>),
+    InsertAfter(usize, Vec<T>),
+    Append(Vec<T>),
 }
 
 impl<T, P> Patch<VecDeepPatch<T, P>> for Vec<T>
@@ -823,6 +815,7 @@ where
 {
     struct VecDeepPatchVisitor<T, P>(PhantomData<fn() -> BTreeMap<T, P>>);
 
+    #[cfg(feature = "permissive")]
     fn map_vec<T, P>(value: P) -> VecDeepPatch<T, P>
     where
         T: Clone + Patch<P> + From<P>,
@@ -854,7 +847,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I8Deserializer::new(v)).map(map_vec)
         }
@@ -862,7 +855,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I16Deserializer::new(v)).map(map_vec)
         }
@@ -870,7 +863,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I32Deserializer::new(v)).map(map_vec)
         }
@@ -878,7 +871,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I64Deserializer::new(v)).map(map_vec)
         }
@@ -886,7 +879,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::I128Deserializer::new(v)).map(map_vec)
         }
@@ -894,7 +887,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U8Deserializer::new(v)).map(map_vec)
         }
@@ -902,7 +895,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U16Deserializer::new(v)).map(map_vec)
         }
@@ -910,7 +903,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U32Deserializer::new(v)).map(map_vec)
         }
@@ -918,7 +911,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U64Deserializer::new(v)).map(map_vec)
         }
@@ -926,7 +919,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::U128Deserializer::new(v)).map(map_vec)
         }
@@ -934,7 +927,7 @@ where
         #[cfg(feature = "permissive")]
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
-            E: DeError,
+            E: de::Error,
         {
             Deserialize::deserialize(de::value::StrDeserializer::new(v)).map(map_vec)
         }
@@ -1019,131 +1012,22 @@ where
     deserializer.deserialize_any(visitor)
 }
 
-#[cfg(feature = "json_schema")]
-impl<T, P> JsonSchema for VecDeepPatch<T, P>
-where
-    T: Clone + Patch<P>,
-    P: JsonSchema,
-{
-    fn schema_name() -> String {
-        "VecDeepPatch".to_string()
-    }
-
-    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
-        let type_schema = P::json_schema(generator);
-        let array_schema: Schema = SchemaObject {
-            array: Some(Box::new(ArrayValidation {
-                items: Some(SingleOrVec::Single(Box::new(type_schema.clone()))),
-                ..Default::default()
-            })),
-            ..Default::default()
-        }
-        .into();
-
-        SchemaObject {
-            subschemas: Some(Box::new(SubschemaValidation {
-                one_of: Some(vec![
-                    #[cfg(feature = "permissive")]
-                    type_schema.clone(),
-                    array_schema.clone(),
-                    SchemaObject {
-                        object: Some(Box::new(ObjectValidation {
-                            pattern_properties: vec![
-                                // ReplaceAll
-                                (String::from(r"_"), array_schema.clone()),
-                                // Replace
-                                (String::from(r"^\d+$"), type_schema.clone()),
-                                // Patch
-                                (String::from(r"^\d+<$"), type_schema.clone()),
-                                // InsertBefore
-                                (String::from(r"^\+\d+$"), array_schema.clone()),
-                                // InsertAfter
-                                (String::from(r"^\d+\+$"), array_schema.clone()),
-                                // Append
-                                (String::from(r"^\+$"), array_schema),
-                            ]
-                            .into_iter()
-                            .collect(),
-                            ..Default::default()
-                        })),
-                        ..Default::default()
-                    }
-                    .into(),
-                ]),
-                ..Default::default()
-            })),
-            ..Default::default()
-        }
-        .into()
-    }
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum CopyResourcePatch {
+    Copy(CopyPatch),
+    AddGitRepo(AddGitRepoPatch),
+    Add(AddPatch),
+    Unknown(UnknownPatch),
 }
 
-struct ExtendVisitor<T>(Option<T>);
-
-impl<'de, T> Visitor<'de> for ExtendVisitor<T>
-where
-    T: DeserializeOwned,
-{
-    type Value = Extend<T>;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("a map")
-    }
-
-    fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
-    where
-        A: MapAccess<'de>,
-    {
-        // TODO: get the extends from the key 'extend' or 'extends'
-        // Parse all the other keys and values as the Extend value
-        // TODO: implement without Value
-        let val: Value = Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))?;
-        if let Value::Mapping(mut value_map) = val {
-            let keys = value_map
-                .keys()
-                .filter(|key| {
-                    key.as_str()
-                        .map(|str| match str.to_lowercase().as_str() {
-                            "extend" | "extends" => true,
-                            _ => false,
-                        })
-                        .unwrap_or(false)
-                })
-                .collect::<Vec<_>>();
-            if keys.len() > 1 {
-                return Err(serde::de::Error::custom(
-                    "Only one of 'extend' or 'extends' is allowed",
-                ));
-            }
-            let extend = if keys.len() > 0 {
-                let extend = value_map.remove(keys[0].clone()).unwrap();
-                from_value::<OneOrManyVec<Resource>>(extend).unwrap()
-            } else {
-                OneOrManyVec::new(vec![])
-            };
-            Ok(Extend {
-                extend: extend.to_vec(),
-                value: from_value(Value::Mapping(value_map))
-                    .map_err(|err| serde::de::Error::custom(format!("{}", err)))?,
-            })
-        } else {
-            Err(serde::de::Error::custom("Expected a map"))
-        }
-    }
-}
-
-impl<'de, T> Deserialize<'de> for Extend<T>
-where
-    T: DeserializeOwned,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Extend<T>, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let visitor: ExtendVisitor<T> = ExtendVisitor(None);
-
-        deserializer.deserialize_map(visitor)
-    }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct UnknownPatch {
+    #[serde(flatten)]
+    pub options: Option<CopyOptionsPatch>,
+    pub exclude: Option<VecPatch<String>>,
 }
 
 impl Patch<CopyResourcePatch> for CopyResource {
@@ -1389,147 +1273,96 @@ mod test {
         }
     }
 
+    #[cfg(feature = "permissive")]
     mod deserialize {
         use super::*;
 
-        mod extend {
-
+        mod one_or_many {
             use super::*;
 
-            #[derive(Deserialize, Patch)]
-            #[patch(
-                attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-                attribute(serde(deny_unknown_fields, default))
-            )]
+            #[derive(Deserialize, Debug, Clone, PartialEq)]
             struct TestStruct {
-                pub name: Option<String>,
-                #[serde(flatten)]
-                #[patch(name = "TestSubStructPatch", attribute(serde(flatten)))]
-                pub sub: TestSubStruct,
-            }
-
-            #[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
-            #[patch(
-                attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-                attribute(serde(deny_unknown_fields, default))
-            )]
-            struct TestSubStruct {
-                pub level: u16,
+                pub one_or_many: OneOrManyVec<String>,
             }
 
             #[test]
-            fn empty() {
-                let data = r#"{}"#;
-
-                let extend_image: Extend<TestStructPatch> = serde_yaml::from_str(data).unwrap();
-
+            fn one() {
+                let ret: TestStruct = serde_yaml::from_str("one_or_many: test").unwrap();
                 assert_eq_sorted!(
-                    extend_image,
-                    Extend {
-                        extend: vec![],
-                        value: TestStructPatch {
-                            sub: Some(TestSubStructPatch::default()),
-                            ..Default::default()
-                        }
+                    ret,
+                    TestStruct {
+                        one_or_many: OneOrManyVec(vec!["test".into()])
                     }
-                );
+                )
             }
 
             #[test]
-            fn only_name() {
-                let data = r#"
-                name: ok
-                "#;
-
-                let extend: Extend<TestStructPatch> = serde_yaml::from_str(data).unwrap();
-
+            fn many() {
+                let ret: TestStruct = serde_yaml::from_str("one_or_many: [test]").unwrap();
                 assert_eq_sorted!(
-                    extend,
-                    Extend {
-                        extend: vec![],
-                        value: TestStructPatch {
-                            name: Some(Some("ok".into())),
-                            sub: Some(TestSubStructPatch::default()),
-                            ..Default::default()
-                        }
+                    ret,
+                    TestStruct {
+                        one_or_many: OneOrManyVec(vec!["test".into()])
                     }
-                );
-            }
-
-            #[test]
-            fn only_sub() {
-                let data = r#"
-                level: 1
-                "#;
-
-                let extend: Extend<TestStructPatch> = serde_yaml::from_str(data).unwrap();
-
-                assert_eq_sorted!(
-                    extend,
-                    Extend {
-                        extend: vec![],
-                        value: TestStructPatch {
-                            sub: Some(TestSubStructPatch {
-                                level: Some(1),
-                                ..Default::default()
-                            }),
-                            ..Default::default()
-                        }
-                    }
-                );
+                )
             }
         }
 
-        mod extend_image {
+        mod optional_one_or_many {
             use super::*;
 
-            #[test]
-            fn empty() {
-                let data = r#"{}"#;
-
-                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
-
-                assert_eq_sorted!(
-                    extend_image,
-                    Extend {
-                        extend: vec![],
-                        value: ImagePatch {
-                            stage: Some(StagePatch::default()),
-                            ..Default::default()
-                        }
-                    }
-                );
+            #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+            struct TestStruct {
+                pub test: Option<String>,
+                pub one_or_many: Option<OneOrManyVec<String>>,
             }
 
             #[test]
-            fn only_from() {
-                let data = r#"
-                from:
-                    path: ubuntu
-                "#;
-
-                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
-
+            fn one() {
+                let ret: TestStruct = serde_yaml::from_str("one_or_many: test").unwrap();
                 assert_eq_sorted!(
-                    extend_image,
-                    Extend {
-                        extend: vec![],
-                        value: ImagePatch {
-                            stage: Some(StagePatch {
-                                from: Some(Some(
-                                    ImageNamePatch {
-                                        path: Some("ubuntu".into()),
-                                        version: Some(None),
-                                        ..Default::default()
-                                    }
-                                    .into() // To manage permissive
-                                )),
-                                ..Default::default()
-                            }),
-                            ..Default::default()
-                        }
+                    ret,
+                    TestStruct {
+                        test: None,
+                        one_or_many: Some(OneOrManyVec(vec!["test".into()]))
                     }
-                );
+                )
+            }
+
+            #[test]
+            fn many() {
+                let ret: TestStruct = serde_yaml::from_str("one_or_many: [test]").unwrap();
+                assert_eq_sorted!(
+                    ret,
+                    TestStruct {
+                        test: None,
+                        one_or_many: Some(OneOrManyVec(vec!["test".into()]))
+                    }
+                )
+            }
+
+            #[test]
+            fn null() {
+                let ret: TestStruct = serde_yaml::from_str("one_or_many: null").unwrap();
+                assert_eq_sorted!(
+                    ret,
+                    TestStruct {
+                        test: None,
+                        one_or_many: None
+                    }
+                )
+            }
+
+            #[test]
+            fn absent() {
+                let ret: TestStruct = serde_yaml::from_str("test: test").unwrap();
+                assert_eq_sorted!(
+                    ret,
+                    TestStruct {
+                        test: Some("test".into()),
+                        one_or_many: None
+                    }
+                )
             }
         }
     }

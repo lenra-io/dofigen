@@ -1,5 +1,5 @@
+use crate::deserialize::*;
 use crate::dofigen_struct::*;
-use crate::serde_permissive::ParsableStruct;
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
 use std::str::FromStr;
@@ -93,7 +93,7 @@ impl_parsable_patch!(Copy, CopyPatch, s, {
     let mut parts: Vec<String> = s.split(" ").map(|s| s.into()).collect();
     let target = if parts.len() > 1 { parts.pop() } else { None };
     Ok(Self {
-        paths: Some(parts.into()),
+        paths: Some(parts.into_patch()),
         options: Some(CopyOptionsPatch {
             target: Some(target),
             chmod: Some(None),
@@ -101,7 +101,7 @@ impl_parsable_patch!(Copy, CopyPatch, s, {
             link: Some(None),
         }),
         from: Some(None),
-        exclude: Some(vec![].into()),
+        exclude: Some(vec![].into_patch()),
         parents: Some(None),
     })
 });
@@ -120,7 +120,7 @@ impl_parsable_patch!(AddGitRepo, AddGitRepoPatch, s, {
             chown: Some(None),
             link: Some(None),
         }),
-        exclude: Some(vec![].into()),
+        exclude: Some(vec![].into_patch()),
         keep_git_dir: Some(None),
     })
 });
@@ -142,7 +142,7 @@ impl_parsable_patch!(Add, AddPatch, s, {
         })
         .collect();
     Ok(Self {
-        files: Some(parts.into()),
+        files: Some(parts.into_patch()),
         options: Some(CopyOptionsPatch {
             target: Some(target),
             chmod: Some(None),
@@ -263,7 +263,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into()),
+                    exclude: Some(vec![].into_patch()),
                     parents: Some(None),
                     from: Some(None),
                 }
@@ -283,7 +283,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into()),
+                    exclude: Some(vec![].into_patch()),
                     parents: Some(None),
                     from: Some(None),
                 }
@@ -303,7 +303,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into()),
+                    exclude: Some(vec![].into_patch()),
                     parents: Some(None),
                     from: Some(None),
                 }
@@ -328,7 +328,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into()),
+                    exclude: Some(vec![].into_patch()),
                     keep_git_dir: Some(None),
                 }
             );
@@ -348,7 +348,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into()),
+                    exclude: Some(vec![].into_patch()),
                     keep_git_dir: Some(None),
                 }
             );
@@ -368,7 +368,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into()),
+                    exclude: Some(vec![].into_patch()),
                     keep_git_dir: Some(None),
                 }
             );
@@ -388,7 +388,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into()),
+                    exclude: Some(vec![].into_patch()),
                     keep_git_dir: Some(None),
                 }
             );
