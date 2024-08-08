@@ -1,6 +1,5 @@
 use crate::{
     dockerfile_struct::{DockerfileInsctruction, DockerfileLine, InstructionOption},
-    script_runner::ScriptRunner,
     Add, AddGitRepo, Artifact, Copy, CopyOptions, CopyResource, Image, ImageName, ImageVersion,
     Port, PortProtocol, Resource, Result, Stage, User, DOCKERFILE_VERSION,
 };
@@ -354,7 +353,7 @@ impl DockerfileGenerator for Stage {
                 options: vec![],
             }));
         }
-        if let Some(run) = self.to_run_inscruction(&context)? {
+        if let Some(run) = self.run.to_run_inscruction(&context)? {
             lines.push(DockerfileLine::Instruction(run));
         }
         Ok(lines)

@@ -20,8 +20,8 @@ pub struct Image {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub context: Vec<String>,
 
-    #[patch(attribute(serde(alias = "ignores")))]
     #[patch(name = "VecPatch<String>")]
+    #[patch(attribute(serde(alias = "ignores")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
 
@@ -112,19 +112,13 @@ pub struct Stage {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub copy: Vec<CopyResource>,
 
-    #[patch(name = "Option<RootPatch>")]
+    #[patch(name = "Option<RunPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub root: Option<Root>,
+    pub root: Option<Run>,
 
-    #[patch(attribute(serde(alias = "script")))]
-    #[patch(name = "VecPatch<String>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub run: Vec<String>,
-
-    #[patch(attribute(serde(alias = "caches")))]
-    #[patch(name = "VecPatch<String>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub cache: Vec<String>,
+    #[patch(name = "RunPatch", attribute(serde(flatten)))]
+    #[serde(flatten)]
+    pub run: Run,
 }
 
 /// Represents an artifact to be copied to the stage from another one
@@ -147,17 +141,18 @@ pub struct Artifact {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
+    // attribute(serde(deny_unknown_fields)),
+    attribute(serde(default)),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
-pub struct Root {
-    #[serde(alias = "script")]
+pub struct Run {
     #[patch(name = "VecPatch<String>")]
+    #[patch(attribute(serde(alias = "script")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub run: Vec<String>,
 
-    #[serde(alias = "caches")]
     #[patch(name = "VecPatch<String>")]
+    #[patch(attribute(serde(alias = "caches")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<String>,
 }

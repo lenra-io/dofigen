@@ -28,7 +28,7 @@ impl_from_patch!(Stage, StagePatch);
 impl_from_patch!(Healthcheck, HealthcheckPatch);
 impl_from_patch!(ImageName, ImageNamePatch);
 impl_from_patch!(Artifact, ArtifactPatch);
-impl_from_patch!(Root, RootPatch);
+impl_from_patch!(Run, RunPatch);
 impl_from_patch!(Port, PortPatch);
 impl_from_patch!(User, UserPatch);
 impl_from_patch!(Copy, CopyPatch);

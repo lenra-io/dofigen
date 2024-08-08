@@ -1,19 +1,16 @@
 use crate::{
     dockerfile_struct::{DockerfileInsctruction, InstructionOption, InstructionOptionOption},
-    dofigen_struct::{Root, Stage},
+    dofigen_struct::Run,
     generator::{GenerationContext, LINE_SEPARATOR},
     Result,
 };
 
-pub trait ScriptRunner {
-    fn script(&self) -> Vec<String>;
-    fn caches(&self) -> Vec<String>;
-
-    fn to_run_inscruction(
+impl Run {
+    pub fn to_run_inscruction(
         &self,
         context: &GenerationContext,
     ) -> Result<Option<DockerfileInsctruction>> {
-        let script = self.script();
+        let script = &self.run;
         if !script.is_empty() {
             let script = script.join(" &&\n");
             let script_lines = script.lines().collect::<Vec<&str>>();
@@ -26,7 +23,7 @@ pub trait ScriptRunner {
                 // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
             };
             let mut options = vec![];
-            self.caches().iter().for_each(|cache| {
+            self.cache.iter().for_each(|cache| {
                 let mut cache_options = vec![
                     InstructionOptionOption::new("type", "cache"),
                     InstructionOptionOption::new("target", cache),
@@ -55,21 +52,6 @@ pub trait ScriptRunner {
     }
 }
 
-macro_rules! impl_ScriptRunner {
-    (for $($t:ty),+) => {
-        $(impl ScriptRunner for $t {
-            fn script(&self) -> Vec<String> {
-                self.run.to_vec()
-            }
-            fn caches(&self) -> Vec<String> {
-                self.cache.to_vec()
-            }
-        })*
-    }
-}
-
-impl_ScriptRunner!(for Stage, Root);
-
 #[cfg(test)]
 mod test {
     use pretty_assertions_sorted::assert_eq_sorted;
@@ -79,7 +61,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_script() {
-        let builder = Stage {
+        let builder = Run {
             run: vec!["echo Hello".into()].into(),
             ..Default::default()
         };
@@ -97,7 +79,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_without_script() {
-        let builder = Stage {
+        let builder = Run {
             ..Default::default()
         };
         assert_eq_sorted!(
@@ -110,7 +92,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_empty_script() {
-        let builder = Stage {
+        let builder = Run {
             run: vec![].into(),
             ..Default::default()
         };
@@ -124,7 +106,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_named_user() {
-        let builder = Stage {
+        let builder = Run {
             run: vec!["echo Hello".into()].into(),
             cache: vec!["/path/to/cache".into()].into(),
             ..Default::default()
@@ -152,7 +134,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user() {
-        let builder = Stage {
+        let builder = Run {
             run: vec!["echo Hello".into()].into(),
             cache: vec!["/path/to/cache".into()].into(),
             ..Default::default()
@@ -182,7 +164,7 @@ mod test {
 
     #[test]
     fn to_run_inscruction_with_script_and_caches_with_uid_user_without_group() {
-        let builder = Stage {
+        let builder = Run {
             run: vec!["echo Hello".into()].into(),
             cache: vec!["/path/to/cache".into()].into(),
             ..Default::default()

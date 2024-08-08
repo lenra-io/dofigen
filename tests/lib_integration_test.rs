@@ -124,9 +124,9 @@ builders:
 - name: builder
   image: ekidd/rust-musl-builder
   adds:
-  - "*"
+    - "*"
   script:
-  - cargo build --release
+    - cargo build --release
 artifacts:
 - builder: builder
   source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
@@ -151,7 +151,10 @@ artifacts:
                     .into()
                 )]
                 .into(),
-                run: vec![String::from("cargo build --release")].into(),
+                run: Run {
+                    run: vec![String::from("cargo build --release")].into(),
+                    ..Default::default()
+                },
                 ..Default::default()
             }]
             .into(),

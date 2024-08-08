@@ -282,7 +282,7 @@ mod test {
         }
 
         mod extend_image {
-            use crate::{ImageNamePatch, ImagePatch, StagePatch};
+            use crate::{ImageNamePatch, ImagePatch, RunPatch, StagePatch};
 
             use super::*;
 
@@ -296,7 +296,10 @@ mod test {
                     extend_image,
                     Extend {
                         value: ImagePatch {
-                            stage: Some(StagePatch::default()),
+                            stage: Some(StagePatch {
+																run: Some(RunPatch::default()),
+																..Default::default()
+														}),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -326,6 +329,7 @@ from:
                                     }
                                     .into() // To manage permissive
                                 )),
+																run: Some(RunPatch::default()),
                                 ..Default::default()
                             }),
                             ..Default::default()
