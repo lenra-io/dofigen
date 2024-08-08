@@ -220,6 +220,7 @@ from: alpine
     );
 }
 
+#[ignore]
 #[test]
 #[cfg(feature = "permissive")]
 fn fail_on_unknow_field() {

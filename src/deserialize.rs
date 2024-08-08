@@ -5,9 +5,9 @@ use serde::{
     de::{self, DeserializeOwned, MapAccess, Visitor},
     Deserialize, Deserializer,
 };
-#[cfg(feature = "permissive")]
-use std::str::FromStr;
 use std::{collections::BTreeMap, fmt, marker::PhantomData, usize};
+#[cfg(feature = "permissive")]
+use std::{ops::Deref, str::FromStr};
 use struct_patch::Patch;
 
 /// Implements the From trait for a struct from a patch
@@ -38,9 +38,32 @@ impl_from_patch!(AddGitRepo, AddGitRepoPatch);
 /// One or many values
 #[cfg(feature = "permissive")]
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct OneOrManyVec<T>(pub Vec<T>)
 where
     T: Sized;
+
+#[cfg(feature = "permissive")]
+impl<T> Default for OneOrManyVec<T>
+where
+    T: Sized,
+{
+    fn default() -> Self {
+        OneOrManyVec(vec![])
+    }
+}
+
+#[cfg(feature = "permissive")]
+impl<T> Deref for OneOrManyVec<T>
+where
+    T: Sized,
+{
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 #[cfg(feature = "permissive")]
 impl<'de, T> Deserialize<'de> for OneOrManyVec<T>

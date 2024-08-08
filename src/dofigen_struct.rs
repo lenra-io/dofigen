@@ -10,7 +10,8 @@ use url::Url;
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
+    // attribute(serde(deny_unknown_fields)),
+    attribute(serde(default)),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 #[serde(rename_all = "camelCase")]
@@ -61,7 +62,8 @@ pub struct Image {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
+    // attribute(serde(deny_unknown_fields)),
+    attribute(serde(default)),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 
