@@ -5,15 +5,15 @@ builders:
     workdir: /app
     add: "."
     run:
-    # Build with musl to work with scratch
-    - cargo build --release -F cli -F permissive
-    # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
-    - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
+      # Build with musl to work with scratch
+      - cargo build --release -F cli -F permissive
+      # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
+      - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
     cache:
-    # Cargo cache
-    - /home/rust/.cargo
-    # build cache
-    - /app/target
+      # Cargo cache
+      - /home/rust/.cargo
+      # build cache
+      - /app/target
 workdir: /app
 artifacts:
   - builder: builder
@@ -22,5 +22,5 @@ artifacts:
 entrypoint: /bin/dofigen
 cmd: --help
 context:
-- "/src"
-- "/Cargo.*"
+  - "/src"
+  - "/Cargo.*"

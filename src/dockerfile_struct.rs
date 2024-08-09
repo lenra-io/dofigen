@@ -98,6 +98,8 @@ impl DockerfileContent for InstructionOptionOption {
 
 #[cfg(test)]
 mod test {
+    use pretty_assertions_sorted::assert_eq_sorted;
+
     use super::*;
 
     #[test]
@@ -110,7 +112,7 @@ mod test {
                 InstructionOption::WithValue("arg2".into(), "value2".into()),
             ],
         };
-        assert_eq!(
+        assert_eq_sorted!(
             instruction.generate_content(),
             "RUN \\\n    --arg1 \\\n    --arg2=value2 \\\n    echo 'Hello, World!'"
         );
@@ -119,25 +121,25 @@ mod test {
     #[test]
     fn test_generate_content_comment() {
         let comment = DockerfileLine::Comment("This is a comment".into());
-        assert_eq!(comment.generate_content(), "# This is a comment");
+        assert_eq_sorted!(comment.generate_content(), "# This is a comment");
     }
 
     #[test]
     fn test_generate_content_empty() {
         let empty = DockerfileLine::Empty;
-        assert_eq!(empty.generate_content(), "");
+        assert_eq_sorted!(empty.generate_content(), "");
     }
 
     #[test]
     fn test_generate_content_name_only_option() {
         let option = InstructionOption::NameOnly("arg1".into());
-        assert_eq!(option.generate_content(), "--arg1");
+        assert_eq_sorted!(option.generate_content(), "--arg1");
     }
 
     #[test]
     fn test_generate_content_with_value_option() {
         let option = InstructionOption::WithValue("arg1".into(), "value1".into());
-        assert_eq!(option.generate_content(), "--arg1=value1");
+        assert_eq_sorted!(option.generate_content(), "--arg1=value1");
     }
 
     #[test]
@@ -147,13 +149,13 @@ mod test {
         let options = vec![sub_option1, sub_option2];
         let option = InstructionOption::WithOptions("arg1".into(), options);
         let expected = "--arg1=sub_arg1=sub_value1,sub_arg2=sub_value2";
-        assert_eq!(option.generate_content(), expected);
+        assert_eq_sorted!(option.generate_content(), expected);
     }
 
     #[test]
     fn test_generate_content_instruction_option_option() {
         let option = InstructionOptionOption::new("arg1", "value1");
         let expected = "arg1=value1";
-        assert_eq!(option.generate_content(), expected);
+        assert_eq_sorted!(option.generate_content(), expected);
     }
 }

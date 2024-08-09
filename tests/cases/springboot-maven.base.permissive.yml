@@ -1,0 +1,22 @@
+builders:
+  - name: maven-builder
+    from: maven:3.9-eclipse-temurin-17-alpine
+    workdir: /app
+    add:
+      - "."
+    root:
+      run:
+        - mvn package -DskipTests
+        - mv target/*.jar app.jar
+      cache:
+        - /root/.m2
+        - /app/target
+from: eclipse-temurin:17-jre-alpine
+artifacts:
+  - builder: maven-builder
+    source: /app/app.jar
+    target: app.jar
+cmd: ["java","-jar","app.jar"]
+context:
+  - /pom.xml
+  - /src/main/

@@ -1,0 +1,2 @@
+extend:
+  - springboot-maven.base.yml
