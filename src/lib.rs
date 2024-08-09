@@ -245,7 +245,7 @@ pub fn from_resource(resource: Resource) -> Result<Image> {
 }
 
 fn merge_extended_image(image: Extend<ImagePatch>, context: &mut LoadContext) -> Result<Image> {
-    image.merge(context)
+    Ok(image.merge(context)?.into())
 }
 
 /// Generates the Dockerfile content from an Image.

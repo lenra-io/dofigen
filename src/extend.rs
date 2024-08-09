@@ -1,11 +1,10 @@
 #[cfg(feature = "permissive")]
 use crate::OneOrMany;
-use crate::{Error, Resource, Result};
+use crate::{dofigen_struct::*, Error, Result, VecPatch};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize};
-use std::{collections::HashMap, fs};
-use struct_patch::Patch;
+use std::{collections::HashMap, fs, ops::Add};
 
 const MAX_LOAD_STACK_SIZE: usize = 10;
 
@@ -31,19 +30,15 @@ pub struct Extend<T: Default> {
 
 impl<P> Extend<P>
 where
-    P: Default + DeserializeOwned + Clone,
+    P: Default + DeserializeOwned + Clone + Add<P, Output = P>,
 {
-    pub fn merge<T>(&self, context: &mut LoadContext) -> Result<T>
-    where
-        T: Patch<P> + From<P>,
-        P: Default,
-    {
+    pub fn merge(&self, context: &mut LoadContext) -> Result<P> {
         if self.extend.is_empty() {
             return Ok(self.value.clone().into());
         }
 
         // load extends files
-        let mut patches: Vec<T> = self
+        let merged: Option<P> = self
             .extend
             .iter()
             .map(|extend| {
@@ -51,15 +46,15 @@ where
                 context.load_resource_stack.pop();
                 Ok(ret)
             })
-            .collect::<Result<Vec<_>>>()?;
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .reduce(|a, b| a + b);
 
-        // for each extends file, merge it with self
-        let mut merged = patches.remove(0);
-        for patch in patches {
-            merged.apply(patch.into_patch());
-        }
-        merged.apply(self.value.clone());
-        Ok(merged)
+        Ok(if let Some(merged) = merged {
+            merged + self.value.clone()
+        } else {
+            self.value.clone()
+        })
     }
 }
 
@@ -188,14 +183,138 @@ impl Resource {
     }
 }
 
+macro_rules! add_patch {
+    ($opt_a: expr, $opt_b: expr) => {
+        match ($opt_a, $opt_b) {
+            (Some(a), Some(b)) => Some(a + b),
+            (Some(a), None) => Some(a),
+            (None, Some(b)) => Some(b),
+            (None, None) => None,
+        }
+    };
+}
+
+macro_rules! add_optional_add {
+    ($opt_a: expr, $opt_b: expr) => {
+        match ($opt_a, $opt_b) {
+            (Some(Some(a)), Some(Some(b))) => Some(Some(a + b)),
+            (_, Some(b)) => Some(b),
+            (Some(a), None) => Some(a),
+            (None, None) => None,
+        }
+    };
+}
+
+macro_rules! add_option {
+    ($opt_a: expr, $opt_b: expr) => {
+        match ($opt_a, $opt_b) {
+            (_, Some(b)) => Some(b),
+            (Some(a), None) => Some(a),
+            (None, None) => None,
+        }
+    };
+}
+
+impl Add<Self> for ImagePatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            stage: add_patch!(self.stage, rhs.stage),
+            context: add_patch!(self.context, rhs.context),
+            ignore: add_patch!(self.ignore, rhs.ignore),
+            builders: add_patch!(self.builders, rhs.builders),
+            entrypoint: add_patch!(self.entrypoint, rhs.entrypoint),
+            cmd: add_patch!(self.cmd, rhs.cmd),
+            expose: add_patch!(self.expose, rhs.expose),
+            healthcheck: add_optional_add!(self.healthcheck, rhs.healthcheck),
+        }
+    }
+}
+
+impl Add<Self> for StagePatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            from: add_optional_add!(self.from, rhs.from),
+            run: add_patch!(self.run, rhs.run),
+            name: add_option!(self.name, rhs.name),
+            user: add_optional_add!(self.user, rhs.user),
+            workdir: add_option!(self.workdir, rhs.workdir),
+            env: match (self.env, rhs.env) {
+                (Some(a), Some(b)) => {
+                    // TODO: merge maps
+                    todo!()
+                },
+                (Some(a), None) => Some(a),
+                (None, Some(b)) => Some(b),
+                (None, None) => None,
+            },
+            artifacts: add_patch!(self.artifacts, rhs.artifacts),
+            copy: add_patch!(self.copy, rhs.copy),
+            root: add_optional_add!(self.root, rhs.root),
+        }
+    }
+}
+
+impl Add<Self> for RunPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            run: add_patch!(self.run, rhs.run),
+            cache: add_patch!(self.cache, rhs.cache),
+        }
+    }
+}
+
+impl Add<Self> for ImageNamePatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            host: add_option!(self.host, rhs.host),
+            path: add_option!(self.path, rhs.path),
+            version: add_option!(self.version, rhs.version),
+            port: add_option!(self.port, rhs.port),
+        }
+    }
+}
+
+impl Add<Self> for HealthcheckPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            cmd: add_option!(self.cmd, rhs.cmd),
+            interval: add_option!(self.interval, rhs.interval),
+            timeout: add_option!(self.timeout, rhs.timeout),
+            start: add_option!(self.start, rhs.start),
+            retries: add_option!(self.retries, rhs.retries),
+        }
+    }
+}
+
+impl Add<Self> for UserPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            user: add_option!(self.user, rhs.user),
+            group: add_option!(self.group, rhs.group),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use pretty_assertions_sorted::assert_eq_sorted;
-
     use super::*;
+    use pretty_assertions_sorted::assert_eq_sorted;
 
     mod deserialize {
         use super::*;
+        use struct_patch::Patch;
 
         mod extend {
 
@@ -220,6 +339,32 @@ mod test {
             )]
             struct TestSubStruct {
                 pub level: u16,
+            }
+
+            impl Add<Self> for TestStructPatch {
+                type Output = Self;
+
+                fn add(self, rhs: Self) -> Self {
+                    Self {
+                        name: rhs.name.or(self.name),
+                        sub: match (self.sub, rhs.sub) {
+                            (Some(a), Some(b)) => Some(a + b),
+                            (Some(a), None) => Some(a),
+                            (None, Some(b)) => Some(b),
+                            (None, None) => None,
+                        },
+                    }
+                }
+            }
+
+            impl Add<Self> for TestSubStructPatch {
+                type Output = Self;
+
+                fn add(self, rhs: Self) -> Self {
+                    Self {
+                        level: rhs.level.or(self.level),
+                    }
+                }
             }
 
             #[test]

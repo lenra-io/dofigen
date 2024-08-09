@@ -2,7 +2,7 @@ use crate::dofigen_struct::*;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{de, Deserialize, Deserializer};
-use std::{collections::BTreeMap, fmt, marker::PhantomData, usize};
+use std::{ops, collections::BTreeMap, fmt, marker::PhantomData, usize};
 #[cfg(feature = "permissive")]
 use std::{ops::Deref, str::FromStr};
 use struct_patch::Patch;
@@ -868,6 +868,52 @@ where
     let visitor: VecDeepPatchCommandsVisitor<T, P> = VecDeepPatchCommandsVisitor(PhantomData);
 
     deserializer.deserialize_any(visitor)
+}
+
+//////////////////////// Add ////////////////////////
+
+impl<T> ops::Add<Self> for ParsableStruct<T>
+where
+    T: Clone + FromStr + ops::Add<T, Output = T>,
+{
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        ParsableStruct(self.0 + rhs.0)
+    }
+}
+
+impl<T> ops::Add<Self> for VecPatch<T>
+where
+    T: Clone,
+{
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        let commands = vec![];
+
+        // TODO: implement the merge of two VecPatch
+        todo!();
+
+        Self { commands }
+    }
+}
+
+impl<T, P> ops::Add<Self> for VecDeepPatch<T, P>
+where
+    T: Clone + Patch<P> + From<P>,
+    P: Clone,
+{
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        let commands = vec![];
+
+        // TODO: implement the merge of two VecPatch
+        todo!();
+
+        Self { commands }
+    }
 }
 
 //////////////////////// Unit tests ////////////////////////
