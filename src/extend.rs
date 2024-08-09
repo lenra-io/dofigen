@@ -1,5 +1,5 @@
 #[cfg(feature = "permissive")]
-use crate::OneOrManyVec;
+use crate::OneOrMany;
 use crate::{Error, Resource, Result};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
@@ -10,7 +10,7 @@ use struct_patch::Patch;
 const MAX_LOAD_STACK_SIZE: usize = 10;
 
 #[cfg(feature = "permissive")]
-type VecType<T> = OneOrManyVec<T>;
+type VecType<T> = OneOrMany<T>;
 
 #[cfg(not(feature = "permissive"))]
 type VecType<T> = Vec<T>;
