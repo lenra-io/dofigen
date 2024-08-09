@@ -297,9 +297,9 @@ mod test {
                     Extend {
                         value: ImagePatch {
                             stage: Some(StagePatch {
-																run: Some(RunPatch::default()),
-																..Default::default()
-														}),
+                                run: Some(RunPatch::default()),
+                                ..Default::default()
+                            }),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -329,7 +329,7 @@ from:
                                     }
                                     .into() // To manage permissive
                                 )),
-																run: Some(RunPatch::default()),
+                                run: Some(RunPatch::default()),
                                 ..Default::default()
                             }),
                             ..Default::default()

@@ -1,10 +1,7 @@
 use crate::dofigen_struct::*;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
-use serde::{
-    de,
-    Deserialize, Deserializer,
-};
+use serde::{de, Deserialize, Deserializer};
 use std::{collections::BTreeMap, fmt, marker::PhantomData, usize};
 #[cfg(feature = "permissive")]
 use std::{ops::Deref, str::FromStr};
@@ -872,7 +869,6 @@ where
 
     deserializer.deserialize_any(visitor)
 }
-
 
 //////////////////////// Unit tests ////////////////////////
 
