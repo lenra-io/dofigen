@@ -5,7 +5,10 @@ use struct_patch::Patch;
 use crate::deserialize::{VecDeepPatch, VecPatch};
 
 #[cfg(feature = "json_schema")]
-impl<T: JsonSchema> JsonSchema for VecPatch<T> {
+impl<T> JsonSchema for VecPatch<T>
+where
+    T: Clone + JsonSchema,
+{
     fn schema_name() -> String {
         format!("VecPatch_for_{}", T::schema_name())
     }
@@ -58,8 +61,8 @@ impl<T: JsonSchema> JsonSchema for VecPatch<T> {
 
 impl<T, P> JsonSchema for VecDeepPatch<T, P>
 where
-    T: Clone + Patch<P>,
-    P: JsonSchema,
+    T: Clone + Patch<P> + From<P>,
+    P: Clone + JsonSchema,
 {
     fn schema_name() -> String {
         format!("VecDeepPatch_for_{}", P::schema_name())

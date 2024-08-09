@@ -13,7 +13,6 @@ mod from_str;
 mod generator;
 #[cfg(feature = "json_schema")]
 mod json_schema;
-mod script_runner;
 // mod stage;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};
 use generator::{DockerfileGenerator, GenerationContext};

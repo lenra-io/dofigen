@@ -2,7 +2,7 @@ use crate::dofigen_struct::*;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{
-    de::{self, MapAccess, Visitor},
+    de,
     Deserialize, Deserializer,
 };
 use std::{collections::BTreeMap, fmt, marker::PhantomData, usize};
@@ -35,52 +35,24 @@ impl_from_patch!(Copy, CopyPatch);
 impl_from_patch!(Add, AddPatch);
 impl_from_patch!(AddGitRepo, AddGitRepoPatch);
 
-/// One or many values
-#[cfg(feature = "permissive")]
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+//////////////////////// Patch structures ////////////////////////
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-enum OneOrManyDeserializable<T> {
-    One(T),
-    Many(Vec<T>),
+pub enum CopyResourcePatch {
+    Copy(CopyPatch),
+    AddGitRepo(AddGitRepoPatch),
+    Add(AddPatch),
+    Unknown(UnknownPatch),
 }
 
-impl<T> From<OneOrManyDeserializable<T>> for OneOrMany<T> {
-    fn from(value: OneOrManyDeserializable<T>) -> Self {
-        match value {
-            OneOrManyDeserializable::One(v) => OneOrMany(vec![v]),
-            OneOrManyDeserializable::Many(v) => OneOrMany(v),
-        }
-    }
-}
-
-/// One or many values
-#[cfg(feature = "permissive")]
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(from = "OneOrManyDeserializable<T>")]
-// #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct OneOrMany<T>(pub Vec<T>);
-
-#[cfg(feature = "permissive")]
-impl<T> Default for OneOrMany<T>
-where
-    T: Sized,
-{
-    fn default() -> Self {
-        OneOrMany(vec![])
-    }
-}
-
-#[cfg(feature = "permissive")]
-impl<T> Deref for OneOrMany<T>
-where
-    T: Sized,
-{
-    type Target = Vec<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct UnknownPatch {
+    #[serde(flatten)]
+    pub options: Option<CopyOptionsPatch>,
+    pub exclude: Option<VecPatch<String>>,
 }
 
 /// A struct that can be parsed from a string
@@ -89,257 +61,14 @@ where
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ParsableStruct<T>(pub(crate) T)
 where
-    T: FromStr + Sized;
+    T: FromStr;
 
+/// One or many values
 #[cfg(feature = "permissive")]
-impl<'de, T> Deserialize<'de> for ParsableStruct<T>
-where
-    T: FromStr + Sized + Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<ParsableStruct<T>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserialize_permissive_struct(deserializer).map(ParsableStruct)
-    }
-}
-
-#[cfg(feature = "permissive")]
-impl<T: FromStr + Sized> From<T> for ParsableStruct<T> {
-    fn from(value: T) -> Self {
-        ParsableStruct(value)
-    }
-}
-
-#[cfg(feature = "permissive")]
-fn deserialize_permissive_struct<'de, D, T>(deserializer: D) -> Result<T, D::Error>
-where
-    D: Deserializer<'de>,
-    T: FromStr + Sized + Deserialize<'de>,
-{
-    struct PermissiveStructVisitor<T>(Option<T>);
-
-    impl<'de, T> Visitor<'de> for PermissiveStructVisitor<T>
-    where
-        T: Deserialize<'de> + FromStr,
-    {
-        type Value = T;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a number, a string or a map")
-        }
-
-        fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            self.visit_str(v.to_string().as_str())
-        }
-
-        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-        where
-            E: de::Error,
-        {
-            // TODO: improve error management
-            v.parse()
-                .map_err(|_| E::custom("Error while parsing a permissive struct"))
-        }
-
-        fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
-        where
-            A: MapAccess<'de>,
-        {
-            Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
-        }
-    }
-
-    let visitor: PermissiveStructVisitor<T> = PermissiveStructVisitor(None);
-
-    deserializer.deserialize_any(visitor)
-}
-
 #[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(untagged)]
-enum VecPatchDeserializable<T>
-where
-    T: Clone,
-{
-    #[cfg(feature = "permissive")]
-    Vec(OneOrMany<T>),
-    #[cfg(not(feature = "permissive"))]
-    Vec(Vec<T>),
-    Map(VecPatchCommandMap<T>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-struct VecPatchCommandMap<T>
-where
-    T: Clone,
-{
-    commands: Vec<VecPatchCommand<T>>,
-}
-
-impl<'de, T> Deserialize<'de> for VecPatchCommandMap<T>
-where
-    T: Clone + Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let commands: Vec<VecDeepPatchCommand<T, T>> =
-            deserialize_vec_patch_commands(deserializer)?;
-        Ok(VecPatchCommandMap {
-            commands: commands.iter().map(|c| c.clone().into()).collect(),
-        })
-    }
-}
-
-fn deserialize_vec_patch_commands<'de, D, T, P>(
-    deserializer: D,
-) -> Result<Vec<VecDeepPatchCommand<T, P>>, D::Error>
-where
-    D: Deserializer<'de>,
-    T: Clone + From<P>,
-    P: Clone + Deserialize<'de>,
-{
-    struct VecDeepPatchCommandsVisitor<T, P>(PhantomData<fn() -> BTreeMap<T, P>>);
-
-    fn map_vec<T, P>(patch: Vec<P>) -> Vec<T>
-    where
-        T: Clone + From<P>,
-        P: Clone,
-    {
-        patch.iter().map(|p| p.clone().into()).collect()
-    }
-
-    impl<'de, T, P> Visitor<'de> for VecDeepPatchCommandsVisitor<T, P>
-    where
-        T: Clone + From<P>,
-        P: Clone + Deserialize<'de>,
-    {
-        type Value = Vec<VecDeepPatchCommand<T, P>>;
-
-        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-            formatter.write_str("a map")
-        }
-
-        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-        where
-            A: MapAccess<'de>,
-        {
-            let mut commands = vec![];
-
-            while let Some(key) = map.next_key()? {
-                match key {
-                    StringOrNumber::String(key) => match key.as_str() {
-                        "_" => {
-                            commands
-                                .push(VecDeepPatchCommand::ReplaceAll(map_vec(map.next_value()?)));
-                        }
-                        "+" => {
-                            commands.push(VecDeepPatchCommand::Append(map_vec(map.next_value()?)));
-                        }
-                        key => {
-                            if key.starts_with('+') {
-                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
-                                commands.push(VecDeepPatchCommand::InsertBefore(
-                                    pos,
-                                    map_vec(map.next_value()?),
-                                ));
-                            } else if key.ends_with('+') {
-                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
-                                commands.push(VecDeepPatchCommand::InsertAfter(
-                                    pos,
-                                    map_vec(map.next_value()?),
-                                ));
-                            } else if key.ends_with('<') {
-                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
-                                commands.push(VecDeepPatchCommand::Patch(pos, map.next_value()?));
-                            } else {
-                                let value: P = map.next_value()?;
-                                let pos = key.parse::<usize>().unwrap();
-                                commands.push(VecDeepPatchCommand::Replace(pos, value.into()));
-                            }
-                        }
-                    },
-                    StringOrNumber::Number(pos) => {
-                        let value: P = map.next_value()?;
-                        commands.push(VecDeepPatchCommand::Replace(pos, value.into()));
-                    }
-                }
-            }
-            Ok(commands)
-        }
-    }
-
-    let visitor: VecDeepPatchCommandsVisitor<T, P> = VecDeepPatchCommandsVisitor(PhantomData);
-
-    deserializer.deserialize_any(visitor)
-}
+#[serde(from = "OneOrManyDeserializable<T>")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct OneOrMany<T>(pub Vec<T>);
 
 /// Patch for Vec<T> that handle some commands based on the position:
 /// - `_` to replace the whole list
@@ -363,6 +92,162 @@ enum VecPatchCommand<T> {
     InsertBefore(usize, Vec<T>),
     InsertAfter(usize, Vec<T>),
     Append(Vec<T>),
+}
+
+/// Patch for Vec<T> that handle some commands based on the position:
+/// - `_` to replace the whole list
+/// - `+` to append to the list
+/// - `n` to replace the nth element
+/// - `n<` to patch the nth element
+/// - `n+` to append to the nth element
+/// - `+n` to prepend to the nth element
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(
+    from = "VecDeepPatchDeserializable<T, P>",
+    bound(deserialize = "T: Clone + From<P>, P: Clone + Deserialize<'de>")
+)]
+pub struct VecDeepPatch<T, P>
+where
+    T: Clone + Patch<P> + From<P>,
+    P: Clone,
+{
+    commands: Vec<VecDeepPatchCommand<T, P>>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum VecDeepPatchCommand<T, P>
+where
+    T: Clone,
+{
+    ReplaceAll(Vec<T>),
+    Replace(usize, T),
+    Patch(usize, P),
+    InsertBefore(usize, Vec<T>),
+    InsertAfter(usize, Vec<T>),
+    Append(Vec<T>),
+}
+
+//////////////////////// Deserialization structures ////////////////////////
+
+#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+enum StringOrNumber {
+    String(String),
+    Number(usize),
+}
+
+/// One or many for deserialization
+#[cfg(feature = "permissive")]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(untagged)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+enum OneOrManyDeserializable<T> {
+    One(T),
+    Many(Vec<T>),
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(untagged)]
+enum VecPatchDeserializable<T>
+where
+    T: Clone,
+{
+    #[cfg(feature = "permissive")]
+    Vec(OneOrMany<T>),
+    #[cfg(not(feature = "permissive"))]
+    Vec(Vec<T>),
+    Map(VecPatchCommandMap<T>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct VecPatchCommandMap<T>
+where
+    T: Clone,
+{
+    commands: Vec<VecPatchCommand<T>>,
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[serde(
+    untagged,
+    bound(deserialize = "T: Clone + From<P> + Patch<P>, P: Clone + Deserialize<'de>")
+)]
+enum VecDeepPatchDeserializable<T, P>
+where
+    T: Clone + From<P>,
+    P: Clone,
+{
+    Map(VecDeepPatchCommandMap<T, P>),
+    #[cfg(feature = "permissive")]
+    Vec(OneOrMany<P>),
+    #[cfg(not(feature = "permissive"))]
+    Vec(Vec<P>),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+struct VecDeepPatchCommandMap<T, P>
+where
+    T: Clone,
+{
+    commands: Vec<VecDeepPatchCommand<T, P>>,
+}
+
+//////////////////////// Implementations ////////////////////////
+
+impl Default for CopyResourcePatch {
+    fn default() -> Self {
+        CopyResourcePatch::Unknown(UnknownPatch::default())
+    }
+}
+
+impl From<CopyResourcePatch> for CopyResource {
+    fn from(patch: CopyResourcePatch) -> Self {
+        match patch {
+            CopyResourcePatch::Copy(p) => CopyResource::Copy(p.into()),
+            CopyResourcePatch::Add(p) => CopyResource::Add(p.into()),
+            CopyResourcePatch::AddGitRepo(p) => CopyResource::AddGitRepo(p.into()),
+            CopyResourcePatch::Unknown(p) => panic!("Unknown patch: {:?}", p),
+        }
+    }
+}
+
+#[cfg(feature = "permissive")]
+impl<T: FromStr> From<T> for ParsableStruct<T> {
+    fn from(value: T) -> Self {
+        ParsableStruct(value)
+    }
+}
+
+#[cfg(feature = "permissive")]
+impl<T> Default for OneOrMany<T>
+where
+    T: Sized,
+{
+    fn default() -> Self {
+        OneOrMany(vec![])
+    }
+}
+
+#[cfg(feature = "permissive")]
+impl<T> Deref for OneOrMany<T>
+where
+    T: Sized,
+{
+    type Target = Vec<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[cfg(feature = "permissive")]
+impl<T> From<OneOrManyDeserializable<T>> for OneOrMany<T> {
+    fn from(value: OneOrManyDeserializable<T>) -> Self {
+        match value {
+            OneOrManyDeserializable::One(v) => OneOrMany(vec![v]),
+            OneOrManyDeserializable::Many(v) => OneOrMany(v),
+        }
+    }
 }
 
 impl<T> From<VecPatchDeserializable<T>> for VecPatch<T>
@@ -402,11 +287,70 @@ where
     }
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[serde(untagged)]
-enum StringOrNumber {
-    String(String),
-    Number(usize),
+impl<T, P> From<VecDeepPatchDeserializable<T, P>> for VecDeepPatch<T, P>
+where
+    T: Clone + Patch<P> + From<P>,
+    P: Clone,
+{
+    fn from(value: VecDeepPatchDeserializable<T, P>) -> Self {
+        match value {
+            #[cfg(feature = "permissive")]
+            VecDeepPatchDeserializable::Vec(v) => VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::ReplaceAll(
+                    v.0.iter().map(|p| p.clone().into()).collect(),
+                )],
+            },
+            #[cfg(not(feature = "permissive"))]
+            VecDeepPatchDeserializable::Vec(v) => VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::ReplaceAll(
+                    v.iter().map(|p| p.clone().into()).collect(),
+                )],
+            },
+            VecDeepPatchDeserializable::Map(v) => VecDeepPatch {
+                commands: v.commands,
+            },
+        }
+    }
+}
+
+//////////////////////// Patch ////////////////////////
+
+impl Patch<CopyResourcePatch> for CopyResource {
+    fn apply(&mut self, patch: CopyResourcePatch) {
+        match (self, patch) {
+            (CopyResource::Copy(s), CopyResourcePatch::Copy(p)) => s.apply(p),
+            (CopyResource::Add(s), CopyResourcePatch::Add(p)) => s.apply(p),
+            (CopyResource::AddGitRepo(s), CopyResourcePatch::AddGitRepo(p)) => s.apply(p),
+            _ => todo!(),
+        }
+    }
+
+    fn into_patch(self) -> CopyResourcePatch {
+        match self {
+            CopyResource::Copy(s) => CopyResourcePatch::Copy(s.into_patch()),
+            CopyResource::Add(s) => CopyResourcePatch::Add(s.into_patch()),
+            CopyResource::AddGitRepo(s) => CopyResourcePatch::AddGitRepo(s.into_patch()),
+        }
+    }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> CopyResourcePatch {
+        match (self, previous_struct) {
+            (CopyResource::Copy(s), CopyResource::Copy(p)) => {
+                CopyResourcePatch::Copy(s.into_patch_by_diff(p))
+            }
+            (CopyResource::Add(s), CopyResource::Add(p)) => {
+                CopyResourcePatch::Add(s.into_patch_by_diff(p))
+            }
+            (CopyResource::AddGitRepo(s), CopyResource::AddGitRepo(p)) => {
+                CopyResourcePatch::AddGitRepo(s.into_patch_by_diff(p))
+            }
+            _ => todo!(),
+        }
+    }
+
+    fn new_empty_patch() -> CopyResourcePatch {
+        CopyResourcePatch::default()
+    }
 }
 
 impl<T> Patch<VecPatch<T>> for Vec<T>
@@ -540,65 +484,6 @@ where
     fn new_empty_patch() -> VecPatch<T> {
         VecPatch { commands: vec![] }
     }
-}
-
-/// Patch for Vec<T> that handle some commands based on the position:
-/// - `_` to replace the whole list
-/// - `+` to append to the list
-/// - `n` to replace the nth element
-/// - `n<` to patch the nth element
-/// - `n+` to append to the nth element
-/// - `+n` to prepend to the nth element
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
-#[serde(
-    from = "VecDeepPatchDeserializable<T, P>",
-    bound(deserialize = "T: Clone + From<P>, P: Clone + Deserialize<'de>")
-)]
-pub struct VecDeepPatch<T, P>
-where
-    T: Clone + Patch<P> + From<P>,
-    P: Clone,
-{
-    commands: Vec<VecDeepPatchCommand<T, P>>,
-}
-
-impl<T, P> From<VecDeepPatchDeserializable<T, P>> for VecDeepPatch<T, P>
-where
-    T: Clone + Patch<P> + From<P>,
-    P: Clone,
-{
-    fn from(value: VecDeepPatchDeserializable<T, P>) -> Self {
-        match value {
-            #[cfg(feature = "permissive")]
-            VecDeepPatchDeserializable::Vec(v) => VecDeepPatch {
-                commands: vec![VecDeepPatchCommand::ReplaceAll(
-                    v.0.iter().map(|p| p.clone().into()).collect(),
-                )],
-            },
-            #[cfg(not(feature = "permissive"))]
-            VecDeepPatchDeserializable::Vec(v) => VecDeepPatch {
-                commands: vec![VecDeepPatchCommand::ReplaceAll(
-                    v.iter().map(|p| p.clone().into()).collect(),
-                )],
-            },
-            VecDeepPatchDeserializable::Map(v) => VecDeepPatch {
-                commands: v.commands,
-            },
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-enum VecDeepPatchCommand<T, P>
-where
-    T: Clone,
-{
-    ReplaceAll(Vec<T>),
-    Replace(usize, T),
-    Patch(usize, P),
-    InsertBefore(usize, Vec<T>),
-    InsertAfter(usize, Vec<T>),
-    Append(Vec<T>),
 }
 
 impl<T, P> Patch<VecDeepPatch<T, P>> for Vec<T>
@@ -758,29 +643,136 @@ where
     }
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
-#[serde(
-    untagged,
-    bound(deserialize = "T: Clone + From<P> + Patch<P>, P: Clone + Deserialize<'de>")
-)]
-enum VecDeepPatchDeserializable<T, P>
+//////////////////////// Deserialize ////////////////////////
+
+#[cfg(feature = "permissive")]
+impl<'de, T> Deserialize<'de> for ParsableStruct<T>
 where
-    T: Clone + From<P>,
-    P: Clone,
+    T: FromStr + Sized + Deserialize<'de>,
 {
-    Map(VecDeepPatchCommandMap<T, P>),
-    #[cfg(feature = "permissive")]
-    Vec(OneOrMany<P>),
-    #[cfg(not(feature = "permissive"))]
-    Vec(Vec<P>),
+    fn deserialize<D>(deserializer: D) -> Result<ParsableStruct<T>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PermissiveStructVisitor<T>(Option<T>);
+
+        impl<'de, T> de::Visitor<'de> for PermissiveStructVisitor<T>
+        where
+            T: Deserialize<'de> + FromStr,
+        {
+            type Value = T;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a number, a string or a map")
+            }
+
+            fn visit_i8<E>(self, v: i8) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_i16<E>(self, v: i16) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_i32<E>(self, v: i32) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_u8<E>(self, v: u8) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_u128<E>(self, v: u128) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(v.to_string().as_str())
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                // TODO: improve error management
+                v.parse()
+                    .map_err(|_| E::custom("Error while parsing a permissive struct"))
+            }
+
+            fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                Deserialize::deserialize(de::value::MapAccessDeserializer::new(map))
+            }
+        }
+
+        let visitor: PermissiveStructVisitor<T> = PermissiveStructVisitor(None);
+
+        deserializer.deserialize_any(visitor).map(ParsableStruct)
+    }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-struct VecDeepPatchCommandMap<T, P>
+impl<'de, T> Deserialize<'de> for VecPatchCommandMap<T>
 where
-    T: Clone,
+    T: Clone + Deserialize<'de>,
 {
-    commands: Vec<VecDeepPatchCommand<T, P>>,
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let commands: Vec<VecDeepPatchCommand<T, T>> =
+            deserialize_vec_patch_commands(deserializer)?;
+        Ok(VecPatchCommandMap {
+            commands: commands.iter().map(|c| c.clone().into()).collect(),
+        })
+    }
 }
 
 impl<'de, T, P> Deserialize<'de> for VecDeepPatchCommandMap<T, P>
@@ -798,78 +790,91 @@ where
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(untagged)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum CopyResourcePatch {
-    Copy(CopyPatch),
-    AddGitRepo(AddGitRepoPatch),
-    Add(AddPatch),
-    Unknown(UnknownPatch),
-}
+fn deserialize_vec_patch_commands<'de, D, T, P>(
+    deserializer: D,
+) -> Result<Vec<VecDeepPatchCommand<T, P>>, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Clone + From<P>,
+    P: Clone + Deserialize<'de>,
+{
+    struct VecDeepPatchCommandsVisitor<T, P>(PhantomData<fn() -> BTreeMap<T, P>>);
 
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct UnknownPatch {
-    #[serde(flatten)]
-    pub options: Option<CopyOptionsPatch>,
-    pub exclude: Option<VecPatch<String>>,
-}
-
-impl Patch<CopyResourcePatch> for CopyResource {
-    fn apply(&mut self, patch: CopyResourcePatch) {
-        match (self, patch) {
-            (CopyResource::Copy(s), CopyResourcePatch::Copy(p)) => s.apply(p),
-            (CopyResource::Add(s), CopyResourcePatch::Add(p)) => s.apply(p),
-            (CopyResource::AddGitRepo(s), CopyResourcePatch::AddGitRepo(p)) => s.apply(p),
-            _ => todo!(),
-        }
+    fn map_vec<T, P>(patch: Vec<P>) -> Vec<T>
+    where
+        T: Clone + From<P>,
+        P: Clone,
+    {
+        patch.iter().map(|p| p.clone().into()).collect()
     }
 
-    fn into_patch(self) -> CopyResourcePatch {
-        match self {
-            CopyResource::Copy(s) => CopyResourcePatch::Copy(s.into_patch()),
-            CopyResource::Add(s) => CopyResourcePatch::Add(s.into_patch()),
-            CopyResource::AddGitRepo(s) => CopyResourcePatch::AddGitRepo(s.into_patch()),
-        }
-    }
+    impl<'de, T, P> de::Visitor<'de> for VecDeepPatchCommandsVisitor<T, P>
+    where
+        T: Clone + From<P>,
+        P: Clone + Deserialize<'de>,
+    {
+        type Value = Vec<VecDeepPatchCommand<T, P>>;
 
-    fn into_patch_by_diff(self, previous_struct: Self) -> CopyResourcePatch {
-        match (self, previous_struct) {
-            (CopyResource::Copy(s), CopyResource::Copy(p)) => {
-                CopyResourcePatch::Copy(s.into_patch_by_diff(p))
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a map")
+        }
+
+        fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+        where
+            A: de::MapAccess<'de>,
+        {
+            let mut commands = vec![];
+
+            while let Some(key) = map.next_key()? {
+                match key {
+                    StringOrNumber::String(key) => match key.as_str() {
+                        "_" => {
+                            commands
+                                .push(VecDeepPatchCommand::ReplaceAll(map_vec(map.next_value()?)));
+                        }
+                        "+" => {
+                            commands.push(VecDeepPatchCommand::Append(map_vec(map.next_value()?)));
+                        }
+                        key => {
+                            if key.starts_with('+') {
+                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
+                                commands.push(VecDeepPatchCommand::InsertBefore(
+                                    pos,
+                                    map_vec(map.next_value()?),
+                                ));
+                            } else if key.ends_with('+') {
+                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
+                                commands.push(VecDeepPatchCommand::InsertAfter(
+                                    pos,
+                                    map_vec(map.next_value()?),
+                                ));
+                            } else if key.ends_with('<') {
+                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
+                                commands.push(VecDeepPatchCommand::Patch(pos, map.next_value()?));
+                            } else {
+                                let value: P = map.next_value()?;
+                                let pos = key.parse::<usize>().unwrap();
+                                commands.push(VecDeepPatchCommand::Replace(pos, value.into()));
+                            }
+                        }
+                    },
+                    StringOrNumber::Number(pos) => {
+                        let value: P = map.next_value()?;
+                        commands.push(VecDeepPatchCommand::Replace(pos, value.into()));
+                    }
+                }
             }
-            (CopyResource::Add(s), CopyResource::Add(p)) => {
-                CopyResourcePatch::Add(s.into_patch_by_diff(p))
-            }
-            (CopyResource::AddGitRepo(s), CopyResource::AddGitRepo(p)) => {
-                CopyResourcePatch::AddGitRepo(s.into_patch_by_diff(p))
-            }
-            _ => todo!(),
+            Ok(commands)
         }
     }
 
-    fn new_empty_patch() -> CopyResourcePatch {
-        CopyResourcePatch::default()
-    }
+    let visitor: VecDeepPatchCommandsVisitor<T, P> = VecDeepPatchCommandsVisitor(PhantomData);
+
+    deserializer.deserialize_any(visitor)
 }
 
-impl Default for CopyResourcePatch {
-    fn default() -> Self {
-        CopyResourcePatch::Unknown(UnknownPatch::default())
-    }
-}
 
-impl From<CopyResourcePatch> for CopyResource {
-    fn from(patch: CopyResourcePatch) -> Self {
-        match patch {
-            CopyResourcePatch::Copy(p) => CopyResource::Copy(p.into()),
-            CopyResourcePatch::Add(p) => CopyResource::Add(p.into()),
-            CopyResourcePatch::AddGitRepo(p) => CopyResource::AddGitRepo(p.into()),
-            CopyResourcePatch::Unknown(p) => panic!("Unknown patch: {:?}", p),
-        }
-    }
-}
+//////////////////////// Unit tests ////////////////////////
 
 #[cfg(test)]
 mod test {
