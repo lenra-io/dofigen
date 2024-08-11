@@ -1,10 +1,10 @@
 #[cfg(feature = "permissive")]
 use crate::OneOrMany;
-use crate::{dofigen_struct::*, Error, Result, VecPatch};
+use crate::{dofigen_struct::*, CopyResourcePatch, Error, Result, UnknownPatch, VecPatch};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize};
-use std::{collections::HashMap, fs, ops::Add};
+use std::{collections::HashMap, fs, ops};
 
 const MAX_LOAD_STACK_SIZE: usize = 10;
 
@@ -30,7 +30,7 @@ pub struct Extend<T: Default> {
 
 impl<P> Extend<P>
 where
-    P: Default + DeserializeOwned + Clone + Add<P, Output = P>,
+    P: Default + DeserializeOwned + Clone + ops::Add<P, Output = P>,
 {
     pub fn merge(&self, context: &mut LoadContext) -> Result<P> {
         if self.extend.is_empty() {
@@ -215,7 +215,7 @@ macro_rules! add_option {
     };
 }
 
-impl Add<Self> for ImagePatch {
+impl ops::Add<Self> for ImagePatch {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
@@ -232,7 +232,7 @@ impl Add<Self> for ImagePatch {
     }
 }
 
-impl Add<Self> for StagePatch {
+impl ops::Add<Self> for StagePatch {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
@@ -246,7 +246,7 @@ impl Add<Self> for StagePatch {
                 (Some(a), Some(b)) => {
                     // TODO: merge maps
                     todo!()
-                },
+                }
                 (Some(a), None) => Some(a),
                 (None, Some(b)) => Some(b),
                 (None, None) => None,
@@ -258,7 +258,7 @@ impl Add<Self> for StagePatch {
     }
 }
 
-impl Add<Self> for RunPatch {
+impl ops::Add<Self> for RunPatch {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
@@ -269,7 +269,7 @@ impl Add<Self> for RunPatch {
     }
 }
 
-impl Add<Self> for ImageNamePatch {
+impl ops::Add<Self> for ImageNamePatch {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
@@ -282,7 +282,7 @@ impl Add<Self> for ImageNamePatch {
     }
 }
 
-impl Add<Self> for HealthcheckPatch {
+impl ops::Add<Self> for HealthcheckPatch {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
@@ -296,13 +296,197 @@ impl Add<Self> for HealthcheckPatch {
     }
 }
 
-impl Add<Self> for UserPatch {
+impl ops::Add<Self> for UserPatch {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
         Self {
             user: add_option!(self.user, rhs.user),
             group: add_option!(self.group, rhs.group),
+        }
+    }
+}
+
+impl ops::Add<Self> for PortPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            port: add_option!(self.port, rhs.port),
+            protocol: add_option!(self.protocol, rhs.protocol),
+        }
+    }
+}
+
+impl ops::Add<Self> for ArtifactPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            builder: add_option!(self.builder, rhs.builder),
+            source: add_option!(self.source, rhs.source),
+            target: add_option!(self.target, rhs.target),
+        }
+    }
+}
+
+impl ops::Add<Self> for CopyResourcePatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (Self::Copy(a), Self::Copy(b)) => Self::Copy(a + b),
+            (Self::Copy(a), Self::Unknown(b)) => Self::Copy(a + b),
+            (Self::Unknown(a), Self::Copy(b)) => Self::Copy(a + b),
+            (Self::Add(a), Self::Add(b)) => Self::Add(a + b),
+            (Self::Add(a), Self::Unknown(b)) => Self::Add(a + b),
+            (Self::Unknown(a), Self::Add(b)) => Self::Add(a + b),
+            (Self::AddGitRepo(a), Self::AddGitRepo(b)) => Self::AddGitRepo(a + b),
+            (Self::AddGitRepo(a), Self::Unknown(b)) => Self::AddGitRepo(a + b),
+            (Self::Unknown(a), Self::AddGitRepo(b)) => Self::AddGitRepo(a + b),
+            (Self::Unknown(a), Self::Unknown(b)) => Self::Unknown(a + b),
+            (a, b) => panic!("Can't add {:?} and {:?}", a, b),
+        }
+    }
+}
+
+impl ops::Add<Self> for CopyPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            paths: add_patch!(self.paths, rhs.paths),
+            options: add_patch!(self.options, rhs.options),
+            exclude: add_patch!(self.exclude, rhs.exclude),
+            from: add_option!(self.from, rhs.from),
+            parents: add_option!(self.parents, rhs.parents),
+        }
+    }
+}
+
+impl ops::Add<UnknownPatch> for CopyPatch {
+    type Output = Self;
+
+    fn add(self, rhs: UnknownPatch) -> Self {
+        Self {
+            paths: self.paths,
+            options: add_patch!(self.options, rhs.options),
+            exclude: add_patch!(self.exclude, rhs.exclude),
+            from: self.from,
+            parents: self.parents,
+        }
+    }
+}
+
+impl ops::Add<CopyPatch> for UnknownPatch {
+    type Output = CopyPatch;
+
+    fn add(self, rhs: CopyPatch) -> CopyPatch {
+        CopyPatch {
+            paths: rhs.paths,
+            options: add_patch!(self.options, rhs.options),
+            exclude: add_patch!(self.exclude, rhs.exclude),
+            from: rhs.from,
+            parents: rhs.parents,
+        }
+    }
+}
+
+impl ops::Add<Self> for AddPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            files: add_patch!(self.files, rhs.files),
+            options: add_patch!(self.options, rhs.options),
+            checksum: add_option!(self.checksum, rhs.checksum),
+        }
+    }
+}
+
+impl ops::Add<UnknownPatch> for AddPatch {
+    type Output = Self;
+
+    fn add(self, rhs: UnknownPatch) -> Self {
+        Self {
+            files: self.files,
+            options: add_patch!(self.options, rhs.options),
+            checksum: self.checksum,
+        }
+    }
+}
+
+impl ops::Add<AddPatch> for UnknownPatch {
+    type Output = AddPatch;
+
+    fn add(self, rhs: AddPatch) -> AddPatch {
+        AddPatch {
+            files: rhs.files,
+            options: add_patch!(self.options, rhs.options),
+            checksum: rhs.checksum,
+        }
+    }
+}
+
+impl ops::Add<Self> for AddGitRepoPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            repo: add_option!(self.repo, rhs.repo),
+            options: add_patch!(self.options, rhs.options),
+            exclude: add_patch!(self.exclude, rhs.exclude),
+            keep_git_dir: add_option!(self.keep_git_dir, rhs.keep_git_dir),
+        }
+    }
+}
+
+impl ops::Add<UnknownPatch> for AddGitRepoPatch {
+    type Output = Self;
+
+    fn add(self, rhs: UnknownPatch) -> Self {
+        Self {
+            repo: self.repo,
+            options: add_patch!(self.options, rhs.options),
+            exclude: add_patch!(self.exclude, rhs.exclude),
+            keep_git_dir: self.keep_git_dir,
+        }
+    }
+}
+
+impl ops::Add<AddGitRepoPatch> for UnknownPatch {
+    type Output = AddGitRepoPatch;
+
+    fn add(self, rhs: AddGitRepoPatch) -> AddGitRepoPatch {
+        AddGitRepoPatch {
+            repo: rhs.repo,
+            options: add_patch!(self.options, rhs.options),
+            exclude: add_patch!(self.exclude, rhs.exclude),
+            keep_git_dir: rhs.keep_git_dir,
+        }
+    }
+}
+
+impl ops::Add<Self> for UnknownPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            options: add_patch!(self.options, rhs.options),
+            exclude: add_patch!(self.exclude, rhs.exclude),
+        }
+    }
+}
+
+impl ops::Add<Self> for CopyOptionsPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            chown: add_optional_add!(self.chown, rhs.chown),
+            chmod: add_option!(self.chmod, rhs.chmod),
+            target: add_option!(self.target, rhs.target),
+            link: add_option!(self.link, rhs.link),
         }
     }
 }
@@ -341,7 +525,7 @@ mod test {
                 pub level: u16,
             }
 
-            impl Add<Self> for TestStructPatch {
+            impl ops::Add<Self> for TestStructPatch {
                 type Output = Self;
 
                 fn add(self, rhs: Self) -> Self {
@@ -357,7 +541,7 @@ mod test {
                 }
             }
 
-            impl Add<Self> for TestSubStructPatch {
+            impl ops::Add<Self> for TestSubStructPatch {
                 type Output = Self;
 
                 fn add(self, rhs: Self) -> Self {

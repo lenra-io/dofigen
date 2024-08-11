@@ -1,14 +1,21 @@
-use crate::dofigen_struct::*;
+use crate::{dofigen_struct::*, Error};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{de, Deserialize, Deserializer};
-use std::{ops, collections::BTreeMap, fmt, marker::PhantomData, usize};
+use std::{
+    cmp::Ordering,
+    collections::BTreeMap,
+    fmt,
+    marker::PhantomData,
+    ops::{self},
+    usize,
+};
 #[cfg(feature = "permissive")]
 use std::{ops::Deref, str::FromStr};
 use struct_patch::Patch;
 
 /// Implements the From trait for a struct from a patch
-macro_rules! impl_from_patch {
+macro_rules! impl_from_patch_and_add {
     ($struct:ty, $patch:ty) => {
         impl From<$patch> for $struct {
             fn from(value: $patch) -> Self {
@@ -17,20 +24,29 @@ macro_rules! impl_from_patch {
                 s
             }
         }
+
+        impl ops::Add<$patch> for $struct {
+            type Output = Self;
+
+            fn add(mut self, rhs: $patch) -> Self {
+                self.apply(rhs);
+                self
+            }
+        }
     };
 }
 
-impl_from_patch!(Image, ImagePatch);
-impl_from_patch!(Stage, StagePatch);
-impl_from_patch!(Healthcheck, HealthcheckPatch);
-impl_from_patch!(ImageName, ImageNamePatch);
-impl_from_patch!(Artifact, ArtifactPatch);
-impl_from_patch!(Run, RunPatch);
-impl_from_patch!(Port, PortPatch);
-impl_from_patch!(User, UserPatch);
-impl_from_patch!(Copy, CopyPatch);
-impl_from_patch!(Add, AddPatch);
-impl_from_patch!(AddGitRepo, AddGitRepoPatch);
+impl_from_patch_and_add!(Image, ImagePatch);
+impl_from_patch_and_add!(Stage, StagePatch);
+impl_from_patch_and_add!(Healthcheck, HealthcheckPatch);
+impl_from_patch_and_add!(ImageName, ImageNamePatch);
+impl_from_patch_and_add!(Artifact, ArtifactPatch);
+impl_from_patch_and_add!(Run, RunPatch);
+impl_from_patch_and_add!(Port, PortPatch);
+impl_from_patch_and_add!(User, UserPatch);
+impl_from_patch_and_add!(Copy, CopyPatch);
+impl_from_patch_and_add!(Add, AddPatch);
+impl_from_patch_and_add!(AddGitRepo, AddGitRepoPatch);
 
 //////////////////////// Patch structures ////////////////////////
 
@@ -268,19 +284,25 @@ where
     }
 }
 
-impl<T, P> From<VecDeepPatchCommand<T, P>> for VecPatchCommand<T>
+impl<T, P> TryFrom<VecDeepPatchCommand<T, P>> for VecPatchCommand<T>
 where
     T: Clone + From<P>,
 {
-    fn from(value: VecDeepPatchCommand<T, P>) -> Self {
-        match value {
+    type Error = Error;
+
+    fn try_from(value: VecDeepPatchCommand<T, P>) -> Result<Self, Error> {
+        Ok(match value {
             VecDeepPatchCommand::ReplaceAll(v) => VecPatchCommand::ReplaceAll(v),
             VecDeepPatchCommand::Replace(pos, v) => VecPatchCommand::Replace(pos, v),
-            VecDeepPatchCommand::Patch(pos, v) => VecPatchCommand::Replace(pos, v.into()),
+            VecDeepPatchCommand::Patch(pos, _) => {
+                return Err(Error::Custom(format!(
+                    "VecPatch don't allow patching on {pos}: '{pos}<'"
+                )))
+            }
             VecDeepPatchCommand::InsertBefore(pos, v) => VecPatchCommand::InsertBefore(pos, v),
             VecDeepPatchCommand::InsertAfter(pos, v) => VecPatchCommand::InsertAfter(pos, v),
             VecDeepPatchCommand::Append(v) => VecPatchCommand::Append(v),
-        }
+        })
     }
 }
 
@@ -355,30 +377,30 @@ where
     T: Clone,
 {
     fn apply(&mut self, patch: VecPatch<T>) {
-        let mut commands = patch.commands.clone();
-        commands.sort_by(|a, b| match (a, b) {
-            (VecPatchCommand::ReplaceAll(_), _) => std::cmp::Ordering::Less,
-            (_, VecPatchCommand::ReplaceAll(_)) => std::cmp::Ordering::Greater,
-            (VecPatchCommand::InsertBefore(a, _), VecPatchCommand::InsertBefore(b, _))
-            | (VecPatchCommand::Replace(a, _), VecPatchCommand::Replace(b, _))
-            | (VecPatchCommand::InsertAfter(a, _), VecPatchCommand::InsertAfter(b, _)) => a.cmp(b),
-            (VecPatchCommand::Replace(a, _), VecPatchCommand::InsertAfter(b, _)) => {
-                match a.cmp(b) {
-                    std::cmp::Ordering::Equal => std::cmp::Ordering::Less,
-                    other => other,
-                }
-            }
-            (VecPatchCommand::InsertAfter(a, _), VecPatchCommand::Replace(b, _)) => {
-                match a.cmp(b) {
-                    std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
-                    other => other,
-                }
-            }
-            (VecPatchCommand::InsertBefore(_, _), _) => std::cmp::Ordering::Less,
-            (_, VecPatchCommand::InsertBefore(_, _)) => std::cmp::Ordering::Greater,
-            (VecPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
-            (_, VecPatchCommand::Append(_)) => std::cmp::Ordering::Less,
-        });
+        // let mut commands = patch.commands.clone();
+        // commands.sort_by(|a, b| match (a, b) {
+        //     (VecPatchCommand::ReplaceAll(_), _) => std::cmp::Ordering::Less,
+        //     (_, VecPatchCommand::ReplaceAll(_)) => std::cmp::Ordering::Greater,
+        //     (VecPatchCommand::InsertBefore(a, _), VecPatchCommand::InsertBefore(b, _))
+        //     | (VecPatchCommand::Replace(a, _), VecPatchCommand::Replace(b, _))
+        //     | (VecPatchCommand::InsertAfter(a, _), VecPatchCommand::InsertAfter(b, _)) => a.cmp(b),
+        //     (VecPatchCommand::Replace(a, _), VecPatchCommand::InsertAfter(b, _)) => {
+        //         match a.cmp(b) {
+        //             std::cmp::Ordering::Equal => std::cmp::Ordering::Less,
+        //             other => other,
+        //         }
+        //     }
+        //     (VecPatchCommand::InsertAfter(a, _), VecPatchCommand::Replace(b, _)) => {
+        //         match a.cmp(b) {
+        //             std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
+        //             other => other,
+        //         }
+        //     }
+        //     (VecPatchCommand::InsertBefore(_, _), _) => std::cmp::Ordering::Less,
+        //     (_, VecPatchCommand::InsertBefore(_, _)) => std::cmp::Ordering::Greater,
+        //     (VecPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
+        //     (_, VecPatchCommand::Append(_)) => std::cmp::Ordering::Less,
+        // });
         let mut reset = false;
         let mut last_modified_position: usize = usize::MAX;
         // initial array length
@@ -388,7 +410,7 @@ where
         // save the current position and corresponding adapted position to avoid recomputing it
         let mut current_position: (usize, usize) = (0, 0);
 
-        for command in commands {
+        for command in patch.commands {
             match command {
                 VecPatchCommand::ReplaceAll(elements) => {
                     if reset {
@@ -489,37 +511,37 @@ where
     P: Clone,
 {
     fn apply(&mut self, patch: VecDeepPatch<T, P>) {
-        let mut commands = patch.commands.clone();
-        commands.sort_by(|a, b| match (a, b) {
-            (VecDeepPatchCommand::ReplaceAll(_), _) => std::cmp::Ordering::Less,
-            (_, VecDeepPatchCommand::ReplaceAll(_)) => std::cmp::Ordering::Greater,
-            (VecDeepPatchCommand::InsertBefore(a, _), VecDeepPatchCommand::InsertBefore(b, _))
-            | (
-                VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
-                VecDeepPatchCommand::Replace(b, _) | VecDeepPatchCommand::Patch(b, _),
-            )
-            | (VecDeepPatchCommand::InsertAfter(a, _), VecDeepPatchCommand::InsertAfter(b, _)) => {
-                a.cmp(b)
-            }
-            (
-                VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
-                VecDeepPatchCommand::InsertAfter(b, _),
-            ) => match a.cmp(b) {
-                std::cmp::Ordering::Equal => std::cmp::Ordering::Less,
-                other => other,
-            },
-            (
-                VecDeepPatchCommand::InsertAfter(a, _),
-                VecDeepPatchCommand::Replace(b, _) | VecDeepPatchCommand::Patch(b, _),
-            ) => match a.cmp(b) {
-                std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
-                other => other,
-            },
-            (VecDeepPatchCommand::InsertBefore(_, _), _) => std::cmp::Ordering::Less,
-            (_, VecDeepPatchCommand::InsertBefore(_, _)) => std::cmp::Ordering::Greater,
-            (VecDeepPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
-            (_, VecDeepPatchCommand::Append(_)) => std::cmp::Ordering::Less,
-        });
+        // let commands = patch.commands.clone();
+        // commands.sort_by(|a, b| match (a, b) {
+        //     (VecDeepPatchCommand::ReplaceAll(_), _) => std::cmp::Ordering::Less,
+        //     (_, VecDeepPatchCommand::ReplaceAll(_)) => std::cmp::Ordering::Greater,
+        //     (VecDeepPatchCommand::InsertBefore(a, _), VecDeepPatchCommand::InsertBefore(b, _))
+        //     | (
+        //         VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
+        //         VecDeepPatchCommand::Replace(b, _) | VecDeepPatchCommand::Patch(b, _),
+        //     )
+        //     | (VecDeepPatchCommand::InsertAfter(a, _), VecDeepPatchCommand::InsertAfter(b, _)) => {
+        //         a.cmp(b)
+        //     }
+        //     (
+        //         VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
+        //         VecDeepPatchCommand::InsertAfter(b, _),
+        //     ) => match a.cmp(b) {
+        //         std::cmp::Ordering::Equal => std::cmp::Ordering::Less,
+        //         other => other,
+        //     },
+        //     (
+        //         VecDeepPatchCommand::InsertAfter(a, _),
+        //         VecDeepPatchCommand::Replace(b, _) | VecDeepPatchCommand::Patch(b, _),
+        //     ) => match a.cmp(b) {
+        //         std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
+        //         other => other,
+        //     },
+        //     (VecDeepPatchCommand::InsertBefore(_, _), _) => std::cmp::Ordering::Less,
+        //     (_, VecDeepPatchCommand::InsertBefore(_, _)) => std::cmp::Ordering::Greater,
+        //     (VecDeepPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
+        //     (_, VecDeepPatchCommand::Append(_)) => std::cmp::Ordering::Less,
+        // });
         let mut reset = false;
         let mut last_modified_position: usize = usize::MAX;
         // initial array length
@@ -529,7 +551,7 @@ where
         // save the current position and corresponding adapted position to avoid recomputing it
         let mut current_position: (usize, usize) = (0, 0);
 
-        for command in commands {
+        for command in patch.commands {
             match command {
                 VecDeepPatchCommand::ReplaceAll(elements) => {
                     if reset {
@@ -767,7 +789,10 @@ where
         let commands: Vec<VecDeepPatchCommand<T, T>> =
             deserialize_vec_patch_commands(deserializer)?;
         Ok(VecPatchCommandMap {
-            commands: commands.iter().map(|c| c.clone().into()).collect(),
+            commands: commands
+                .iter()
+                .map(|c| c.clone().try_into().map_err(de::Error::custom))
+                .collect::<Result<Vec<_>, _>>()?,
         })
     }
 }
@@ -861,6 +886,10 @@ where
                     }
                 }
             }
+
+            // Sort the commands by position and kind
+            commands.sort_by(sort_commands);
+
             Ok(commands)
         }
     }
@@ -868,6 +897,43 @@ where
     let visitor: VecDeepPatchCommandsVisitor<T, P> = VecDeepPatchCommandsVisitor(PhantomData);
 
     deserializer.deserialize_any(visitor)
+}
+
+fn sort_commands<T, P>(a: &VecDeepPatchCommand<T, P>, b: &VecDeepPatchCommand<T, P>) -> Ordering
+where
+    T: Clone + From<P>,
+    P: Clone,
+{
+    match (a, b) {
+        (VecDeepPatchCommand::ReplaceAll(_), _) => std::cmp::Ordering::Less,
+        (_, VecDeepPatchCommand::ReplaceAll(_)) => std::cmp::Ordering::Greater,
+        (VecDeepPatchCommand::InsertBefore(a, _), VecDeepPatchCommand::InsertBefore(b, _))
+        | (
+            VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
+            VecDeepPatchCommand::Replace(b, _) | VecDeepPatchCommand::Patch(b, _),
+        )
+        | (VecDeepPatchCommand::InsertAfter(a, _), VecDeepPatchCommand::InsertAfter(b, _)) => {
+            a.cmp(b)
+        }
+        (
+            VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
+            VecDeepPatchCommand::InsertAfter(b, _),
+        ) => match a.cmp(b) {
+            std::cmp::Ordering::Equal => std::cmp::Ordering::Less,
+            other => other,
+        },
+        (
+            VecDeepPatchCommand::InsertAfter(a, _),
+            VecDeepPatchCommand::Replace(b, _) | VecDeepPatchCommand::Patch(b, _),
+        ) => match a.cmp(b) {
+            std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
+            other => other,
+        },
+        (VecDeepPatchCommand::InsertBefore(_, _), _) => std::cmp::Ordering::Less,
+        (_, VecDeepPatchCommand::InsertBefore(_, _)) => std::cmp::Ordering::Greater,
+        (VecDeepPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
+        (_, VecDeepPatchCommand::Append(_)) => std::cmp::Ordering::Less,
+    }
 }
 
 //////////////////////// Add ////////////////////////
@@ -883,6 +949,22 @@ where
     }
 }
 
+
+macro_rules! impl_add_parsable_struct {
+    ($struct:ty, $patch:ty) => {
+        impl ops::Add<ParsableStruct<$patch>> for $struct {
+            type Output = Self;
+
+            fn add(mut self, rhs: ParsableStruct<$patch>) -> Self {
+                self.apply(rhs.0);
+                self
+            }
+        }
+    };
+}
+
+impl_add_parsable_struct!(Port, PortPatch);
+
 impl<T> ops::Add<Self> for VecPatch<T>
 where
     T: Clone,
@@ -890,10 +972,127 @@ where
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
-        let commands = vec![];
+        if rhs
+            .commands
+            .iter()
+            .any(|c| matches!(c, VecPatchCommand::ReplaceAll(_)))
+        {
+            return rhs;
+        }
 
-        // TODO: implement the merge of two VecPatch
-        todo!();
+        let mut commands: Vec<VecPatchCommand<T>> = vec![];
+
+        let mut self_it = self.commands.iter();
+        let mut rhs_it = rhs.commands.iter();
+
+        let mut self_next = self_it.next();
+        let mut rhs_next = rhs_it.next();
+
+        while let (Some(self_command), Some(rhs_command)) = (self_next, rhs_next) {
+            match (self_command.clone(), rhs_command.clone()) {
+                (VecPatchCommand::ReplaceAll(_), rhs_command) => {
+                    commands.push(rhs_command);
+                    self_next = self_it.next();
+                }
+                (_, VecPatchCommand::ReplaceAll(_)) => {
+                    panic!("This case should have been reached");
+                }
+                (VecPatchCommand::Append(elements), VecPatchCommand::Append(rhs_elements)) => {
+                    // For append, we first add self elements then rhs elements
+                    // Since we apply the self first and then the rhs the rhs elements will be added after the self elements
+                    let mut elements = elements;
+                    elements.extend(rhs_elements);
+                    commands.push(VecPatchCommand::Append(elements));
+                    self_next = self_it.next();
+                    rhs_next = rhs_it.next();
+                }
+                (self_command, VecPatchCommand::Append(_)) => {
+                    commands.push(self_command);
+                    self_next = self_it.next();
+                }
+                (VecPatchCommand::Append(_), rhs_command) => {
+                    commands.push(rhs_command);
+                    rhs_next = rhs_it.next();
+                }
+                (
+                    VecPatchCommand::Replace(self_pos, self_val),
+                    VecPatchCommand::Replace(rhs_pos, rhs_val),
+                ) => {
+                    if self_pos == rhs_pos {
+                        commands.push(VecPatchCommand::Replace(rhs_pos, rhs_val));
+                        self_next = self_it.next();
+                        rhs_next = rhs_it.next();
+                    } else if self_pos < rhs_pos {
+                        commands.push(VecPatchCommand::Replace(self_pos, self_val));
+                        self_next = self_it.next();
+                    } else {
+                        commands.push(VecPatchCommand::Replace(rhs_pos, rhs_val));
+                        rhs_next = rhs_it.next();
+                    }
+                }
+                (
+                    VecPatchCommand::InsertBefore(self_pos, self_val),
+                    VecPatchCommand::InsertBefore(rhs_pos, mut rhs_val),
+                )
+                | (
+                    VecPatchCommand::InsertAfter(self_pos, self_val),
+                    VecPatchCommand::InsertAfter(rhs_pos, mut rhs_val),
+                ) => {
+                    if self_pos == rhs_pos {
+                        // We first add rhs elements then self elements
+                        // For insert before, the position is the position of the first element added by the self patch
+                        // For insert after, the position does not change so we append rhs elements after the elements, after that the self elements are added
+                        rhs_val.extend(self_val);
+                        commands.push(rhs_command.clone());
+                        self_next = self_it.next();
+                        rhs_next = rhs_it.next();
+                    } else if self_pos < rhs_pos {
+                        commands.push(self_command.clone());
+                        self_next = self_it.next();
+                    } else {
+                        commands.push(rhs_command.clone());
+                        rhs_next = rhs_it.next();
+                    }
+                }
+                (
+                    VecPatchCommand::Replace(self_pos, _)
+                    | VecPatchCommand::InsertBefore(self_pos, _)
+                    | VecPatchCommand::InsertAfter(self_pos, _),
+                    VecPatchCommand::Replace(rhs_pos, _)
+                    | VecPatchCommand::InsertBefore(rhs_pos, _)
+                    | VecPatchCommand::InsertAfter(rhs_pos, _),
+                ) => {
+                    if self_pos == rhs_pos {
+                        match (self_command, rhs_command) {
+                            (VecPatchCommand::InsertBefore(_, _), _)
+                            | (_, VecPatchCommand::InsertAfter(_, _)) => {
+                                commands.push(self_command.clone());
+                                self_next = self_it.next();
+                            }
+                            (_, VecPatchCommand::InsertBefore(_, _))
+                            | (VecPatchCommand::InsertAfter(_, _), _) => {
+                                commands.push(rhs_command.clone());
+                                rhs_next = rhs_it.next();
+                            }
+                            _ => panic!("This case should have been reached"),
+                        }
+                    } else if self_pos < rhs_pos {
+                        commands.push(self_command.clone());
+                        self_next = self_it.next();
+                    } else {
+                        commands.push(rhs_command.clone());
+                        rhs_next = rhs_it.next();
+                    }
+                }
+            }
+        }
+
+        let remaining_commands = if self_next.is_some() {
+            std::iter::once(self_next.unwrap()).chain(self_it)
+        } else {
+            std::iter::once(rhs_next.unwrap()).chain(self_it)
+        };
+        remaining_commands.for_each(|c| commands.push(c.clone()));
 
         Self { commands }
     }
@@ -901,16 +1100,172 @@ where
 
 impl<T, P> ops::Add<Self> for VecDeepPatch<T, P>
 where
-    T: Clone + Patch<P> + From<P>,
-    P: Clone,
+    T: Clone + Patch<P> + From<P> + ops::Add<P, Output = T>,
+    P: Clone + ops::Add<P, Output = P>,
 {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self {
-        let commands = vec![];
+        if rhs
+            .commands
+            .iter()
+            .any(|c| matches!(c, VecDeepPatchCommand::ReplaceAll(_)))
+        {
+            return rhs;
+        }
 
-        // TODO: implement the merge of two VecPatch
-        todo!();
+        let mut commands: Vec<VecDeepPatchCommand<T, P>> = vec![];
+
+        let mut self_it = self.commands.iter();
+        let mut rhs_it = rhs.commands.iter();
+
+        let mut self_next = self_it.next();
+        let mut rhs_next = rhs_it.next();
+
+        while let (Some(self_command), Some(rhs_command)) = (self_next, rhs_next) {
+            match (self_command.clone(), rhs_command.clone()) {
+                (VecDeepPatchCommand::ReplaceAll(_), rhs_command) => {
+                    commands.push(rhs_command);
+                    self_next = self_it.next();
+                }
+                (_, VecDeepPatchCommand::ReplaceAll(_)) => {
+                    panic!("This case should have been reached");
+                }
+                (
+                    VecDeepPatchCommand::Append(elements),
+                    VecDeepPatchCommand::Append(rhs_elements),
+                ) => {
+                    // For append, we first add self elements then rhs elements
+                    // Since we apply the self first and then the rhs the rhs elements will be added after the self elements
+                    let mut elements = elements;
+                    elements.extend(rhs_elements);
+                    commands.push(VecDeepPatchCommand::Append(elements));
+                    self_next = self_it.next();
+                    rhs_next = rhs_it.next();
+                }
+                (self_command, VecDeepPatchCommand::Append(_)) => {
+                    commands.push(self_command);
+                    self_next = self_it.next();
+                }
+                (VecDeepPatchCommand::Append(_), rhs_command) => {
+                    commands.push(rhs_command);
+                    rhs_next = rhs_it.next();
+                }
+                (
+                    VecDeepPatchCommand::Replace(self_pos, self_val),
+                    VecDeepPatchCommand::Replace(rhs_pos, rhs_val),
+                ) => {
+                    if self_pos == rhs_pos {
+                        commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
+                        self_next = self_it.next();
+                        rhs_next = rhs_it.next();
+                    } else if self_pos < rhs_pos {
+                        commands.push(VecDeepPatchCommand::Replace(self_pos, self_val));
+                        self_next = self_it.next();
+                    } else {
+                        commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
+                        rhs_next = rhs_it.next();
+                    }
+                }
+                (
+                    VecDeepPatchCommand::Replace(self_pos, self_val),
+                    VecDeepPatchCommand::Patch(rhs_pos, rhs_val),
+                ) => {
+                    if self_pos == rhs_pos {
+                        commands.push(VecDeepPatchCommand::Replace(rhs_pos, self_val + rhs_val));
+                        self_next = self_it.next();
+                        rhs_next = rhs_it.next();
+                    } else if self_pos < rhs_pos {
+                        commands.push(VecDeepPatchCommand::Replace(self_pos, self_val));
+                        self_next = self_it.next();
+                    } else {
+                        commands.push(VecDeepPatchCommand::Patch(rhs_pos, rhs_val));
+                        rhs_next = rhs_it.next();
+                    }
+                }
+                (
+                    VecDeepPatchCommand::Patch(self_pos, self_val),
+                    VecDeepPatchCommand::Replace(rhs_pos, rhs_val),
+                ) => {
+                    if self_pos == rhs_pos {
+                        commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
+                        self_next = self_it.next();
+                        rhs_next = rhs_it.next();
+                    } else if self_pos < rhs_pos {
+                        commands.push(VecDeepPatchCommand::Patch(self_pos, self_val));
+                        self_next = self_it.next();
+                    } else {
+                        commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
+                        rhs_next = rhs_it.next();
+                    }
+                }
+                (
+                    VecDeepPatchCommand::Patch(self_pos, self_val),
+                    VecDeepPatchCommand::Patch(rhs_pos, rhs_val),
+                ) => {
+                    if self_pos == rhs_pos {
+                        commands.push(VecDeepPatchCommand::Patch(rhs_pos, self_val + rhs_val));
+                        self_next = self_it.next();
+                        rhs_next = rhs_it.next();
+                    } else if self_pos < rhs_pos {
+                        commands.push(VecDeepPatchCommand::Patch(self_pos, self_val));
+                        self_next = self_it.next();
+                    } else {
+                        commands.push(VecDeepPatchCommand::Patch(rhs_pos, rhs_val));
+                        rhs_next = rhs_it.next();
+                    }
+                }
+                (
+                    VecDeepPatchCommand::InsertBefore(self_pos, self_val),
+                    VecDeepPatchCommand::InsertBefore(rhs_pos, mut rhs_val),
+                )
+                | (
+                    VecDeepPatchCommand::InsertAfter(self_pos, self_val),
+                    VecDeepPatchCommand::InsertAfter(rhs_pos, mut rhs_val),
+                ) => {
+                    if self_pos == rhs_pos {
+                        // We first add rhs elements then self elements
+                        // For insert before, the position is the position of the first element added by the self patch
+                        // For insert after, the position does not change so we append rhs elements after the elements, after that the self elements are added
+                        rhs_val.extend(self_val);
+                        commands.push(rhs_command.clone());
+                        self_next = self_it.next();
+                        rhs_next = rhs_it.next();
+                    } else if self_pos < rhs_pos {
+                        commands.push(self_command.clone());
+                        self_next = self_it.next();
+                    } else {
+                        commands.push(rhs_command.clone());
+                        rhs_next = rhs_it.next();
+                    }
+                }
+                (
+                    VecDeepPatchCommand::Replace(_, _)
+                    | VecDeepPatchCommand::Patch(_, _)
+                    | VecDeepPatchCommand::InsertBefore(_, _)
+                    | VecDeepPatchCommand::InsertAfter(_, _),
+                    VecDeepPatchCommand::Replace(_, _)
+                    | VecDeepPatchCommand::Patch(_, _)
+                    | VecDeepPatchCommand::InsertBefore(_, _)
+                    | VecDeepPatchCommand::InsertAfter(_, _),
+                ) => {
+                    if sort_commands(self_command, rhs_command) == Ordering::Less {
+                        commands.push(self_command.clone());
+                        self_next = self_it.next();
+                    } else {
+                        commands.push(rhs_command.clone());
+                        rhs_next = rhs_it.next();
+                    }
+                }
+            }
+        }
+
+        let remaining_commands = if self_next.is_some() {
+            std::iter::once(self_next.unwrap()).chain(self_it)
+        } else {
+            std::iter::once(rhs_next.unwrap()).chain(self_it)
+        };
+        remaining_commands.for_each(|c| commands.push(c.clone()));
 
         Self { commands }
     }
