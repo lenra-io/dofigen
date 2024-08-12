@@ -358,10 +358,13 @@ where
 impl Patch<CopyResourcePatch> for CopyResource {
     fn apply(&mut self, patch: CopyResourcePatch) {
         match (self, patch) {
-            (CopyResource::Copy(s), CopyResourcePatch::Copy(p)) => s.apply(p),
-            (CopyResource::Add(s), CopyResourcePatch::Add(p)) => s.apply(p),
-            (CopyResource::AddGitRepo(s), CopyResourcePatch::AddGitRepo(p)) => s.apply(p),
-            _ => todo!(),
+            (Self::Copy(s), CopyResourcePatch::Copy(p)) => s.apply(p),
+            (Self::Copy(s), CopyResourcePatch::Unknown(p)) => s.apply(p),
+            (Self::Add(s), CopyResourcePatch::Add(p)) => s.apply(p),
+            (Self::Add(s), CopyResourcePatch::Unknown(p)) => s.apply(p),
+            (Self::AddGitRepo(s), CopyResourcePatch::AddGitRepo(p)) => s.apply(p),
+            (Self::AddGitRepo(s), CopyResourcePatch::Unknown(p)) => s.apply(p),
+            (s, p) => panic!("Cannot apply patch {:?} on {:?}", p, s),
         }
     }
 
@@ -390,6 +393,90 @@ impl Patch<CopyResourcePatch> for CopyResource {
 
     fn new_empty_patch() -> CopyResourcePatch {
         CopyResourcePatch::default()
+    }
+}
+
+impl Patch<UnknownPatch> for Copy {
+    fn apply(&mut self, patch: UnknownPatch) {
+        if let Some(options) = patch.options {
+            self.options.apply(options);
+        }
+        if let Some(exclude) = patch.exclude {
+            self.exclude.apply(exclude);
+        }
+    }
+
+    fn into_patch(self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch()),
+            exclude: Some(self.exclude.into_patch()),
+        }
+    }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: Some(self.exclude.into_patch_by_diff(previous_struct.exclude)),
+        }
+    }
+
+    fn new_empty_patch() -> UnknownPatch {
+        UnknownPatch::default()
+    }
+}
+
+impl Patch<UnknownPatch> for Add {
+    fn apply(&mut self, patch: UnknownPatch) {
+        if let Some(options) = patch.options {
+            self.options.apply(options);
+        }
+    }
+
+    fn into_patch(self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch()),
+            exclude: None,
+        }
+    }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: None,
+        }
+    }
+
+    fn new_empty_patch() -> UnknownPatch {
+        UnknownPatch::default()
+    }
+}
+
+impl Patch<UnknownPatch> for AddGitRepo {
+    fn apply(&mut self, patch: UnknownPatch) {
+        if let Some(options) = patch.options {
+            self.options.apply(options);
+        }
+        if let Some(exclude) = patch.exclude {
+            self.exclude.apply(exclude);
+        }
+    }
+
+    fn into_patch(self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch()),
+            exclude: Some(self.exclude.into_patch()),
+        }
+    }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: Some(self.exclude.into_patch_by_diff(previous_struct.exclude)),
+        }
+    }
+
+    fn new_empty_patch() -> UnknownPatch {
+        UnknownPatch::default()
     }
 }
 
@@ -948,55 +1035,9 @@ where
 impl ops::Add<CopyResourcePatch> for CopyResource {
     type Output = Self;
 
-    fn add(self, rhs: CopyResourcePatch) -> Self {
-        match (self, rhs) {
-            (Self::Copy(a), CopyResourcePatch::Copy(b)) => Self::Copy(a + b),
-            (Self::Copy(a), CopyResourcePatch::Unknown(b)) => Self::Copy(a + b),
-            (Self::Add(a), CopyResourcePatch::Add(b)) => Self::Add(a + b),
-            (Self::Add(a), CopyResourcePatch::Unknown(b)) => Self::Add(a + b),
-            (Self::AddGitRepo(a), CopyResourcePatch::AddGitRepo(b)) => Self::AddGitRepo(a + b),
-            (Self::AddGitRepo(a), CopyResourcePatch::Unknown(b)) => Self::AddGitRepo(a + b),
-            (a, b) => panic!("Can't add {:?} and {:?}", a, b),
-        }
-    }
-}
-
-impl ops::Add<UnknownPatch> for Copy {
-    type Output = Self;
-
-    fn add(self, rhs: UnknownPatch) -> Self {
-        Self {
-            paths: self.paths,
-            from: self.from,
-            options: self.options + rhs.options.unwrap_or_default(),
-            exclude: self.exclude + rhs.exclude.unwrap_or_default(),
-            parents: self.parents,
-        }
-    }
-}
-
-impl ops::Add<UnknownPatch> for Add {
-    type Output = Self;
-
-    fn add(self, rhs: UnknownPatch) -> Self {
-        Self {
-            files: self.files,
-            options: self.options + rhs.options.unwrap_or_default(),
-            checksum: self.checksum,
-        }
-    }
-}
-
-impl ops::Add<UnknownPatch> for AddGitRepo {
-    type Output = Self;
-
-    fn add(self, rhs: UnknownPatch) -> Self {
-        Self {
-            repo: self.repo,
-            options: self.options + rhs.options.unwrap_or_default(),
-            exclude: self.exclude + rhs.exclude.unwrap_or_default(),
-            keep_git_dir: self.keep_git_dir,
-        }
+    fn add(mut self, rhs: CopyResourcePatch) -> Self {
+        self.apply(rhs);
+        self
     }
 }
 
