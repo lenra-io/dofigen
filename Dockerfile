@@ -13,12 +13,13 @@ RUN \
     --mount=type=cache,target=/home/rust/.cargo,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
     <<EOF
-cargo build --release -F cli
+cargo build --release -F cli -F permissive
 mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
 EOF
 
 # runtime
 FROM scratch AS runtime
+WORKDIR /app
 COPY \
     --from=builder \
     --chown=1000:1000 \
