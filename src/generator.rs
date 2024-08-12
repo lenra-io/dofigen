@@ -1,15 +1,12 @@
-use crate::{
-    dockerfile_struct::{DockerfileInsctruction, DockerfileLine, InstructionOption},
-    script_runner::ScriptRunner,
-    Add, AddGitRepo, Artifact, BaseStage, Copy, CopyOptions, CopyResource, Image, ImageName,
-    ImageVersion, Port, PortProtocol, Result, Stage, User, DOCKERFILE_VERSION,
-};
+use crate::{dockerfile_struct::*, dofigen_struct::*, Result, DOCKERFILE_VERSION};
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GenerationContext {
     pub user: Option<User>,
+    pub default_stage_name: String,
+    pub default_from: ImageName,
     pub previous_builders: Vec<String>,
 }
 pub trait DockerfileGenerator {
@@ -17,14 +14,72 @@ pub trait DockerfileGenerator {
         -> Result<Vec<DockerfileLine>>;
 }
 
+impl Stage {
+    pub fn name(&self, context: &GenerationContext) -> String {
+        self.name
+            .clone()
+            .unwrap_or_else(|| context.default_stage_name.clone())
+    }
+    pub fn from(&self, context: &GenerationContext) -> ImageName {
+        self.from.clone().unwrap_or(context.default_from.clone())
+    }
+
+    pub fn user(&self, context: &GenerationContext) -> Option<User> {
+        self.user.clone().or(context.user.clone())
+    }
+}
+
+impl Run {
+    pub fn is_empty(&self) -> bool {
+        self.run.is_empty()
+    }
+}
+
+impl User {
+    pub fn uid(&self) -> Option<u16> {
+        self.user.parse::<u16>().ok()
+    }
+
+    pub fn gid(&self) -> Option<u16> {
+        self.group
+            .as_ref()
+            .map(|group| group.parse::<u16>().ok())
+            .flatten()
+    }
+
+    pub fn into(&self) -> String {
+        let name = self.user.clone();
+        match &self.group {
+            Some(group) => format!("{}:{}", name, group),
+            _ => name,
+        }
+    }
+
+    // Static methods
+
+    pub fn new(user: &str) -> Self {
+        Self {
+            user: user.into(),
+            group: Some(user.into()),
+        }
+    }
+
+    pub fn new_without_group(user: &str) -> Self {
+        Self {
+            user: user.into(),
+            group: None,
+        }
+    }
+}
+
 impl ToString for ImageName {
     fn to_string(&self) -> String {
         let mut registry = String::new();
         if let Some(host) = &self.host {
             registry.push_str(host);
-            if self.port.is_some() {
+            if let Some(port) = self.port.clone() {
                 registry.push_str(":");
-                registry.push_str(self.port.unwrap().to_string().as_str());
+                registry.push_str(port.to_string().as_str());
             }
             registry.push_str("/");
         }
@@ -38,7 +93,7 @@ impl ToString for ImageName {
                 version.push_str("@");
                 version.push_str(digest);
             }
-            None => {}
+            _ => {}
         }
         format!(
             "{registry}{path}{version}",
@@ -64,12 +119,14 @@ impl ToString for User {
 impl ToString for Port {
     fn to_string(&self) -> String {
         match &self.protocol {
-            Some(protocol) => format!(
-                "{port}/{protocol}",
-                port = self.port,
-                protocol = protocol.to_string()
-            ),
-            None => self.port.to_string(),
+            Some(protocol) => {
+                format!(
+                    "{port}/{protocol}",
+                    port = self.port,
+                    protocol = protocol.to_string()
+                )
+            }
+            _ => self.port.to_string(),
         }
     }
 }
@@ -79,6 +136,15 @@ impl ToString for PortProtocol {
         match self {
             PortProtocol::Tcp => "tcp".into(),
             PortProtocol::Udp => "udp".into(),
+        }
+    }
+}
+
+impl ToString for Resource {
+    fn to_string(&self) -> String {
+        match self {
+            Resource::File(file) => file.to_string_lossy().to_string(),
+            Resource::Url(url) => url.to_string(),
         }
     }
 }
@@ -103,13 +169,13 @@ fn add_copy_options(
     copy_options: &CopyOptions,
     context: &GenerationContext,
 ) {
-    if let Some(chown) = copy_options.chown.as_ref().or(context.user.as_ref()) {
+    if let Some(chown) = copy_options.chown.as_ref().or(context.user.as_ref().into()) {
         inst_options.push(InstructionOption::WithValue("chown".into(), chown.into()));
     }
     if let Some(chmod) = &copy_options.chmod {
         inst_options.push(InstructionOption::WithValue("chmod".into(), chmod.into()));
     }
-    if copy_options.link.unwrap_or(true) {
+    if *copy_options.link.as_ref().unwrap_or(&true) {
         inst_options.push(InstructionOption::NameOnly("link".into()));
     }
 }
@@ -125,7 +191,7 @@ impl DockerfileGenerator for Copy {
         }
         add_copy_options(&mut options, &self.options, context);
         // excludes are not supported yet: minimal version 1.7-labs
-        // if let Some(exclude) = &self.exclude {
+        // if let Patch::Present(exclude) = &self.exclude {
         //     for path in exclude.clone().to_vec() {
         //         options.push(InstructionOption::WithValue("exclude".into(), path));
         //     }
@@ -158,7 +224,13 @@ impl DockerfileGenerator for Add {
 
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "ADD".into(),
-            content: copy_paths_into(self.files.to_vec(), &self.options.target),
+            content: copy_paths_into(
+                self.files
+                    .iter()
+                    .map(|file| file.to_string())
+                    .collect::<Vec<String>>(),
+                &self.options.target,
+            ),
             options,
         })])
     }
@@ -173,7 +245,7 @@ impl DockerfileGenerator for AddGitRepo {
         add_copy_options(&mut options, &self.options, context);
 
         // excludes are not supported yet: minimal version 1.7-labs
-        // if let Some(exclude) = &self.exclude {
+        // if let Patch::Present(exclude) = &self.exclude {
         //     for path in exclude.clone().to_vec() {
         //         options.push(InstructionOption::WithValue("exclude".into(), path));
         //     }
@@ -207,124 +279,41 @@ impl Artifact {
     }
 }
 
-impl DockerfileGenerator for Artifact {
-    fn generate_dockerfile_lines(
-        &self,
-        context: &GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
-        self.to_copy().generate_dockerfile_lines(context)
-    }
-}
-
-impl DockerfileGenerator for dyn Stage {
-    fn generate_dockerfile_lines(
-        &self,
-        context: &GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
-        let context = GenerationContext {
-            user: self.user(),
-            previous_builders: context.previous_builders.clone(),
-        };
-        let stage_name = self.name(&context);
-        let mut lines = vec![
-            DockerfileLine::Comment(stage_name.clone()),
-            DockerfileLine::Instruction(DockerfileInsctruction {
-                command: "FROM".into(),
-                content: format!(
-                    "{image_name} AS {stage_name}",
-                    image_name = self.from().to_string()
-                ),
-                options: vec![],
-            }),
-        ];
-        if let Some(env) = self.env() {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
-                command: "ENV".into(),
-                content: env
-                    .into_iter()
-                    .map(|(key, value)| format!("{}=\"{}\"", key, value))
-                    .collect::<Vec<String>>()
-                    .join(LINE_SEPARATOR),
-                options: vec![],
-            }));
-        }
-        if let Some(workdir) = self.workdir() {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
-                command: "WORKDIR".into(),
-                content: workdir.clone(),
-                options: vec![],
-            }));
-        }
-        if let Some(copies) = self.copy() {
-            for copy in copies {
-                lines.append(&mut copy.generate_dockerfile_lines(&context)?);
-            }
-        }
-        if let Some(artifacts) = self.artifacts() {
-            for artifact in artifacts {
-                lines.append(&mut artifact.generate_dockerfile_lines(&context)?);
-            }
-        }
-        if let Some(root) = self.root() {
-            let root_context = GenerationContext {
-                user: Some(User::new("0")),
-                previous_builders: context.previous_builders.clone(),
-            };
-            if let Some(instruction) = root.to_run_inscruction(&root_context)? {
-                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
-                    command: "USER".into(),
-                    content: root_context.user.unwrap().to_string(),
-                    options: vec![],
-                }));
-                lines.push(DockerfileLine::Instruction(instruction));
-            }
-        }
-        if let Some(user) = self.user() {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
-                command: "USER".into(),
-                content: user.to_string(),
-                options: vec![],
-            }));
-        }
-        if let Some(run) = self.to_run_inscruction(&context)? {
-            lines.push(DockerfileLine::Instruction(run));
-        }
-        Ok(lines)
-    }
-}
-
 impl DockerfileGenerator for Image {
     fn generate_dockerfile_lines(
         &self,
-        _context: &GenerationContext,
+        context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let mut context: GenerationContext = GenerationContext {
-            user: self.user(),
+            user: None,
+            default_stage_name: String::new(),
+            default_from: self.stage.from(context).clone(),
             previous_builders: vec![],
         };
         let mut lines = vec![
             DockerfileLine::Comment(format!("syntax=docker/dockerfile:{}", DOCKERFILE_VERSION)),
             DockerfileLine::Empty,
         ];
-        if let Some(builders) = self.builders.as_ref() {
-            for builder in builders {
-                lines.append(&mut <dyn Stage>::generate_dockerfile_lines(
-                    builder, &context,
-                )?);
-                lines.push(DockerfileLine::Empty);
-                context.previous_builders.push(builder.name(&context));
-            }
+        for (pos, builder) in self.builders.iter().enumerate() {
+            context.default_stage_name = format!("builder-{}", pos);
+            lines.append(&mut Stage::generate_dockerfile_lines(builder, &context)?);
+            lines.push(DockerfileLine::Empty);
+            context.previous_builders.push(builder.name(&context));
         }
-        lines.append(&mut <dyn Stage>::generate_dockerfile_lines(self, &context)?);
-        if let Some(expose) = &self.expose {
-            expose.to_vec().iter().for_each(|port| {
-                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
-                    command: "EXPOSE".into(),
-                    content: port.to_string(),
-                    options: vec![],
-                }))
-            });
-        }
+        context.user = Some(User::new("1000"));
+        context.default_stage_name = "runtime".into();
+        context.default_from = ImageName {
+            path: "scratch".into(),
+            ..Default::default()
+        };
+        lines.append(&mut self.stage.generate_dockerfile_lines(&context)?);
+        self.expose.iter().for_each(|port| {
+            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "EXPOSE".into(),
+                content: port.to_string(),
+                options: vec![],
+            }))
+        });
         if let Some(healthcheck) = &self.healthcheck {
             let mut options = vec![];
             if let Some(interval) = &healthcheck.interval {
@@ -353,25 +342,174 @@ impl DockerfileGenerator for Image {
             }
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "HEALTHCHECK".into(),
-                content: format!("CMD {}", healthcheck.cmd),
+                content: format!("CMD {}", healthcheck.cmd.clone()),
                 options,
             }))
         }
-        if let Some(entrypoint) = &self.entrypoint {
+        if !self.entrypoint.is_empty() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "ENTRYPOINT".into(),
-                content: string_vec_into(entrypoint.to_vec()),
+                content: string_vec_into(self.entrypoint.to_vec()),
                 options: vec![],
             }))
         }
-        if let Some(cmd) = &self.cmd {
+        if !self.cmd.is_empty() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "CMD".into(),
-                content: string_vec_into(cmd.to_vec()),
+                content: string_vec_into(self.cmd.to_vec()),
                 options: vec![],
             }))
         }
         Ok(lines)
+    }
+}
+
+impl DockerfileGenerator for Stage {
+    fn generate_dockerfile_lines(
+        &self,
+        context: &GenerationContext,
+    ) -> Result<Vec<DockerfileLine>> {
+        let context = GenerationContext {
+            user: self.user(context),
+            ..context.clone()
+        };
+        let stage_name = self.name(&context);
+
+        // From
+        let mut lines = vec![
+            DockerfileLine::Comment(stage_name.clone()),
+            DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "FROM".into(),
+                content: format!(
+                    "{image_name} AS {stage_name}",
+                    image_name = self.from(&context).to_string()
+                ),
+                options: vec![],
+            }),
+        ];
+
+        // Env
+        if !self.env.is_empty() {
+            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "ENV".into(),
+                content: self
+                    .env
+                    .iter()
+                    .map(|(key, value)| format!("{}=\"{}\"", key, value))
+                    .collect::<Vec<String>>()
+                    .join(LINE_SEPARATOR),
+                options: vec![],
+            }));
+        }
+
+        // Workdir
+        if let Some(workdir) = &self.workdir {
+            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "WORKDIR".into(),
+                content: workdir.clone(),
+                options: vec![],
+            }));
+        }
+
+        // Copy resources
+        for copy in self.copy.iter() {
+            lines.append(&mut copy.generate_dockerfile_lines(&context)?);
+        }
+
+        // Copy artifacts
+        for artifact in self.artifacts.iter() {
+            lines.append(&mut artifact.generate_dockerfile_lines(&context)?);
+        }
+
+        // Root
+        if let Some(root) = &self.root {
+            if !root.is_empty() {
+                let root_user = User::new("0");
+                // User
+                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "USER".into(),
+                    content: root_user.to_string(),
+                    options: vec![],
+                }));
+
+                let root_context = GenerationContext {
+                    user: Some(root_user),
+                    ..context.clone()
+                };
+                // Run
+                lines.append(&mut root.generate_dockerfile_lines(&root_context)?);
+            }
+        }
+
+        // User
+        if let Some(user) = self.user(&context) {
+            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "USER".into(),
+                content: user.to_string(),
+                options: vec![],
+            }));
+        }
+
+        // Run
+        lines.append(&mut self.run.generate_dockerfile_lines(&context)?);
+
+        Ok(lines)
+    }
+}
+
+impl DockerfileGenerator for Run {
+    fn generate_dockerfile_lines(
+        &self,
+        context: &GenerationContext,
+    ) -> Result<Vec<DockerfileLine>> {
+        let script = &self.run;
+        if !script.is_empty() {
+            let script = script.join(" &&\n");
+            let script_lines = script.lines().collect::<Vec<&str>>();
+            let content = match script_lines.len() {
+                0 => {
+                    return Ok(vec![]);
+                }
+                1 => script_lines[0].into(),
+                _ => script_lines.join(LINE_SEPARATOR),
+                // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
+            };
+            let mut options = vec![];
+            self.cache.iter().for_each(|cache| {
+                let mut cache_options = vec![
+                    InstructionOptionOption::new("type", "cache"),
+                    InstructionOptionOption::new("target", cache),
+                    InstructionOptionOption::new("sharing", "locked"),
+                ];
+                if let Some(user) = &context.user {
+                    if let Some(uid) = user.uid() {
+                        cache_options.push(InstructionOptionOption::new("uid", &uid.to_string()));
+                    }
+                    if let Some(gid) = user.gid() {
+                        cache_options.push(InstructionOptionOption::new("gid", &gid.to_string()));
+                    }
+                }
+                options.push(InstructionOption::WithOptions(
+                    "mount".into(),
+                    cache_options,
+                ));
+            });
+            return Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "RUN".into(),
+                content,
+                options,
+            })]);
+        }
+        Ok(vec![])
+    }
+}
+
+impl DockerfileGenerator for Artifact {
+    fn generate_dockerfile_lines(
+        &self,
+        context: &GenerationContext,
+    ) -> Result<Vec<DockerfileLine>> {
+        self.to_copy().generate_dockerfile_lines(context)
     }
 }
 
@@ -398,91 +536,108 @@ fn string_vec_into(string_vec: Vec<String>) -> String {
 
 #[cfg(test)]
 mod test {
-    use crate::*;
+    use super::*;
+    use pretty_assertions_sorted::assert_eq_sorted;
 
     mod builder {
         use super::*;
 
         #[test]
         fn name_with_name() {
-            let builder = Builder {
+            let builder = Stage {
                 name: Some(String::from("my-builder")),
                 ..Default::default()
             };
             let name = builder.name(&GenerationContext {
                 previous_builders: vec!["builder-0".into()],
+                default_stage_name: "builder-1".into(),
                 ..Default::default()
             });
-            assert_eq!(name, "my-builder");
+            assert_eq_sorted!(name, "my-builder");
         }
 
         #[test]
         fn name_without_name() {
-            let builder = Builder::default();
+            let builder = Stage::default();
             let name = builder.name(&GenerationContext {
                 previous_builders: vec!["builder-0".into(), "bob".into()],
+                default_stage_name: "builder-2".into(),
                 ..Default::default()
             });
-            assert_eq!(name, "builder-2");
+            assert_eq_sorted!(name, "builder-2");
         }
 
         #[test]
         fn user_with_user() {
-            let builder = Builder {
-                user: Some(PermissiveStruct::new(User::new_without_group("my-user"))),
+            let builder = Stage {
+                user: Some(User::new_without_group("my-user").into()),
                 ..Default::default()
             };
-            let user = builder.user();
-            assert_eq!(
+            let user = builder.user(&GenerationContext::default());
+            assert_eq_sorted!(
                 user,
                 Some(User {
                     user: "my-user".into(),
-                    group: None
+                    group: None,
                 })
             );
         }
 
         #[test]
         fn user_without_user() {
-            let builder = Builder::default();
-            let user = builder.user();
-            assert_eq!(user, None);
+            let builder = Stage::default();
+            let user = builder.user(&GenerationContext::default());
+            assert_eq_sorted!(user, None);
         }
     }
 
     mod image_name {
-        use PermissiveStruct;
-
         use super::*;
 
         #[test]
-        fn test_image_name() {
+        fn runtime_default() {
             let image = Image {
-                from: Some(PermissiveStruct::new(ImageName {
-                    path: String::from("my-image"),
+                stage: Stage {
+                    from: Some(
+                        ImageName {
+                            path: String::from("my-image"),
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
                     ..Default::default()
-                })),
+                },
                 ..Default::default()
             };
-            let name = image.name(&GenerationContext {
+            let name = image.stage.name(&GenerationContext {
                 previous_builders: vec!["builder-0".into(), "builder-1".into(), "builder-2".into()],
+                default_stage_name: "runtime".into(),
                 ..Default::default()
             });
-            assert_eq!(name, "runtime");
+            assert_eq_sorted!(name, "runtime");
         }
 
         #[test]
-        fn test_image_user_with_user() {
+        fn user_with_user() {
             let image = Image {
-                user: Some(PermissiveStruct::new(User::new_without_group("my-user"))),
-                from: Some(PermissiveStruct::new(ImageName {
-                    path: String::from("my-image"),
+                stage: Stage {
+                    user: Some(User::new_without_group("my-user").into()),
+                    from: Some(
+                        ImageName {
+                            path: String::from("my-image"),
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
                     ..Default::default()
-                })),
+                },
                 ..Default::default()
             };
-            let user = image.user();
-            assert_eq!(
+            let user = image.stage.user(&GenerationContext {
+                user: Some(User::new("1000")),
+                ..Default::default()
+            });
+            assert_eq_sorted!(
                 user,
                 Some(User {
                     user: String::from("my-user"),
@@ -492,21 +647,166 @@ mod test {
         }
 
         #[test]
-        fn test_image_user_without_user() {
+        fn user_without_user() {
             let image = Image {
-                from: Some(PermissiveStruct::new(ImageName {
-                    path: String::from("my-image"),
+                stage: Stage {
+                    from: Some(
+                        ImageName {
+                            path: String::from("my-image"),
+                            ..Default::default()
+                        }
+                        .into(),
+                    ),
                     ..Default::default()
-                })),
+                },
                 ..Default::default()
             };
-            let user = image.user();
-            assert_eq!(
+            let user = image.stage.user(&GenerationContext {
+                user: Some(User::new("1000")),
+                ..Default::default()
+            });
+            assert_eq_sorted!(
                 user,
                 Some(User {
                     user: String::from("1000"),
                     group: Some(String::from("1000")),
                 })
+            );
+        }
+    }
+
+    mod run {
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let builder = Run {
+                run: vec!["echo Hello".into()].into(),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder
+                    .generate_dockerfile_lines(&GenerationContext::default())
+                    .unwrap(),
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "RUN".into(),
+                    content: "echo Hello".into(),
+                    options: vec![],
+                })]
+            );
+        }
+
+        #[test]
+        fn without_run() {
+            let builder = Run {
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder
+                    .generate_dockerfile_lines(&GenerationContext::default())
+                    .unwrap(),
+                vec![]
+            );
+        }
+
+        #[test]
+        fn with_empty_run() {
+            let builder = Run {
+                run: vec![].into(),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder
+                    .generate_dockerfile_lines(&GenerationContext::default())
+                    .unwrap(),
+                vec![]
+            );
+        }
+
+        #[test]
+        fn with_script_and_caches_with_named_user() {
+            let builder = Run {
+                run: vec!["echo Hello".into()].into(),
+                cache: vec!["/path/to/cache".into()].into(),
+                ..Default::default()
+            };
+            let context = GenerationContext {
+                user: Some(User::new("test")),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder.generate_dockerfile_lines(&context).unwrap(),
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "RUN".into(),
+                    content: "echo Hello".into(),
+                    options: vec![InstructionOption::WithOptions(
+                        "mount".into(),
+                        vec![
+                            InstructionOptionOption::new("type", "cache"),
+                            InstructionOptionOption::new("target", "/path/to/cache"),
+                            InstructionOptionOption::new("sharing", "locked"),
+                        ],
+                    )],
+                })]
+            );
+        }
+
+        #[test]
+        fn with_script_and_caches_with_uid_user() {
+            let builder = Run {
+                run: vec!["echo Hello".into()].into(),
+                cache: vec!["/path/to/cache".into()].into(),
+                ..Default::default()
+            };
+            let context = GenerationContext {
+                user: Some(User::new("1000")),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder.generate_dockerfile_lines(&context).unwrap(),
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "RUN".into(),
+                    content: "echo Hello".into(),
+                    options: vec![InstructionOption::WithOptions(
+                        "mount".into(),
+                        vec![
+                            InstructionOptionOption::new("type", "cache"),
+                            InstructionOptionOption::new("target", "/path/to/cache"),
+                            InstructionOptionOption::new("sharing", "locked"),
+                            InstructionOptionOption::new("uid", "1000"),
+                            InstructionOptionOption::new("gid", "1000"),
+                        ],
+                    )],
+                })]
+            );
+        }
+
+        #[test]
+        fn with_script_and_caches_with_uid_user_without_group() {
+            let builder = Run {
+                run: vec!["echo Hello".into()].into(),
+                cache: vec!["/path/to/cache".into()].into(),
+                ..Default::default()
+            };
+            let context = GenerationContext {
+                user: Some(User::new_without_group("1000")),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder.generate_dockerfile_lines(&context).unwrap(),
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "RUN".into(),
+                    content: "echo Hello".into(),
+                    options: vec![InstructionOption::WithOptions(
+                        "mount".into(),
+                        vec![
+                            InstructionOptionOption::new("type", "cache"),
+                            InstructionOptionOption::new("target", "/path/to/cache"),
+                            InstructionOptionOption::new("sharing", "locked"),
+                            InstructionOptionOption::new("uid", "1000"),
+                        ],
+                    )],
+                })]
             );
         }
     }

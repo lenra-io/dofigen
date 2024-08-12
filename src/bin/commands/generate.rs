@@ -3,12 +3,12 @@
 //! The generate subcommand generates a Dockerfile and a .dockerignore file from a Dofigen file.
 
 pub use clap::Args;
-use dofigen_lib::{
-    from_file_path, from_reader, generate_dockerfile, generate_dockerignore, Result,
-};
+use dofigen_lib::{generate_dockerfile, generate_dockerignore, Result};
 use std::{fs, path::PathBuf};
 
 use crate::CliCommand;
+
+use super::load_image_from_cli_path;
 
 const DEFAULT_DOCKERFILE: &str = "Dockerfile";
 
@@ -43,23 +43,8 @@ impl Generate {
 
 impl CliCommand for Generate {
     fn run(&self) -> Result<()> {
-        let file = if let Some(path) = &self.file {
-            path
-        } else {
-            let mut files = vec!["dofigen.yml", "dofigen.yaml", "dofigen.json"];
-            files.retain(|f| std::path::Path::new(f).exists());
-            if files.is_empty() {
-                eprintln!("No Dofigen file found");
-                std::process::exit(1);
-            }
-            &files[0].into()
-        };
-        let image = if file == "-" {
-            from_reader(std::io::stdin())
-        } else {
-            from_file_path(&PathBuf::from(file))
-        }
-        .expect("Failed to load the Dofigen structure");
+        let image = load_image_from_cli_path(&self.file)?;
+
         let dockerfile_content = generate_dockerfile(&image)?;
 
         if self.output == "-" {
