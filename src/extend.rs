@@ -254,6 +254,20 @@ impl ops::Add<Self> for RunPatch {
         Self {
             run: add_patch!(self.run, rhs.run),
             cache: add_patch!(self.cache, rhs.cache),
+            bind: add_patch!(self.bind, rhs.bind),
+        }
+    }
+}
+
+impl ops::Add<Self> for BindPatch {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            from: add_option!(self.from, rhs.from),
+            source: add_option!(self.source, rhs.source),
+            target: add_option!(self.target, rhs.target),
+            readwrite: add_option!(self.readwrite, rhs.readwrite),
         }
     }
 }
