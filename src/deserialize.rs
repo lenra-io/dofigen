@@ -26,6 +26,12 @@ macro_rules! impl_from_patch_and_add {
             }
         }
 
+        impl_add_patch!($struct, $patch);
+    };
+}
+
+macro_rules! impl_add_patch {
+    ($struct:ty, $patch:ty) => {
         impl ops::Add<$patch> for $struct {
             type Output = Self;
 
@@ -45,9 +51,12 @@ impl_from_patch_and_add!(Artifact, ArtifactPatch);
 impl_from_patch_and_add!(Run, RunPatch);
 impl_from_patch_and_add!(Port, PortPatch);
 impl_from_patch_and_add!(User, UserPatch);
+impl_from_patch_and_add!(CopyOptions, CopyOptionsPatch);
 impl_from_patch_and_add!(Copy, CopyPatch);
 impl_from_patch_and_add!(Add, AddPatch);
 impl_from_patch_and_add!(AddGitRepo, AddGitRepoPatch);
+
+impl_add_patch!(Vec<String>, VecPatch<String>);
 
 //////////////////////// Patch structures ////////////////////////
 
@@ -935,6 +944,62 @@ where
 
 //////////////////////// Add ////////////////////////
 
+impl ops::Add<CopyResourcePatch> for CopyResource {
+    type Output = Self;
+
+    fn add(self, rhs: CopyResourcePatch) -> Self {
+        match (self, rhs) {
+            (Self::Copy(a), CopyResourcePatch::Copy(b)) => Self::Copy(a + b),
+            (Self::Copy(a), CopyResourcePatch::Unknown(b)) => Self::Copy(a + b),
+            (Self::Add(a), CopyResourcePatch::Add(b)) => Self::Add(a + b),
+            (Self::Add(a), CopyResourcePatch::Unknown(b)) => Self::Add(a + b),
+            (Self::AddGitRepo(a), CopyResourcePatch::AddGitRepo(b)) => Self::AddGitRepo(a + b),
+            (Self::AddGitRepo(a), CopyResourcePatch::Unknown(b)) => Self::AddGitRepo(a + b),
+            (a, b) => panic!("Can't add {:?} and {:?}", a, b),
+        }
+    }
+}
+
+impl ops::Add<UnknownPatch> for Copy {
+    type Output = Self;
+
+    fn add(self, rhs: UnknownPatch) -> Self {
+        Self {
+            paths: self.paths,
+            from: self.from,
+            options: self.options + rhs.options.unwrap_or_default(),
+            exclude: self.exclude + rhs.exclude.unwrap_or_default(),
+            parents: self.parents,
+        }
+    }
+}
+
+impl ops::Add<UnknownPatch> for Add {
+    type Output = Self;
+
+    fn add(self, rhs: UnknownPatch) -> Self {
+        Self {
+            files: self.files,
+            options: self.options + rhs.options.unwrap_or_default(),
+            checksum: self.checksum,
+        }
+    }
+}
+
+impl ops::Add<UnknownPatch> for AddGitRepo {
+    type Output = Self;
+
+    fn add(self, rhs: UnknownPatch) -> Self {
+        Self {
+            repo: self.repo,
+            options: self.options + rhs.options.unwrap_or_default(),
+            exclude: self.exclude + rhs.exclude.unwrap_or_default(),
+            keep_git_dir: self.keep_git_dir,
+        }
+    }
+}
+
+#[cfg(feature = "permissive")]
 impl<T> ops::Add<Self> for ParsableStruct<T>
 where
     T: Clone + FromStr + ops::Add<T, Output = T>,
