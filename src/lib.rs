@@ -3,24 +3,24 @@
 //! `dofigen_lib` help creating Dockerfile with a simplified structure and made to cache the build with Buildkit.
 //! You also can parse the structure from YAML or JSON.
 
+mod deserialize;
 mod dockerfile_struct;
 mod dofigen_struct;
 mod errors;
+mod extend;
 #[cfg(feature = "permissive")]
 mod from_str;
 mod generator;
-mod script_runner;
-#[cfg(feature = "permissive")]
-mod serde_permissive;
-mod stage;
+#[cfg(feature = "json_schema")]
+mod json_schema;
+// mod stage;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};
-pub use dofigen_struct::*;
-pub use errors::*;
 use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]
-use schemars::schema_for;
-pub use stage::*;
-use std::{fs, io::Read};
+use schemars::gen::*;
+pub use {deserialize::*, dofigen_struct::*, errors::*, extend::*};
+// use schemars::schema_for;
+use std::io::Read;
 
 pub const DOCKERFILE_VERSION: &str = "1.7";
 
@@ -41,20 +41,24 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let yaml = "
-/// image:
+/// from:
 ///   path: ubuntu
 /// ";
 /// let image: Image = from(yaml.into()).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     image,
 ///     Image {
+///       stage: Stage {
 ///         from: Some(ImageName {
 ///             path: String::from("ubuntu"),
 ///             ..Default::default()
 ///         }.into()),
 ///         ..Default::default()
+///       },
+///      ..Default::default()
 ///     }
 /// );
 /// ```
@@ -63,6 +67,7 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let yaml = r#"
 /// builders:
@@ -81,34 +86,43 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///     target: /app
 /// "#;
 /// let image: Image = from(yaml.into()).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     image,
 ///     Image {
-///         builders: Some(Vec::from([Builder {
+///         builders: vec![Stage {
 ///             name: Some(String::from("builder")),
 ///             from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
-///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into()),
-///             run: Some(vec!["cargo build --release".parse().unwrap()].into()),
+///             copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
+///             run: Run {
+///                 run: vec!["cargo build --release".parse().unwrap()].into(),
+///                 ..Default::default()
+///             },
 ///             ..Default::default()
-///         }])),
-///         from: Some(ImageName {
-///             path: "ubuntu".parse().unwrap(),
+///         }].into(),
+///         stage: Stage {
+///             from: Some(ImageName {
+///                 path: "ubuntu".into(),
+///                 ..Default::default()
+///             }.into()),
+///             artifacts: vec![Artifact {
+///                 builder: String::from("builder"),
+///                 source: String::from(
+///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
+///                 ),
+///                 target: String::from("/app"),
+///                 ..Default::default()
+///             }].into(),
 ///             ..Default::default()
-///         }.into()),
-///         artifacts: Some(Vec::from([Artifact {
-///             builder: String::from("builder"),
-///             source: String::from(
-///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///             ),
-///             target: String::from("/app"),
-///             ..Default::default()
-///         }])),
+///         },
 ///         ..Default::default()
 ///     }
 /// );
 /// ```
 pub fn from(input: String) -> Result<Image> {
-    serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))
+    merge_extended_image(
+        serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))?,
+        &mut LoadContext::new(),
+    )
 }
 
 /// Parse an Image from a reader.
@@ -119,19 +133,23 @@ pub fn from(input: String) -> Result<Image> {
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let yaml = "
-/// image:
+/// from:
 ///   path: ubuntu
 /// ";
 /// let image: Image = from_reader(yaml.as_bytes()).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     image,
 ///     Image {
-///         from: Some(ImageName {
-///             path: String::from("ubuntu"),
+///         stage: Stage {
+///             from: Some(ImageName {
+///                 path: String::from("ubuntu"),
+///                 ..Default::default()
+///             }.into()),
 ///             ..Default::default()
-///         }.into()),
+///         },
 ///         ..Default::default()
 ///     }
 /// );
@@ -141,6 +159,7 @@ pub fn from(input: String) -> Result<Image> {
 ///
 /// ```
 /// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let yaml = r#"
 /// builders:
@@ -159,44 +178,56 @@ pub fn from(input: String) -> Result<Image> {
 ///     target: /app
 /// "#;
 /// let image: Image = from_reader(yaml.as_bytes()).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     image,
 ///     Image {
-///         builders: Some(Vec::from([Builder {
+///         builders: vec![Stage {
 ///             name: Some(String::from("builder")),
 ///             from: ImageName{path: "ekidd/rust-musl-builder".into(), ..Default::default()}.into(),
-///             copy: Some(vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into()),
-///             run: Some(vec!["cargo build --release".parse().unwrap()].into()),
+///             copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
+///             run: Run {
+///                 run: vec!["cargo build --release".parse().unwrap()].into(),
+///                 ..Default::default()
+///             },
 ///             ..Default::default()
-///         }])),
-///         from: Some(ImageName {
-///             path: String::from("ubuntu"),
+///         }].into(),
+///         stage: Stage {
+///             from: Some(ImageName {
+///                 path: String::from("ubuntu"),
+///                 ..Default::default()
+///             }.into()),
+///             artifacts: vec![Artifact {
+///                 builder: String::from("builder"),
+///                 source: String::from(
+///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
+///                 ),
+///                 target: String::from("/app"),
+///                 ..Default::default()
+///             }].into(),
 ///             ..Default::default()
-///         }.into()),
-///         artifacts: Some(Vec::from([Artifact {
-///             builder: String::from("builder"),
-///             source: String::from(
-///                 "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///             ),
-///             target: String::from("/app"),
-///             ..Default::default()
-///         }])),
+///         },
 ///         ..Default::default()
 ///     }
 /// );
 /// ```
 pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
-    serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))
+    merge_extended_image(
+        serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))?,
+        &mut LoadContext::new(),
+    )
 }
 
 /// Parse an Image from a YAML or JSON file path.
 pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
-    let file = fs::File::open(path).unwrap();
     match path.extension() {
         Some(os_str) => match os_str.to_str() {
-            Some("yml" | "yaml" | "json") => {
-                serde_yaml::from_reader(file).map_err(|err| Error::Deserialize(err))
-            }
+            Some("yml" | "yaml" | "json") => from_resource(Resource::File(
+                path.canonicalize()
+                    .map_err(|error| {
+                        Error::Custom(format!("Failed to canonicalize path {:?}: {}", path, error))
+                    })?
+                    .to_path_buf(),
+            )),
             Some(ext) => Err(Error::Custom(format!(
                 "Not managed Dofigen file extension {}",
                 ext
@@ -207,22 +238,36 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
     }
 }
 
+/// Parse an Image from a YAML or JSON file resource (path or URL).
+pub fn from_resource(resource: Resource) -> Result<Image> {
+    let mut context = LoadContext::new();
+    merge_extended_image(resource.load(&mut context)?, &mut context)
+}
+
+fn merge_extended_image(image: Extend<ImagePatch>, context: &mut LoadContext) -> Result<Image> {
+    Ok(image.merge(context)?.into())
+}
+
 /// Generates the Dockerfile content from an Image.
 ///
 /// # Examples
 ///
 /// ```
-/// use dofigen_lib::{generate_dockerfile, Image, ImageName};
+/// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let image = Image {
-///     from: Some(ImageName {
-///         path: String::from("ubuntu"),
+///     stage: Stage {
+///         from: Some(ImageName {
+///             path: String::from("ubuntu"),
+///             ..Default::default()
+///         }.into()),
 ///         ..Default::default()
-///     }.into()),
+///     },
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerfile(&image).unwrap();
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     dockerfile,
 ///     "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\n# syntax=docker/dockerfile:1.7\n\n# runtime\nFROM ubuntu AS runtime\nUSER 1000:1000\n"
 /// );
@@ -247,14 +292,15 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 /// ## Define the build context
 ///
 /// ```
-/// use dofigen_lib::{generate_dockerignore, Image};
+/// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let image = Image {
-///     context: Some(vec![String::from("/src")].into()),
+///     context: vec![String::from("/src")].into(),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     dockerfile,
 ///     "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\n**\n!/src\n"
 /// );
@@ -263,14 +309,15 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 /// ## Ignore a path
 ///
 /// ```
-/// use dofigen_lib::{generate_dockerignore, Image};
+/// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let image = Image {
-///     ignore: Some(vec![String::from("target")].into()),
+///     ignore: vec![String::from("target")].into(),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     dockerfile,
 ///     "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\ntarget\n"
 /// );
@@ -279,15 +326,16 @@ pub fn generate_dockerfile(image: &Image) -> Result<String> {
 /// ## Define context ignoring a specific files
 ///
 /// ```
-/// use dofigen_lib::{generate_dockerignore, Image};
+/// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
 ///
 /// let image = Image {
-///     context: Some(vec![String::from("/src")].into()),
-///     ignore: Some(vec![String::from("/src/*.test.rs")].into()),
+///     context: vec![String::from("/src")].into(),
+///     ignore: vec![String::from("/src/*.test.rs")].into(),
 ///     ..Default::default()
 /// };
 /// let dockerfile: String = generate_dockerignore(&image);
-/// assert_eq!(
+/// assert_eq_sorted!(
 ///     dockerfile,
 ///     "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\n**\n!/src\n/src/*.test.rs\n"
 /// );
@@ -298,16 +346,16 @@ pub fn generate_dockerignore(image: &Image) -> String {
     content.push_str(FILE_HEADER_LINES.join("\n").as_str());
     content.push_str("\n");
 
-    if let Some(context) = image.context.clone() {
+    if !image.context.is_empty() {
         content.push_str("**\n");
-        context.to_vec().iter().for_each(|path| {
+        image.context.iter().for_each(|path| {
             content.push_str("!");
             content.push_str(path);
             content.push_str("\n");
         });
     }
-    if let Some(ignore) = image.ignore.clone() {
-        ignore.to_vec().iter().for_each(|path| {
+    if !image.ignore.is_empty() {
+        image.ignore.iter().for_each(|path| {
             content.push_str(path);
             content.push_str("\n");
         });
@@ -315,308 +363,43 @@ pub fn generate_dockerignore(image: &Image) -> String {
     content
 }
 
+/// Generates the effective Dofigen content from an Image.
+///
+/// # Examples
+///
+/// ```
+/// use dofigen_lib::*;
+/// use pretty_assertions_sorted::assert_eq_sorted;
+///
+/// let image = Image {
+///     stage: Stage {
+///         from: Some(ImageName {
+///             path: String::from("ubuntu"),
+///             ..Default::default()
+///         }.into()),
+///         ..Default::default()
+///     },
+///     ..Default::default()
+/// };
+/// let dofigen: String = generate_effective_content(&image).unwrap();
+/// assert_eq_sorted!(
+///     dofigen,
+///     "from:\n  path: ubuntu\n"
+/// );
+/// ```
+pub fn generate_effective_content(image: &Image) -> Result<String> {
+    Ok(serde_yaml::to_string(&image)?)
+}
+
 /// Generates the JSON schema for the Image structure.
 /// This is useful to validate the structure and IDE autocompletion.
 #[cfg(feature = "json_schema")]
 pub fn generate_json_schema() -> String {
-    let schema = schema_for!(Image);
+    let settings = SchemaSettings::default().with(|s| {
+        s.option_nullable = true;
+        s.option_add_null_type = false;
+    });
+    let gen = settings.into_generator();
+    let schema = gen.into_root_schema_for::<Extend<ImagePatch>>();
     serde_json::to_string_pretty(&schema).unwrap()
-}
-
-#[cfg(feature = "permissive")]
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn yaml_to_dockerfile() {
-        let yaml = r#"
-        image: scratch
-        builders:
-        - name: builder
-          from: ekidd/rust-musl-builder
-          user: rust
-          add: "."
-          run:
-          - ls -al
-          - cargo build --release
-          cache: /usr/local/cargo/registry
-        - name: watchdog
-          from: ghcr.io/openfaas/of-watchdog:0.9.6
-        env:
-          fprocess: /app
-        artifacts:
-        - builder: builder
-          source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-          target: /app
-        - builder: builder
-          source: /fwatchdog
-          target: /fwatchdog
-        expose: 8080
-        healthcheck:
-          interval: 3s
-          cmd: "[ -e /tmp/.lock ] || exit 1"
-        cmd: "/fwatchdog"
-        ignores:
-        - target
-        - test
-        "#;
-
-        let image: Image = from(yaml.into()).map_err(Error::from).unwrap();
-        let dockerfile: String = generate_dockerfile(&image).unwrap();
-
-        assert_eq!(
-            dockerfile,
-            r#"# This file is generated by Dofigen v0.0.0
-# See https://github.com/lenra-io/dofigen
-
-# syntax=docker/dockerfile:1.7
-
-# builder
-FROM ekidd/rust-musl-builder AS builder
-COPY \
-    --chown=rust \
-    --link \
-    "." "./"
-USER rust
-RUN \
-    --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
-    ls -al && \
-    cargo build --release
-
-# watchdog
-FROM ghcr.io/openfaas/of-watchdog:0.9.6 AS watchdog
-
-# runtime
-FROM scratch AS runtime
-ENV fprocess="/app"
-COPY \
-    --from=builder \
-    --chown=1000:1000 \
-    --link \
-    "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust" "/app"
-COPY \
-    --from=builder \
-    --chown=1000:1000 \
-    --link \
-    "/fwatchdog" "/fwatchdog"
-USER 1000:1000
-EXPOSE 8080
-HEALTHCHECK \
-    --interval=3s \
-    CMD [ -e /tmp/.lock ] || exit 1
-CMD ["/fwatchdog"]
-"#
-        );
-
-        let dockerignore: String = generate_dockerignore(&image);
-
-        assert_eq!(dockerignore, "# This file is generated by Dofigen v0.0.0\n# See https://github.com/lenra-io/dofigen\n\ntarget\ntest\n");
-    }
-
-    #[test]
-    fn using_dockerfile_overlap_aliases() {
-        let yaml = r#"
-builders:
-- name: builder
-  image: ekidd/rust-musl-builder
-  adds:
-  - "*"
-  script:
-  - cargo build --release
-artifacts:
-- builder: builder
-  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-  destination: /app
-"#;
-        let image: Image = from(yaml.into()).unwrap();
-        assert_eq!(
-            image,
-            Image {
-                builders: Some(vec![Builder {
-                    name: Some(String::from("builder")),
-                    from: PermissiveStruct::new(ImageName {
-                        path: String::from("ekidd/rust-musl-builder"),
-                        ..Default::default()
-                    }),
-                    copy: Some(PermissiveVec::new(vec![PermissiveStruct::new(
-                        CopyResource::Copy(Copy {
-                            paths: vec![String::from("*")].into(),
-                            ..Default::default()
-                        })
-                    )])),
-                    run: Some(PermissiveVec::new(vec![String::from(
-                        "cargo build --release"
-                    )])),
-                    ..Default::default()
-                }]),
-                artifacts: Some(Vec::from([Artifact {
-                    builder: String::from("builder"),
-                    source: String::from(
-                        "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-                    ),
-                    target: String::from("/app"),
-                    ..Default::default()
-                }])),
-                ..Default::default()
-            }
-        );
-    }
-
-    #[test]
-    fn multiline_run_field() {
-        let yaml = r#"
-from: scratch
-run:
-  - |
-    if [ "test" = "test" ]; then
-      echo "Test"
-    fi
-"#;
-        let image: Image = from(yaml.into()).unwrap();
-        let dockerfile: String = generate_dockerfile(&image).unwrap();
-
-        assert_eq!(
-            dockerfile,
-            r#"# This file is generated by Dofigen v0.0.0
-# See https://github.com/lenra-io/dofigen
-
-# syntax=docker/dockerfile:1.7
-
-# runtime
-FROM scratch AS runtime
-USER 1000:1000
-RUN \
-    if [ "test" = "test" ]; then \
-      echo "Test" \
-    fi
-"#
-        );
-    }
-
-    #[test]
-    fn combine_field_and_aliases() {
-        let yaml = r#"
-image: scratch
-from: alpine
-"#;
-        let result = from(yaml.into());
-        assert!(
-            result.is_err(),
-            "The parsing must fail since from and image are not compatible"
-        );
-    }
-
-    #[test]
-    fn fail_on_unknow_field() {
-        let yaml = r#"
-from: alpine
-test: Fake value
-"#;
-        let result = from(yaml.into());
-        assert!(
-            result.is_err(),
-            "The parsing must fail since 'test' is not a valid field"
-        );
-
-        // Check the error message
-        let error = result.unwrap_err();
-        let expected = "Error while deserializing the document at line 3, column 1: unknown field `test`, expected one of ";
-        assert_eq!(
-            &error.to_string().as_str()[..expected.len()],
-            expected,
-            "Wrong error message"
-        );
-    }
-
-    #[test]
-    fn manage_plural_aliases() -> Result<()> {
-        let yaml = r#"
-from: scratch
-builders:
-- name: builder
-  from: ekidd/rust-musl-builder
-  user: rust
-  adds: 
-  - "."
-  run:
-  - cargo build --release
-  caches:
-  - /usr/local/cargo/registry
-- name: watchdog
-  from: ghcr.io/openfaas/of-watchdog:0.9.6
-envs:
-  fprocess: /app
-artifacts:
-- builder: builder
-  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-  target: /app
-- builder: builder
-  source: /fwatchdog
-  target: /fwatchdog
-ports:
-- 8080
-ignore:
-- target
-- test
-"#;
-
-        from(yaml.into())?;
-        Ok(())
-    }
-
-    #[test]
-    fn artifact_copy_custom_user() {
-        let yaml = r#"
-        builders:
-        - name: builder
-          from: ekidd/rust-musl-builder
-          user: rust
-          add: "."
-          run: cargo build --release
-          cache: /usr/local/cargo/registry
-        user: 1001
-        artifacts:
-        - builder: builder
-          source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-          target: /app
-        run: echo "coucou"
-        cache: /tmp
-        "#;
-
-        let image: Image = from(yaml.into()).unwrap();
-        let dockerfile: String = generate_dockerfile(&image).unwrap();
-
-        assert_eq!(
-            dockerfile,
-            r#"# This file is generated by Dofigen v0.0.0
-# See https://github.com/lenra-io/dofigen
-
-# syntax=docker/dockerfile:1.7
-
-# builder
-FROM ekidd/rust-musl-builder AS builder
-COPY \
-    --chown=rust \
-    --link \
-    "." "./"
-USER rust
-RUN \
-    --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
-    cargo build --release
-
-# runtime
-FROM scratch AS runtime
-COPY \
-    --from=builder \
-    --chown=1001 \
-    --link \
-    "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust" "/app"
-USER 1001
-RUN \
-    --mount=type=cache,target=/tmp,sharing=locked,uid=1001 \
-    echo "coucou"
-"#
-        );
-    }
 }

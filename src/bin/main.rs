@@ -1,11 +1,9 @@
+use clap::{Parser, Subcommand};
+#[cfg(feature = "json_schema")]
+use commands::schema::Schema;
+use commands::{effective::Effective, generate::Generate};
 use dofigen_lib::Result;
 use std::fmt;
-
-use clap::{Parser, Subcommand};
-
-use self::commands::generate::Generate;
-#[cfg(feature = "json_schema")]
-use self::commands::schema::Schema;
 
 mod commands;
 
@@ -20,7 +18,7 @@ impl fmt::Display for Format {
     }
 }
 
-/// Dofigen is a Dockerfile generator using a simplyfied description in YAML or JSON format.
+/// Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None, rename_all = "kebab-case")]
 struct Cli {
@@ -42,6 +40,10 @@ pub enum Command {
     /// Generate the Dockerfile and .dockerignore files
     #[clap(alias = "gen")]
     Generate(Generate),
+
+    /// Generate the effective Dockerfile and .dockerignore files
+    Effective(Effective),
+
     /// Generate the JSON Schema for the Dofigen structure
     #[cfg(feature = "json_schema")]
     Schema(Schema),
@@ -51,6 +53,7 @@ impl Command {
     fn run(&self) -> Result<()> {
         match self {
             Command::Generate(g) => g.run(),
+            Command::Effective(e) => e.run(),
             #[cfg(feature = "json_schema")]
             Command::Schema(s) => s.run(),
         }
