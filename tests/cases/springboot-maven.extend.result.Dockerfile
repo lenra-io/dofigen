@@ -13,8 +13,10 @@ USER 0:0
 RUN \
     --mount=type=cache,target=/root/.m2,sharing=locked,uid=0,gid=0 \
     --mount=type=cache,target=/app/target,sharing=locked,uid=0,gid=0 \
-    mvn package -DskipTests && \
-    mv target/*.jar app.jar
+    <<EOF
+mvn package -DskipTests
+mv target/*.jar app.jar
+EOF
 
 # runtime
 FROM eclipse-temurin:17-jre-alpine AS runtime
