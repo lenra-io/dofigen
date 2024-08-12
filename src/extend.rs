@@ -239,15 +239,7 @@ impl ops::Add<Self> for StagePatch {
             name: add_option!(self.name, rhs.name),
             user: add_optional_add!(self.user, rhs.user),
             workdir: add_option!(self.workdir, rhs.workdir),
-            env: match (self.env, rhs.env) {
-                (Some(a), Some(b)) => {
-                    // TODO: merge maps
-                    todo!()
-                }
-                (Some(a), None) => Some(a),
-                (None, Some(b)) => Some(b),
-                (None, None) => None,
-            },
+            env: add_patch!(self.env, rhs.env),
             artifacts: add_patch!(self.artifacts, rhs.artifacts),
             copy: add_patch!(self.copy, rhs.copy),
             root: add_optional_add!(self.root, rhs.root),

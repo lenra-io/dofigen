@@ -4,8 +4,9 @@ use schemars::JsonSchema;
 use serde::{de, Deserialize, Deserializer};
 use std::{
     cmp::Ordering,
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     fmt,
+    hash::Hash,
     marker::PhantomData,
     ops::{self},
     usize,
@@ -138,6 +139,16 @@ where
     InsertBefore(usize, Vec<T>),
     InsertAfter(usize, Vec<T>),
     Append(Vec<T>),
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct HashMapPatch<K, V>
+where
+    K: Clone + Eq + std::hash::Hash,
+    V: Clone,
+{
+    #[serde(flatten)]
+    patches: HashMap<K, Option<V>>,
 }
 
 //////////////////////// Deserialization structures ////////////////////////
@@ -377,30 +388,6 @@ where
     T: Clone,
 {
     fn apply(&mut self, patch: VecPatch<T>) {
-        // let mut commands = patch.commands.clone();
-        // commands.sort_by(|a, b| match (a, b) {
-        //     (VecPatchCommand::ReplaceAll(_), _) => std::cmp::Ordering::Less,
-        //     (_, VecPatchCommand::ReplaceAll(_)) => std::cmp::Ordering::Greater,
-        //     (VecPatchCommand::InsertBefore(a, _), VecPatchCommand::InsertBefore(b, _))
-        //     | (VecPatchCommand::Replace(a, _), VecPatchCommand::Replace(b, _))
-        //     | (VecPatchCommand::InsertAfter(a, _), VecPatchCommand::InsertAfter(b, _)) => a.cmp(b),
-        //     (VecPatchCommand::Replace(a, _), VecPatchCommand::InsertAfter(b, _)) => {
-        //         match a.cmp(b) {
-        //             std::cmp::Ordering::Equal => std::cmp::Ordering::Less,
-        //             other => other,
-        //         }
-        //     }
-        //     (VecPatchCommand::InsertAfter(a, _), VecPatchCommand::Replace(b, _)) => {
-        //         match a.cmp(b) {
-        //             std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
-        //             other => other,
-        //         }
-        //     }
-        //     (VecPatchCommand::InsertBefore(_, _), _) => std::cmp::Ordering::Less,
-        //     (_, VecPatchCommand::InsertBefore(_, _)) => std::cmp::Ordering::Greater,
-        //     (VecPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
-        //     (_, VecPatchCommand::Append(_)) => std::cmp::Ordering::Less,
-        // });
         let mut reset = false;
         let mut last_modified_position: usize = usize::MAX;
         // initial array length
@@ -632,6 +619,43 @@ where
 
     fn new_empty_patch() -> VecDeepPatch<T, P> {
         VecDeepPatch { commands: vec![] }
+    }
+}
+
+impl<K, V> Patch<HashMapPatch<K, V>> for HashMap<K, V>
+where
+    K: Clone + Eq + Hash,
+    V: Clone,
+{
+    fn apply(&mut self, patch: HashMapPatch<K, V>) {
+        for (key, value) in patch.patches {
+            match value {
+                Some(value) => {
+                    self.insert(key, value);
+                }
+                None => {
+                    self.remove(&key);
+                }
+            }
+        }
+    }
+
+    fn into_patch(self) -> HashMapPatch<K, V> {
+        let mut patches = HashMap::new();
+        for (key, value) in self {
+            patches.insert(key, Some(value));
+        }
+        HashMapPatch { patches }
+    }
+
+    fn into_patch_by_diff(self, _previous_struct: Self) -> HashMapPatch<K, V> {
+        todo!()
+    }
+
+    fn new_empty_patch() -> HashMapPatch<K, V> {
+        HashMapPatch {
+            patches: HashMap::new(),
+        }
     }
 }
 
@@ -1238,6 +1262,29 @@ where
     }
 }
 
+impl<K, V> ops::Add<Self> for HashMapPatch<K, V>
+where
+    K: Clone + Eq + Hash,
+    V: Clone,
+{
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self {
+        let mut patches = self.patches;
+        for (key, value) in rhs.patches {
+            match value {
+                Some(value) => {
+                    patches.insert(key, Some(value));
+                }
+                None => {
+                    patches.remove(&key);
+                }
+            }
+        }
+        HashMapPatch { patches }
+    }
+}
+
 //////////////////////// Unit tests ////////////////////////
 
 #[cfg(test)]
@@ -1689,6 +1736,63 @@ mod test {
                             num: 2
                         },
                     ]
+                }
+            );
+        }
+    }
+
+    mod hashmap_patch {
+        use super::*;
+        use serde::Deserialize;
+        use struct_patch::Patch;
+
+        #[derive(Debug, Clone, PartialEq, Patch, Default)]
+        #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
+        struct TestStruct {
+            pub name: String,
+            #[patch(name = "HashMapPatch<String, String>")]
+            pub subs: HashMap<String, String>,
+        }
+
+        impl From<TestStructPatch> for TestStruct {
+            fn from(patch: TestStructPatch) -> Self {
+                let mut sub = Self::default();
+                sub.apply(patch);
+                sub
+            }
+        }
+
+        #[test]
+        fn test_simple_patch() {
+            let base = r#"
+                name: patch1
+                subs:
+                  sub1: value1
+                  sub2: value2
+            "#;
+
+            let patch = r#"
+                name: patch2
+                subs:
+                  sub2: null
+                  sub3: value3
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch2".into(),
+                    subs: HashMap::from([
+                        ("sub1".to_string(), "value1".to_string()),
+                        ("sub3".to_string(), "value3".to_string())
+                    ])
                 }
             );
         }

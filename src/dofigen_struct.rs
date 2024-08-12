@@ -91,8 +91,10 @@ pub struct Stage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workdir: Option<String>,
 
-    #[patch(attribute(serde(alias = "envs")))]
-    // TODO: handle patching for map
+    #[patch(
+        name = "HashMapPatch<String, String>",
+        attribute(serde(alias = "envs"))
+    )]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>,
 
