@@ -57,19 +57,43 @@ jobs:
         profile: minimal
         override: true
 
-    - name: Build debug
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --verbose
-
-    - name: Test base
+    - name: "No features"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose
+        args: --verbose --no-default-features
 
-    - name: Test all features
+    - name: "-F cli"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose --no-default-features -F cli
+
+    - name: "-F permissive"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose --no-default-features -F permissive
+
+    - name: "-F json_schema"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose --no-default-features -F json_schema
+
+    - name: "-F json_schema -F cli"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose --no-default-features -F json_schema -F cli
+
+    - name: "-F json_schema -F permissive"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --verbose --no-default-features -F json_schema -F permissive
+
+    - name: "All features: -F json_schema -F permissive -F cli"
       uses: actions-rs/cargo@v1
       with:
         command: test
