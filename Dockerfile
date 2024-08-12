@@ -6,15 +6,15 @@
 # builder
 FROM clux/muslrust:stable AS builder
 WORKDIR /app
-COPY \
-    --link \
-    "." "./"
 RUN \
+    --mount=type=bind,target=Cargo.toml,source=Cargo.toml \
+    --mount=type=bind,target=Cargo.lock,source=Cargo.lock \
+    --mount=type=bind,target=src/,source=src/ \
     --mount=type=cache,target=/home/rust/.cargo,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
     <<EOF
-cargo build --release -F cli
-mv target/x86_64-unknown-linux-musl/release/dofigen /app/
+cargo build --release -F cli -F permissive
+mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
 EOF
 
 # runtime
@@ -24,7 +24,7 @@ COPY \
     --from=builder \
     --chown=1000:1000 \
     --link \
-    "/app/dofigen" "/bin/"
+    "/tmp/dofigen" "/bin/"
 USER 1000:1000
-ENTRYPOINT ["/bin/dofigen"]
+ENTRYPOINT ["dofigen"]
 CMD ["--help"]
