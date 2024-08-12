@@ -18,7 +18,7 @@ impl fmt::Display for Format {
     }
 }
 
-/// Dofigen is a Dockerfile generator using a simplyfied description in YAML or JSON format.
+/// Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None, rename_all = "kebab-case")]
 struct Cli {
