@@ -82,8 +82,10 @@ COPY \
 USER rust
 RUN \
     --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
-    ls -al && \
-    cargo build --release
+    <<EOF
+ls -al
+cargo build --release
+EOF
 
 # watchdog
 FROM ghcr.io/openfaas/of-watchdog:0.9.6 AS watchdog
@@ -216,10 +218,11 @@ run:
 # runtime
 FROM scratch AS runtime
 USER 1000:1000
-RUN \
-    if [ "test" = "test" ]; then \
-      echo "Test" \
-    fi
+RUN <<EOF
+if [ "test" = "test" ]; then
+  echo "Test"
+fi
+EOF
 "#
     );
 }

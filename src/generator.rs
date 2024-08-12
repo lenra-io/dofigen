@@ -466,15 +466,16 @@ impl DockerfileGenerator for Run {
         if script.is_empty() {
             return Ok(vec![]);
         }
-        let script = script.join(" &&\n");
-        let script_lines = script.lines().collect::<Vec<&str>>();
+        let script_lines = script
+            .iter()
+            .flat_map(|command| command.lines())
+            .collect::<Vec<&str>>();
         let content = match script_lines.len() {
             0 => {
                 return Ok(vec![]);
             }
             1 => script_lines[0].into(),
-            _ => script_lines.join(LINE_SEPARATOR),
-            // _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
+            _ => format!("<<EOF\n{}\nEOF", script_lines.join("\n")),
         };
         let mut options = vec![];
 
