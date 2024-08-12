@@ -151,6 +151,7 @@ where
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct HashMapPatch<K, V>
 where
     K: Clone + Eq + std::hash::Hash,
