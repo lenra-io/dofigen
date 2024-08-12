@@ -41,7 +41,7 @@ pub enum Command {
     #[clap(alias = "gen")]
     Generate(Generate),
 
-    /// Generate the effective Dockerfile and .dockerignore files
+    /// Generate the effective Dofigen configuration once the extends are resolved
     Effective(Effective),
 
     /// Generate the JSON Schema for the Dofigen structure
