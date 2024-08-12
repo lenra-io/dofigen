@@ -157,6 +157,31 @@ pub struct Run {
     #[patch(attribute(serde(alias = "caches")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<String>,
+
+    #[cfg_attr(
+        feature = "permissive",
+        patch(name = "VecDeepPatch<Bind, ParsableStruct<BindPatch>>")
+    )]
+    #[cfg_attr(
+        not(feature = "permissive"),
+        patch(name = "VecDeepPatch<Bind, BindPatch>")
+    )]
+    #[patch(attribute(serde(alias = "binds")))]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub bind: Vec<Bind>,
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
+pub struct Bind {
+    pub target: String,
+    pub from: Option<String>,
+    pub source: Option<String>,
+    pub readwrite: bool,
 }
 
 /// Represents the Dockerfile healthcheck instruction
@@ -256,7 +281,7 @@ pub struct Copy {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
+    attribute(serde(deny_unknown_fields, default, rename_all = "camelCase")),
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 pub struct AddGitRepo {
@@ -543,7 +568,7 @@ mod test {
             use super::*;
 
             #[test]
-            fn deserialize_copy() {
+            fn copy() {
                 let json_data = r#"{
     "paths": ["file1.txt", "file2.txt"],
     "target": "destination/",
@@ -604,7 +629,7 @@ mod test {
             }
 
             #[test]
-            fn deserialize_add_git_repo() {
+            fn add_git_repo() {
                 let json_data = r#"{
             "repo": "https://github.com/example/repo.git",
             "target": "destination/",
@@ -615,7 +640,7 @@ mod test {
             "chmod": "755",
             "exclude": ["file3.txt"],
             "link": true,
-            "keep_git_dir": true
+            "keepGitDir": true
         }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
@@ -641,7 +666,7 @@ mod test {
             }
 
             #[test]
-            fn deserialize_add() {
+            fn add() {
                 let json_data = r#"{
             "files": ["file1.txt", "file2.txt"],
             "target": "destination/",
@@ -676,6 +701,52 @@ mod test {
                         },
                         checksum: Some("sha256:abcdef123456".into()),
                     })
+                );
+            }
+        }
+
+        mod builder {
+            use super::*;
+
+            #[test]
+            fn with_bind() {
+                let json_data = r#"
+from:
+  path: clux/muslrust:stable
+workdir: /app
+bind:
+  - target: /app
+run:
+  - cargo build --release -F cli -F permissive
+  - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
+"#;
+
+                let builder: Stage = serde_yaml::from_str::<StagePatch>(json_data)
+                    .unwrap()
+                    .into();
+
+                assert_eq!(
+                    builder,
+                    Stage {
+                        from: ImageName {
+                            path: "clux/muslrust:stable".into(),
+                            ..Default::default()
+                        }
+                        .into(),
+                        workdir: Some("/app".into()),
+                        run: Run {
+                            bind: vec![Bind {
+                                target: "/app".into(),
+                                ..Default::default()
+                            }],
+                            run: vec![
+                                "cargo build --release -F cli -F permissive".into(),
+                                "mv target/x86_64-unknown-linux-musl/release/dofigen /app/".into()
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
                 );
             }
         }

@@ -157,6 +157,7 @@ The image is the main element. It defines the runtime stage of the Dockerfile:
 | `add`            | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
 | `root`           |                  | [Root](#root)?   | Actions made using the `root` user |
 | `run`            | `script`         | String[]?        | Script commands to execute    |
+| `bind`           | `binds`          | [Bind](#bind)[]? | Filesystem binding during the `run` |
 | `cache`          | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 | `builders`       |                  | [Builder](#builder)[]? | Build stages executed before the runtime stage and not in the final Docker image. Mostly to generate artifacts |
 | `expose`         | `ports`          | int[]?           | The list of exposed ports of the Docker image |
@@ -181,6 +182,7 @@ The builders are stages executed before the runtime stage and not in the final D
 | `add`            | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
 | `root`           |                  | [Root](#root)?   | Actions made using the `root` user |
 | `run`            | `script`         | String[]?        | Script commands to execute    |
+| `bind`           | `binds`          | [Bind](#bind)[]? | Filesystem binding during the `run` |
 | `cache`          | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 
 #### Artifact
@@ -193,6 +195,19 @@ Artifacts are element copied from a previous build to the current stage :
 | `source`         |                  | String           | The source of the artifact in the given builder |
 | `target`         | `destination`    | String           | The target path in the current stage |
 
+#### Bind
+
+Bind let you bind files or directories from the host, a builder or an image to the stage during the run :
+
+| Field            | Alias            | Type             | Description                   |
+|------------------|------------------|------------------|-------------------------------|
+| `from`           |                  | String?          | Build stage or image name for the root of the source. Defaults to the build context |
+| `source`         |                  | String?          | Source path in the `from`. Defaults to the root of the `from` |
+| `target`         |                  | String           | The target path in the current stage |
+| `readwrite`      |                  | bool?            | Allow writes on the mount. Written data will be discarded |
+
+See https://docs.docker.com/reference/dockerfile/#run---mounttypebind for more information.
+
 #### Root
 
 Actions made using the `root` user :
@@ -200,6 +215,7 @@ Actions made using the `root` user :
 | Field            | Alias            | Type             | Description                   |
 |------------------|------------------|------------------|-------------------------------|
 | `run`            | `script`         | String[]?        | Script commands to execute    |
+| `bind`           | `binds`          | [Bind](#bind)[]? | Filesystem binding during the `run` |
 | `cache`          | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
 
 #### Healthcheck
