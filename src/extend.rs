@@ -1,10 +1,10 @@
 #[cfg(feature = "permissive")]
 use crate::OneOrMany;
-use crate::{dofigen_struct::*, CopyResourcePatch, Error, Result, UnknownPatch, VecPatch};
+use crate::{dofigen_struct::*, CopyResourcePatch, Error, Result, UnknownPatch};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize};
-use std::{collections::HashMap, fs, ops};
+use std::{collections::HashMap, fs, iter, ops};
 
 const MAX_LOAD_STACK_SIZE: usize = 10;
 
@@ -48,13 +48,10 @@ where
             })
             .collect::<Result<Vec<_>>>()?
             .into_iter()
+            .chain(iter::once(self.value.clone()))
             .reduce(|a, b| a + b);
 
-        Ok(if let Some(merged) = merged {
-            merged + self.value.clone()
-        } else {
-            self.value.clone()
-        })
+        Ok(merged.expect("Since we have at least one value, we should have a merged value"))
     }
 }
 
