@@ -20,9 +20,10 @@ builders:
 from:
   path: eclipse-temurin
   tag: 21-jre-alpine
-artifacts:
-- builder: maven-builder
-  source: /app/app.jar
+copy:
+- from: maven-builder
+  paths:
+  - /app/app.jar
   target: app.jar
 cmd:
 - java

@@ -131,9 +131,10 @@ builders:
         - "*"
     script:
       - cargo build --release
-artifacts:
-  - builder: builder
-    source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+add:
+  - from: builder
+    paths:
+      - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     destination: /app
 "#;
 
@@ -146,9 +147,9 @@ builders:
     - "*"
   script:
     - cargo build --release
-artifacts:
-- builder: builder
-  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+add:
+- from: builder
+  paths: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
   destination: /app
 "#;
     let image: Image = from(yaml.into()).unwrap();
@@ -178,14 +179,17 @@ artifacts:
             }]
             .into(),
             stage: Stage {
-                artifacts: vec![Artifact {
-                    builder: String::from("builder"),
-                    source: String::from(
+                copy: vec![CopyResource::Copy(Copy {
+                    from: Some(String::from("builder")),
+                    paths: vec![String::from(
                         "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-                    ),
-                    target: String::from("/app"),
+                    )],
+                    options: CopyOptions {
+                        target: Some(String::from("/app")),
+                        ..Default::default()
+                    },
                     ..Default::default()
-                }]
+                })]
                 .into(),
                 ..Default::default()
             },

@@ -104,14 +104,17 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///                 path: "ubuntu".into(),
 ///                 ..Default::default()
 ///             }.into()),
-///             artifacts: vec![Artifact {
-///                 builder: String::from("builder"),
-///                 source: String::from(
+///             copy: vec![CopyResource::Copy(Copy{
+///                 from: Some(String::from("builder")),
+///                 paths: vec![String::from(
 ///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///                 ),
-///                 target: String::from("/app"),
+///                 )],
+///                 options: CopyOptions {
+///                     target: Some(String::from("/app")),
+///                     ..Default::default()
+///                 },
 ///                 ..Default::default()
-///             }].into(),
+///             })].into(),
 ///             ..Default::default()
 ///         },
 ///         ..Default::default()
@@ -196,14 +199,17 @@ pub fn from(input: String) -> Result<Image> {
 ///                 path: String::from("ubuntu"),
 ///                 ..Default::default()
 ///             }.into()),
-///             artifacts: vec![Artifact {
-///                 builder: String::from("builder"),
-///                 source: String::from(
+///             copy: vec![CopyResource::Copy(Copy{
+///                 from: Some(String::from("builder")),
+///                 paths: vec![String::from(
 ///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///                 ),
-///                 target: String::from("/app"),
+///                 )],
+///                 options: CopyOptions {
+///                     target: Some(String::from("/app")),
+///                     ..Default::default()
+///                 },
 ///                 ..Default::default()
-///             }].into(),
+///             })].into(),
 ///             ..Default::default()
 ///         },
 ///         ..Default::default()

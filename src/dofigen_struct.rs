@@ -53,7 +53,10 @@ pub struct Image {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub expose: Vec<Port>,
 
-    #[patch(name = "Option<HealthcheckPatch>")]
+    #[patch(
+        name = "Option<HealthcheckPatch>",
+        add = "struct_patch::std::add_option"
+    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub healthcheck: Option<Healthcheck>,
 }
@@ -76,7 +79,10 @@ pub struct Stage {
         patch(name = "Option<ParsableStruct<ImageNamePatch>>")
     )]
     #[cfg_attr(not(feature = "permissive"), patch(name = "Option<ImageNamePatch>"))]
-    #[patch(attribute(serde(alias = "image")))]
+    #[patch(
+        add = "struct_patch::std::add_option",
+        attribute(serde(alias = "image"))
+    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<ImageName>,
 
@@ -85,6 +91,7 @@ pub struct Stage {
         patch(name = "Option<ParsableStruct<UserPatch>>")
     )]
     #[cfg_attr(not(feature = "permissive"), patch(name = "Option<UserPatch>"))]
+    #[patch(add = "struct_patch::std::add_option")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<User>,
 
@@ -98,11 +105,12 @@ pub struct Stage {
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>,
 
-    #[patch(name = "VecDeepPatch<Artifact, ArtifactPatch>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub artifacts: Vec<Artifact>,
-
-    #[patch(attribute(serde(alias = "add", alias = "adds")))]
+    #[patch(attribute(serde(
+        alias = "add",
+        alias = "adds",
+        alias = "artifact",
+        alias = "artifacts"
+    )))]
     #[cfg_attr(
         feature = "permissive",
         patch(name = "VecDeepPatch<CopyResource, ParsableStruct<CopyResourcePatch>>")
@@ -114,7 +122,7 @@ pub struct Stage {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub copy: Vec<CopyResource>,
 
-    #[patch(name = "Option<RunPatch>")]
+    #[patch(name = "Option<RunPatch>", add = "struct_patch::std::add_option")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub root: Option<Run>,
 
@@ -254,7 +262,15 @@ pub enum CopyResource {
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 pub struct Copy {
-    #[patch(name = "VecPatch<String>")]
+    /// See https://docs.docker.com/reference/dockerfile/#copy---from
+    #[patch(attribute(serde(alias = "builder")))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
+
+    #[patch(
+        name = "VecPatch<String>",
+        attribute(serde(alias = "path", alias = "source"))
+    )]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
 
@@ -270,10 +286,6 @@ pub struct Copy {
     /// See https://docs.docker.com/reference/dockerfile/#copy---parents
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parents: Option<bool>,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---from
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from: Option<String>,
 }
 
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
@@ -330,11 +342,12 @@ pub struct Add {
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 pub struct CopyOptions {
+    #[patch(attribute(serde(alias = "destination")))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
 
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    #[patch(name = "Option<UserPatch>")]
+    #[patch(name = "Option<UserPatch>", add = "struct_patch::std::add_option")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chown: Option<User>,
 

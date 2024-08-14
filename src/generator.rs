@@ -416,11 +416,6 @@ impl DockerfileGenerator for Stage {
             lines.append(&mut copy.generate_dockerfile_lines(&context)?);
         }
 
-        // Copy artifacts
-        for artifact in self.artifacts.iter() {
-            lines.append(&mut artifact.generate_dockerfile_lines(&context)?);
-        }
-
         // Root
         if let Some(root) = &self.root {
             if !root.is_empty() {

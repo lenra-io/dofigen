@@ -8,9 +8,9 @@ use std::{
     fmt,
     hash::Hash,
     marker::PhantomData,
-    ops::{self},
     usize,
 };
+use core::ops;
 #[cfg(feature = "permissive")]
 use std::{ops::Deref, str::FromStr};
 use struct_patch::Patch;
@@ -1192,7 +1192,7 @@ where
 
 impl<T, P> ops::Add<Self> for VecDeepPatch<T, P>
 where
-    T: Clone + Patch<P> + From<P> + ops::Add<P, Output = T>,
+    T: Clone + Patch<P> + From<P>,
     P: Clone + ops::Add<P, Output = P>,
 {
     type Output = Self;
@@ -1267,11 +1267,12 @@ where
                     }
                 }
                 (
-                    VecDeepPatchCommand::Replace(self_pos, self_val),
+                    VecDeepPatchCommand::Replace(self_pos, mut self_val),
                     VecDeepPatchCommand::Patch(rhs_pos, rhs_val),
                 ) => {
                     if self_pos == rhs_pos {
-                        commands.push(VecDeepPatchCommand::Replace(rhs_pos, self_val + rhs_val));
+                        self_val.apply(rhs_val);
+                        commands.push(VecDeepPatchCommand::Replace(rhs_pos, self_val));
                         self_next = self_it.next();
                         rhs_next = rhs_it.next();
                     } else if self_pos < rhs_pos {
@@ -1409,7 +1410,7 @@ mod test {
         #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
         struct TestStruct {
             pub name: String,
-            #[patch(name = "Option<SubTestStructPatch>")]
+            #[patch(name = "Option<SubTestStructPatch>", add = "struct_patch::std::add_option")]
             pub sub: Option<SubTestStruct>,
         }
 
