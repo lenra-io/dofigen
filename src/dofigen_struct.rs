@@ -161,10 +161,10 @@ pub struct Run {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub run: Vec<String>,
 
-    #[patch(name = "VecPatch<String>")]
+    #[patch(name = "VecDeepPatch<Cache, ParsableStruct<CachePatch>>")]
     #[patch(attribute(serde(alias = "caches")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub cache: Vec<String>,
+    pub cache: Vec<Cache>,
 
     #[cfg_attr(
         feature = "permissive",
@@ -179,6 +179,49 @@ pub struct Run {
     pub bind: Vec<Bind>,
 }
 
+/// Represents a cache definition during a run
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
+pub struct Cache {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    pub target: String,
+    #[patch(attribute(serde(alias = "ro")))]
+    #[serde(skip_serializing_if = "is_false")]
+    pub readonly: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sharing: Option<CacheSharing>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chmod: Option<String>,
+
+    #[patch(name = "Option<UserPatch>", add = "struct_patch::std::add_option")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chown: Option<User>,
+}
+
+fn is_false(b: &bool) -> bool { !b }
+
+
+/// Represents a cache sharing strategy
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum CacheSharing {
+    Shared,
+    Private,
+    Locked,
+}
+
+/// Represents file system binding during a run
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
@@ -187,8 +230,12 @@ pub struct Run {
 )]
 pub struct Bind {
     pub target: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
+    #[patch(attribute(serde(alias = "rw")))]
+    #[serde(skip_serializing_if = "is_false")]
     pub readwrite: bool,
 }
 

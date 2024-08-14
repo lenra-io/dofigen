@@ -49,6 +49,7 @@ impl_from_patch_and_add!(Healthcheck, HealthcheckPatch);
 impl_from_patch_and_add!(ImageName, ImageNamePatch);
 impl_from_patch_and_add!(Artifact, ArtifactPatch);
 impl_from_patch_and_add!(Run, RunPatch);
+impl_from_patch_and_add!(Cache, CachePatch);
 impl_from_patch_and_add!(Bind, BindPatch);
 impl_from_patch_and_add!(Port, PortPatch);
 impl_from_patch_and_add!(User, UserPatch);

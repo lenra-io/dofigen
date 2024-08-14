@@ -208,6 +208,10 @@ impl_parsable_patch!(Bind, BindPatch, s, {
     })
 });
 
+impl_parsable_patch!(Cache, CachePatch, s, {
+    todo!()
+});
+
 #[cfg(test)]
 mod test_from_str {
     use super::*;
