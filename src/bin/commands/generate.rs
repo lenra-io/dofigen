@@ -60,7 +60,7 @@ impl CliCommand for Generate {
             }
             let lockfile =
                 load_lockfile(lockfile_path).ok_or(Error::Custom("No lock file found".into()))?;
-            from(lockfile.effective)?
+            from(lockfile.image)?
         } else {
             let image = get_image_from_path(path)?;
             let lockfile = load_lockfile(lockfile_path.clone());

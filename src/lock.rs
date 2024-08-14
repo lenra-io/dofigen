@@ -63,7 +63,7 @@ impl ImageName {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LockFile {
     /// The effective Dofigen configuration
-    pub effective: String,
+    pub image: String,
 
     /// The digests of the images used in the Dofigen file
     /// The first level key is the host
@@ -137,7 +137,7 @@ impl LockContext {
                 .insert(tag, docker_tag);
         }
         Ok(LockFile {
-            effective: serde_yaml::to_string(effective_image).map_err(Error::from)?,
+            image: serde_yaml::to_string(effective_image).map_err(Error::from)?,
             images,
         })
     }

@@ -17,6 +17,10 @@ pub struct Update {
     /// Define to - to read from stdin
     #[clap(short, long)]
     file: Option<String>,
+
+    /// Don't actually write the lockfile
+    #[clap(long, action)]
+    dry_run: bool,
 }
 
 impl CliCommand for Update {
@@ -41,6 +45,16 @@ impl CliCommand for Update {
         // Replace images tags with the digest
         let locked_image = image.lock(&mut lock_context)?;
         let new_lockfile = lock_context.to_lockfile(&locked_image)?;
+
+        // TODO: Display the diff between the old and the new lockfile
+
+        if self.dry_run {
+            println!(
+                "{}",
+                serde_yaml::to_string(&new_lockfile).map_err(Error::from)?
+            );
+            return Ok(());
+        }
 
         serde_yaml::to_writer(
             std::fs::File::create(lockfile_path)
