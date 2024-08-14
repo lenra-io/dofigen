@@ -4,7 +4,7 @@
 # syntax=docker/dockerfile:1.7
 
 # builder
-FROM clux/muslrust:stable AS builder
+FROM clux/muslrust@sha256:b8df8ed6f25f2139e7ea90818cdffbb4faab312fa327bf4ea218e86996c849fd AS builder
 WORKDIR /app
 RUN \
     --mount=type=bind,target=Cargo.toml,source=Cargo.toml \

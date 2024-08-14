@@ -13,7 +13,7 @@ mod from_str;
 mod generator;
 #[cfg(feature = "json_schema")]
 mod json_schema;
-mod version_locker;
+pub mod lock;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};
 use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]

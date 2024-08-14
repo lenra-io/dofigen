@@ -67,13 +67,6 @@ impl LoadContext {
             resources: HashMap::new(),
         }
     }
-
-    pub fn from_resource(resource: Resource) -> Self {
-        Self {
-            load_resource_stack: vec![resource],
-            resources: HashMap::new(),
-        }
-    }
 }
 
 impl Resource {

@@ -1,0 +1,45 @@
+effective: |
+  context:
+  - /src
+  - /Cargo.*
+  builders:
+  - name: builder
+    from:
+      path: clux/muslrust
+      digest: sha256:b8df8ed6f25f2139e7ea90818cdffbb4faab312fa327bf4ea218e86996c849fd
+    workdir: /app
+    run:
+    - cargo build --release -F cli -F permissive
+    - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
+    cache:
+    - /home/rust/.cargo
+    - /app/target
+    bind:
+    - target: Cargo.toml
+      from: null
+      source: Cargo.toml
+      readwrite: false
+    - target: Cargo.lock
+      from: null
+      source: Cargo.lock
+      readwrite: false
+    - target: src/
+      from: null
+      source: src/
+      readwrite: false
+  workdir: /app
+  artifacts:
+  - builder: builder
+    source: /tmp/dofigen
+    target: /bin/
+  entrypoint:
+  - dofigen
+  cmd:
+  - --help
+images:
+  registry.hub.docker.com:443:
+    clux:
+      muslrust:
+        stable:
+          tag_last_pushed: 2024-08-13T13:38:49.823153Z
+          digest: sha256:b8df8ed6f25f2139e7ea90818cdffbb4faab312fa327bf4ea218e86996c849fd

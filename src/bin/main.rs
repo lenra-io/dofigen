@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 #[cfg(feature = "json_schema")]
 use commands::schema::Schema;
-use commands::{effective::Effective, generate::Generate};
+use commands::{effective::Effective, generate::Generate, update::Update};
 use dofigen_lib::Result;
 use std::fmt;
 
@@ -44,6 +44,9 @@ pub enum Command {
     /// Generate the effective Dofigen configuration once the extends are resolved
     Effective(Effective),
 
+    /// Updates the lock file
+    Update(Update),
+
     /// Generate the JSON Schema for the Dofigen structure
     #[cfg(feature = "json_schema")]
     Schema(Schema),
@@ -54,6 +57,7 @@ impl Command {
         match self {
             Command::Generate(g) => g.run(),
             Command::Effective(e) => e.run(),
+            Command::Update(u) => u.run(),
             #[cfg(feature = "json_schema")]
             Command::Schema(s) => s.run(),
         }

@@ -2,13 +2,15 @@
 //!
 //! The generate subcommand generates a Dockerfile and a .dockerignore file from a Dofigen file.
 
-pub use clap::Args;
-use dofigen_lib::{generate_dockerfile, generate_dockerignore, Result};
-use std::{fs, path::PathBuf};
-
+use super::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile};
 use crate::CliCommand;
-
-use super::load_image_from_cli_path;
+use clap::Args;
+use dofigen_lib::{
+    from, generate_dockerfile, generate_dockerignore,
+    lock::{Lock, LockContext},
+    Error, Result,
+};
+use std::{collections::HashMap, fs, path::PathBuf};
 
 const DEFAULT_DOCKERFILE: &str = "Dockerfile";
 
@@ -22,6 +24,10 @@ pub struct Generate {
     /// Define to - to write to stdout
     #[clap(short, long, default_value = DEFAULT_DOCKERFILE)]
     output: String,
+
+    /// Locked version of the image
+    #[clap(short, long, action)]
+    locked: bool,
 }
 
 impl Generate {
@@ -43,7 +49,42 @@ impl Generate {
 
 impl CliCommand for Generate {
     fn run(&self) -> Result<()> {
-        let image = load_image_from_cli_path(&self.file)?;
+        // Get lock file from the file
+        let path = get_file_path(&self.file);
+        let lockfile_path = get_lockfile_path(path.clone());
+        let image = if self.locked {
+            if path == "-" {
+                return Err(Error::Custom(
+                    "The '--locked' option can't be used with stdin".into(),
+                ));
+            }
+            let lockfile =
+                load_lockfile(lockfile_path).ok_or(Error::Custom("No lock file found".into()))?;
+            from(lockfile.effective)?
+        } else {
+            let image = get_image_from_path(path)?;
+            let lockfile = load_lockfile(lockfile_path.clone());
+
+            let mut lock_context = lockfile.map(LockContext::from).unwrap_or(LockContext {
+                images: HashMap::new(),
+            });
+            
+            // Replace images tags with the digest
+            let locked_image = image.lock(&mut lock_context)?;
+            let new_lockfile = lock_context.to_lockfile(&locked_image)?;
+
+            if let Some(lockfile_path) = lockfile_path {
+                serde_yaml::to_writer(
+                    std::fs::File::create(lockfile_path).map_err(|err| {
+                        Error::Custom(format!("Unable to create the lock file: {}", err))
+                    })?,
+                    &new_lockfile,
+                )
+                .map_err(Error::from)?;
+            };
+
+            image
+        };
 
         let dockerfile_content = generate_dockerfile(&image)?;
 
