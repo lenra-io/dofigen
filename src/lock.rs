@@ -55,7 +55,7 @@ impl ImageName {
         let response = reqwest::blocking::get(&request_url).map_err(Error::from)?;
 
         let tag: DockerTag = response.json().map_err(Error::from)?;
-        
+
         Ok(tag)
     }
 }

@@ -68,7 +68,7 @@ impl CliCommand for Generate {
             let mut lock_context = lockfile.map(LockContext::from).unwrap_or(LockContext {
                 images: HashMap::new(),
             });
-            
+
             // Replace images tags with the digest
             let locked_image = image.lock(&mut lock_context)?;
             let new_lockfile = lock_context.to_lockfile(&locked_image)?;
