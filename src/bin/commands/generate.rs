@@ -3,7 +3,7 @@
 //! The generate subcommand generates a Dockerfile and a .dockerignore file from a Dofigen file.
 
 use super::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile};
-use crate::CliCommand;
+use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use dofigen_lib::{
     from, generate_dockerfile, generate_dockerignore,
@@ -16,10 +16,9 @@ const DEFAULT_DOCKERFILE: &str = "Dockerfile";
 
 #[derive(Args, Debug, Default, Clone)]
 pub struct Generate {
-    /// The input file Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json
-    /// Define to - to read from stdin
-    #[clap(short, long)]
-    file: Option<String>,
+    #[command(flatten)]
+    pub options: GlobalOptions,
+
     /// The output Dockerfile file
     /// Define to - to write to stdout
     #[clap(short, long, default_value = DEFAULT_DOCKERFILE)]
@@ -48,9 +47,9 @@ impl Generate {
 }
 
 impl CliCommand for Generate {
-    fn run(&self) -> Result<()> {
+    fn run(self) -> Result<()> {
         // Get lock file from the file
-        let path = get_file_path(&self.file);
+        let path = get_file_path(&self.options.file);
         let lockfile_path = get_lockfile_path(path.clone());
         let image = if self.locked {
             if path == "-" {

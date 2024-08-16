@@ -71,6 +71,9 @@ pub struct LockFile {
     /// The third level key is the repository
     /// The fourth level key is the tag
     pub images: HashMap<String, HashMap<String, HashMap<String, HashMap<String, DockerTag>>>>,
+
+    /// The files used in the Dofigen file for 'extend' fields
+    pub files: HashMap<String, String>,
 }
 
 pub struct LockContext {
@@ -139,6 +142,7 @@ impl LockContext {
         Ok(LockFile {
             image: serde_yaml::to_string(effective_image).map_err(Error::from)?,
             images,
+            files: HashMap::new(),
         })
     }
 }

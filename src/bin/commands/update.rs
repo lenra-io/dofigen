@@ -3,7 +3,7 @@
 //! The generate subcommand generates a Dockerfile and a .dockerignore file from a Dofigen file.
 
 use super::{get_file_path, get_image_from_path, get_lockfile_path};
-use crate::CliCommand;
+use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use dofigen_lib::{
     lock::{Lock, LockContext},
@@ -13,10 +13,8 @@ use std::collections::HashMap;
 
 #[derive(Args, Debug, Default, Clone)]
 pub struct Update {
-    /// The input file Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json
-    /// Define to - to read from stdin
-    #[clap(short, long)]
-    file: Option<String>,
+    #[command(flatten)]
+    pub options: GlobalOptions,
 
     /// Don't actually write the lockfile
     #[clap(long, action)]
@@ -24,9 +22,9 @@ pub struct Update {
 }
 
 impl CliCommand for Update {
-    fn run(&self) -> Result<()> {
+    fn run(self) -> Result<()> {
         // Get lock file from the file
-        let path = get_file_path(&self.file);
+        let path = get_file_path(&self.options.file);
         if path == "-" {
             return Err(Error::Custom(
                 "Update command can't be used with stdin".into(),

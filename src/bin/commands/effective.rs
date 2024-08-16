@@ -11,15 +11,13 @@ use crate::CliCommand;
 
 #[derive(Args, Debug, Default, Clone)]
 pub struct Effective {
-    /// The input file Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json
-    /// Define to - to read from stdin
-    #[clap(short, long)]
-    file: Option<String>,
+    #[command(flatten)]
+    pub options: GlobalOptions,
 }
 
 impl CliCommand for Effective {
-    fn run(&self) -> Result<()> {
-        let image = get_image_from_cli_path(&self.file)?;
+    fn run(self) -> Result<()> {
+        let image = get_image_from_cli_path(&self.options.file)?;
 
         println!("{}", generate_effective_content(&image)?);
         Ok(())

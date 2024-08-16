@@ -1,22 +1,10 @@
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 #[cfg(feature = "json_schema")]
 use commands::schema::Schema;
 use commands::{effective::Effective, generate::Generate, update::Update};
 use dofigen_lib::Result;
-use std::fmt;
 
 mod commands;
-
-#[derive(clap::ValueEnum, Clone, Debug)]
-enum Format {
-    Json,
-    Yaml,
-}
-impl fmt::Display for Format {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "{}", format!("{:?}", self).to_lowercase())
-    }
-}
 
 /// Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
 #[derive(Parser)]
@@ -27,11 +15,21 @@ struct Cli {
     pub command: Command,
 }
 
+/// Represents option common to all subcommands
+#[derive(Args, Debug, Default, Clone)]
+pub struct GlobalOptions {
+    /// The input Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json
+    /// Use "-" to read from stdin
+    #[clap(short, long)]
+    pub file: Option<String>,
+
+    /// Locked version of the image
+    #[clap(long, action)]
+    pub offline: bool,
+}
+
 pub trait CliCommand {
-    fn run(&self) -> Result<()>;
-    fn need_config(&self) -> bool {
-        true
-    }
+    fn run(self) -> Result<()>;
 }
 
 /// The subcommands
@@ -53,7 +51,7 @@ pub enum Command {
 }
 
 impl Command {
-    fn run(&self) -> Result<()> {
+    fn run(self) -> Result<()> {
         match self {
             Command::Generate(g) => g.run(),
             Command::Effective(e) => e.run(),
