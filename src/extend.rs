@@ -1,12 +1,11 @@
 #[cfg(feature = "permissive")]
 use crate::OneOrMany;
-use crate::{dofigen_struct::*, CopyResourcePatch, Error, Result, UnknownPatch};
+use crate::{dofigen_struct::*, CopyResourcePatch, DofigenContext, Error, Result, UnknownPatch};
+use relative_path::RelativePath;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize};
-use std::{collections::HashMap, fs, iter, ops};
-
-const MAX_LOAD_STACK_SIZE: usize = 10;
+use std::{iter, ops};
 
 #[cfg(feature = "permissive")]
 type VecType<T> = OneOrMany<T>;
@@ -32,7 +31,7 @@ impl<P> Extend<P>
 where
     P: Default + DeserializeOwned + Clone + ops::Add<P, Output = P>,
 {
-    pub fn merge(&self, context: &mut LoadContext) -> Result<P> {
+    pub fn merge(&self, context: &mut DofigenContext) -> Result<P> {
         if self.extend.is_empty() {
             return Ok(self.value.clone().into());
         }
@@ -43,7 +42,7 @@ where
             .iter()
             .map(|extend| {
                 let ret = extend.load::<Self>(context)?.merge(context)?;
-                context.load_resource_stack.pop();
+                context.pop_resource_stack();
                 Ok(ret)
             })
             .collect::<Result<Vec<_>>>()?
@@ -55,110 +54,45 @@ where
     }
 }
 
-pub struct LoadContext {
-    load_resource_stack: Vec<Resource>,
-    resources: HashMap<Resource, String>,
-}
-
-impl LoadContext {
-    pub fn new() -> Self {
-        Self {
-            load_resource_stack: vec![],
-            resources: HashMap::new(),
-        }
-    }
-}
-
 impl Resource {
-    fn load_resource_content(&self, context: &mut LoadContext) -> Result<String> {
+    fn load_resource_content(&self, context: &mut DofigenContext) -> Result<String> {
         let resource = match self {
             Resource::File(path) => {
                 if path.is_absolute() {
                     Resource::File(path.clone())
                 } else {
-                    if let Some(current_resource) = context.load_resource_stack.last() {
+                    if let Some(current_resource) = context.current_resource() {
                         match current_resource {
-                            Resource::File(file) => Resource::File(
-                                file.parent()
-                                    .ok_or(Error::Custom(format!(
-                                        "The current resource does not have parent dir {:?}",
-                                        file
-                                    )))?
-                                    .join(path),
-                            ),
+                            Resource::File(file) => {
+                                let current_file_relative_path =
+                                    RelativePath::from_path(file).map_err(Error::display)?;
+                                let relative_path =
+                                    RelativePath::from_path(path).map_err(Error::display)?;
+                                let relative_path = current_file_relative_path
+                                    .join("..")
+                                    .join_normalized(relative_path);
+                                Resource::File(relative_path.to_path(""))
+                            }
                             Resource::Url(url) => {
                                 Resource::Url(url.join(path.to_str().unwrap()).unwrap())
                             }
                         }
                     } else {
-                        Resource::File(path.canonicalize().unwrap())
+                        Resource::File(path.clone())
                     }
                 }
             }
             Resource::Url(url) => Resource::Url(url.clone()),
         };
-        if context.load_resource_stack.contains(&resource) {
-            // push the resource to format the error message
-            context.load_resource_stack.push(resource.clone());
-            return Err(Error::Custom(format!(
-                "Circular dependency detected while loading resource {}",
-                context
-                    .load_resource_stack
-                    .iter()
-                    .map(|r| format!("{:?}", r))
-                    .collect::<Vec<_>>()
-                    .join(" -> "),
-            )));
-        }
 
         // push the resource to the stack
-        context.load_resource_stack.push(resource.clone());
-
-        // check the stack size
-        if context.load_resource_stack.len() > MAX_LOAD_STACK_SIZE {
-            return Err(Error::Custom(format!(
-                "Max load stack size exceeded while loading resource {}",
-                context
-                    .load_resource_stack
-                    .iter()
-                    .map(|r| format!("{:?}", r))
-                    .collect::<Vec<_>>()
-                    .join(" -> "),
-            )));
-        }
+        context.push_resource_stack(resource.clone())?;
 
         // load the resource content
-        match resource.clone() {
-            Resource::File(path) => {
-                if let Some(value) = context.resources.get(&resource) {
-                    Ok(value.clone())
-                } else {
-                    let str = fs::read_to_string(path.clone()).map_err(|err| {
-                        Error::Custom(format!("Could not read file {:?}: {}", path, err))
-                    })?;
-                    context.resources.insert(resource, str.clone());
-                    Ok(str)
-                }
-            }
-            Resource::Url(url) => {
-                if let Some(value) = context.resources.get(&resource) {
-                    Ok(value.clone())
-                } else {
-                    let response = reqwest::blocking::get(url.as_ref()).map_err(|err| {
-                        Error::Custom(format!("Could not get url {:?}: {}", url, err))
-                    })?;
-                    Ok(response.text().map_err(|err| {
-                        Error::Custom(format!(
-                            "Could not read response from url {:?}: {}",
-                            url, err
-                        ))
-                    })?)
-                }
-            }
-        }
+        context.get_resource_content(resource)
     }
 
-    pub fn load<T>(&self, context: &mut LoadContext) -> Result<T>
+    pub fn load<T>(&self, context: &mut DofigenContext) -> Result<T>
     where
         T: DeserializeOwned,
     {

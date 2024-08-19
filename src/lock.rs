@@ -1,4 +1,4 @@
-use crate::{dofigen_struct::*, Error, Result};
+use crate::{dofigen_struct::*, DofigenContext, Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -27,7 +27,7 @@ impl ImageName {
         }
     }
 
-    fn load_digest(&self) -> Result<DockerTag> {
+    pub fn load_digest(&self) -> Result<DockerTag> {
         let tag = match self.version.as_ref() {
             Some(ImageVersion::Tag(tag)) => tag,
             None => DEFAULT_TAG,
@@ -76,14 +76,10 @@ pub struct LockFile {
     pub files: HashMap<String, String>,
 }
 
-pub struct LockContext {
-    pub images: HashMap<ImageName, DockerTag>,
-}
-
-impl From<LockFile> for LockContext {
-    fn from(lockfile: LockFile) -> Self {
+impl LockFile {
+    fn images(&self) -> HashMap<ImageName, DockerTag> {
         let mut images = HashMap::new();
-        for (host, namespaces) in lockfile.images {
+        for (host, namespaces) in self.images.clone() {
             let (host, port) = if host.contains(":") {
                 let mut parts = host.split(":");
                 (
@@ -109,14 +105,24 @@ impl From<LockFile> for LockContext {
                 }
             }
         }
-        Self { images }
+        images
     }
-}
 
-impl LockContext {
-    pub fn to_lockfile(self, effective_image: &Image) -> Result<LockFile> {
+    fn resources(&self) -> HashMap<Resource, String> {
+        self.files
+            .clone()
+            .into_iter()
+            .map(|(path, content)| (path.parse().unwrap(), content))
+            .collect()
+    }
+
+    pub fn to_context(self) -> DofigenContext {
+        DofigenContext::from(self.resources(), self.images())
+    }
+
+    pub fn from_context(effective_image: &Image, context: &DofigenContext) -> Result<LockFile> {
         let mut images = HashMap::new();
-        for (image, docker_tag) in self.images {
+        for (image, docker_tag) in context.used_image_tags() {
             let host = format!("{}:{}", image.host.unwrap(), image.port.unwrap());
             let (namespace, repository) = if image.path.contains("/") {
                 let mut parts = image.path.split("/");
@@ -127,9 +133,9 @@ impl LockContext {
                 (DEFAULT_NAMESPACE, image.path)
             };
             let tag = match image.version.unwrap() {
-                ImageVersion::Tag(tag) => tag,
-                _ => DEFAULT_TAG.to_string(),
-            };
+                ImageVersion::Tag(tag) => Ok(tag),
+                _ => Err(Error::Custom("Image version is not a tag".to_string())),
+            }?;
             images
                 .entry(host)
                 .or_insert_with(HashMap::new)
@@ -139,23 +145,30 @@ impl LockContext {
                 .or_insert_with(HashMap::new)
                 .insert(tag, docker_tag);
         }
+
+        let files = context
+            .used_resource_contents()
+            .iter()
+            .map(|(r, c)| (r.to_string(), c.clone()))
+            .collect();
+
         Ok(LockFile {
             image: serde_yaml::to_string(effective_image).map_err(Error::from)?,
             images,
-            files: HashMap::new(),
+            files,
         })
     }
 }
 
 pub trait Lock: Sized {
-    fn lock(&self, context: &mut LockContext) -> Result<Self>;
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self>;
 }
 
 impl<T> Lock for Option<T>
 where
     T: Lock,
 {
-    fn lock(&self, context: &mut LockContext) -> Result<Self> {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
         match self {
             Some(t) => Ok(Some(t.lock(context)?)),
             None => Ok(None),
@@ -167,13 +180,13 @@ impl<T> Lock for Vec<T>
 where
     T: Lock,
 {
-    fn lock(&self, context: &mut LockContext) -> Result<Self> {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
         self.iter().map(|t| t.lock(context)).collect()
     }
 }
 
 impl Lock for Image {
-    fn lock(&self, context: &mut LockContext) -> Result<Self> {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
         Ok(Self {
             builders: self.builders.lock(context)?,
             stage: self.stage.lock(context)?,
@@ -183,7 +196,7 @@ impl Lock for Image {
 }
 
 impl Lock for Stage {
-    fn lock(&self, context: &mut LockContext) -> Result<Self> {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
         Ok(Self {
             from: self.from.lock(context)?,
             ..self.clone()
@@ -192,25 +205,15 @@ impl Lock for Stage {
 }
 
 impl Lock for ImageName {
-    fn lock(&self, context: &mut LockContext) -> Result<Self> {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
         match self.version.clone() {
             Some(ImageVersion::Digest(_)) => Ok(self.clone()),
-            _ => {
-                let filled = self.fill();
-                if let Some(tag) = context.images.get(&filled) {
-                    Ok(Self {
-                        version: Some(ImageVersion::Digest(tag.digest.clone())),
-                        ..self.clone()
-                    })
-                } else {
-                    let tag = filled.load_digest()?;
-                    context.images.insert(filled, tag.clone());
-                    Ok(Self {
-                        version: Some(ImageVersion::Digest(tag.digest)),
-                        ..self.clone()
-                    })
-                }
-            }
+            _ => Ok(Self {
+                version: Some(ImageVersion::Digest(
+                    context.get_image_tag(self)?.digest.clone(),
+                )),
+                ..self.clone()
+            }),
         }
     }
 }

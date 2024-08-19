@@ -3,6 +3,7 @@
 //! `dofigen_lib` help creating Dockerfile with a simplified structure and made to cache the build with Buildkit.
 //! You also can parse the structure from YAML or JSON.
 
+pub mod context;
 mod deserialize;
 mod dockerfile_struct;
 mod dofigen_struct;
@@ -14,13 +15,13 @@ mod generator;
 #[cfg(feature = "json_schema")]
 mod json_schema;
 pub mod lock;
+use context::DofigenContext;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};
 use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]
 use schemars::gen::*;
-pub use {deserialize::*, dofigen_struct::*, errors::*, extend::*};
-// use schemars::schema_for;
 use std::io::Read;
+pub use {deserialize::*, dofigen_struct::*, errors::*, extend::*};
 
 pub const DOCKERFILE_VERSION: &str = "1.7";
 
@@ -119,10 +120,7 @@ const FILE_HEADER_LINES: [&str; 3] = [
 /// );
 /// ```
 pub fn from(input: String) -> Result<Image> {
-    merge_extended_image(
-        serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))?,
-        &mut LoadContext::new(),
-    )
+    DofigenContext::new().parse_from_string(input.as_str())
 }
 
 /// Parse an Image from a reader.
@@ -211,23 +209,16 @@ pub fn from(input: String) -> Result<Image> {
 /// );
 /// ```
 pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
-    merge_extended_image(
-        serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))?,
-        &mut LoadContext::new(),
-    )
+    DofigenContext::new().parse_from_reader(reader)
 }
 
 /// Parse an Image from a YAML or JSON file path.
-pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
+pub fn from_file_path(path: std::path::PathBuf) -> Result<Image> {
     match path.extension() {
         Some(os_str) => match os_str.to_str() {
-            Some("yml" | "yaml" | "json") => from_resource(Resource::File(
-                path.canonicalize()
-                    .map_err(|error| {
-                        Error::Custom(format!("Failed to canonicalize path {:?}: {}", path, error))
-                    })?
-                    .to_path_buf(),
-            )),
+            Some("yml" | "yaml" | "json") => {
+                DofigenContext::new().parse_from_resource(Resource::File(path))
+            }
             Some(ext) => Err(Error::Custom(format!(
                 "Not managed Dofigen file extension {}",
                 ext
@@ -236,16 +227,6 @@ pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
         },
         None => Err(Error::Custom("The Dofigen file has no extension".into())),
     }
-}
-
-/// Parse an Image from a YAML or JSON file resource (path or URL).
-pub fn from_resource(resource: Resource) -> Result<Image> {
-    let mut context = LoadContext::new();
-    merge_extended_image(resource.load(&mut context)?, &mut context)
-}
-
-fn merge_extended_image(image: Extend<ImagePatch>, context: &mut LoadContext) -> Result<Image> {
-    Ok(image.merge(context)?.into())
 }
 
 /// Generates the Dockerfile content from an Image.

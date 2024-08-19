@@ -6,10 +6,8 @@ use super::{get_file_path, get_image_from_path, get_lockfile_path};
 use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use dofigen_lib::{
-    lock::{Lock, LockContext},
-    Error, Result,
+    context::DofigenContext, lock::{Lock, LockFile}, Error, Result
 };
-use std::collections::HashMap;
 
 #[derive(Args, Debug, Default, Clone)]
 pub struct Update {
@@ -34,17 +32,16 @@ impl CliCommand for Update {
             "The update command needs a lock file to update".into(),
         ))?;
 
-        let image = get_image_from_path(path)?;
+        let mut context = DofigenContext::new();
+        context.offline = self.options.offline;
 
-        let mut lock_context = LockContext {
-            images: HashMap::new(),
-        };
+        let image = get_image_from_path(path, &mut context)?;
 
         // Replace images tags with the digest
-        let locked_image = image.lock(&mut lock_context)?;
-        let new_lockfile = lock_context.to_lockfile(&locked_image)?;
+        let locked_image = image.lock(&mut context)?;
+        let new_lockfile = LockFile::from_context(&locked_image, &context)?;
 
-        // TODO: Display the diff between the old and the new lockfile
+        // TODO: display lockfile diff
 
         if self.dry_run {
             println!(

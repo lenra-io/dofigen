@@ -1,6 +1,4 @@
-use dofigen_lib::{
-    from_file_path, from_reader, lock::LockFile, Image, LoadContext, Resource, Result,
-};
+use dofigen_lib::{context::DofigenContext, lock::LockFile, Image, Resource, Result};
 use std::path::PathBuf;
 
 pub mod effective;
@@ -31,22 +29,25 @@ pub(crate) fn get_lockfile_path(path: String) -> Option<PathBuf> {
     }
 }
 
-pub(crate) fn get_image_from_path(path: String) -> Result<Image> {
+pub(crate) fn get_image_from_path(path: String, context: &mut DofigenContext) -> Result<Image> {
     if path == "-" {
-        from_reader(std::io::stdin())
+        context.parse_from_reader(std::io::stdin())
     } else {
-        from_file_path(&PathBuf::from(path))
+        context.parse_from_resource(path.parse()?)
     }
 }
 
-pub(crate) fn get_image_from_cli_path(path: &Option<String>) -> Result<Image> {
-    get_image_from_path(get_file_path(path))
+pub(crate) fn get_image_from_cli_path(
+    path: &Option<String>,
+    context: &mut DofigenContext,
+) -> Result<Image> {
+    get_image_from_path(get_file_path(path), context)
 }
 
 pub(crate) fn load_lockfile(path: Option<PathBuf>) -> Option<LockFile> {
     path.map(|path| {
         if path.exists() {
-            Resource::File(path).load(&mut LoadContext::new()).ok()
+            Resource::File(path).load(&mut DofigenContext::new()).ok()
         } else {
             None
         }

@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use serde_yaml::Location;
 use thiserror::Error;
 
@@ -13,6 +15,12 @@ pub enum Error {
     Reqwest(#[from] reqwest::Error),
     #[error("{0}")]
     Custom(String),
+}
+
+impl Error {
+    pub fn display<S: Display>(error: S) -> Self {
+        Self::Custom(format!("{}", error))
+    }
 }
 
 fn location_into(location: Option<Location>) -> String {

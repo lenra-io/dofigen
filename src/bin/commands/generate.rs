@@ -6,11 +6,12 @@ use super::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile
 use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use dofigen_lib::{
+    context::DofigenContext,
     from, generate_dockerfile, generate_dockerignore,
-    lock::{Lock, LockContext},
+    lock::{Lock, LockFile},
     Error, Result,
 };
-use std::{collections::HashMap, fs, path::PathBuf};
+use std::{fs, path::PathBuf};
 
 const DEFAULT_DOCKERFILE: &str = "Dockerfile";
 
@@ -61,16 +62,22 @@ impl CliCommand for Generate {
                 load_lockfile(lockfile_path).ok_or(Error::Custom("No lock file found".into()))?;
             from(lockfile.image)?
         } else {
-            let image = get_image_from_path(path)?;
             let lockfile = load_lockfile(lockfile_path.clone());
 
-            let mut lock_context = lockfile.map(LockContext::from).unwrap_or(LockContext {
-                images: HashMap::new(),
-            });
+            let mut context = lockfile
+                .map(|l| l.to_context())
+                .unwrap_or(DofigenContext::new());
+
+            context.offline = self.options.offline;
+            context.locked = self.locked;
+
+            let image = get_image_from_path(path, &mut context)?;
 
             // Replace images tags with the digest
-            let locked_image = image.lock(&mut lock_context)?;
-            let new_lockfile = lock_context.to_lockfile(&locked_image)?;
+            let locked_image = image.lock(&mut context)?;
+            let new_lockfile = LockFile::from_context(&locked_image, &mut context)?;
+
+            // TODO: display lockfile diff
 
             if let Some(lockfile_path) = lockfile_path {
                 serde_yaml::to_writer(

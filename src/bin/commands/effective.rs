@@ -5,7 +5,7 @@
 use crate::*;
 pub use clap::Args;
 use commands::get_image_from_cli_path;
-use dofigen_lib::generate_effective_content;
+use dofigen_lib::{context::DofigenContext, generate_effective_content};
 
 use crate::CliCommand;
 
@@ -17,7 +17,7 @@ pub struct Effective {
 
 impl CliCommand for Effective {
     fn run(self) -> Result<()> {
-        let image = get_image_from_cli_path(&self.options.file)?;
+        let image = get_image_from_cli_path(&self.options.file, &mut DofigenContext::new())?;
 
         println!("{}", generate_effective_content(&image)?);
         Ok(())
