@@ -197,9 +197,7 @@ impl FromStr for Resource {
 
     fn from_str(s: &str) -> Result<Self> {
         if s.starts_with("http://") || s.starts_with("https://") {
-            Ok(Resource::Url(
-                s.parse().map_err(Error::display)?,
-            ))
+            Ok(Resource::Url(s.parse().map_err(Error::display)?))
         } else {
             Ok(Resource::File(s.into()))
         }
