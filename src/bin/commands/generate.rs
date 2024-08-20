@@ -6,10 +6,9 @@ use super::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile
 use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use dofigen_lib::{
-    context::DofigenContext,
-    from, generate_dockerfile, generate_dockerignore,
+    generate_dockerfile, generate_dockerignore,
     lock::{Lock, LockFile},
-    Error, Result,
+    DofigenContext, Error, Result,
 };
 use std::{fs, path::PathBuf};
 
@@ -52,22 +51,21 @@ impl CliCommand for Generate {
         // Get lock file from the file
         let path = get_file_path(&self.options.file);
         let lockfile_path = get_lockfile_path(path.clone());
+        let lockfile = load_lockfile(lockfile_path.clone());
+        let mut context = lockfile
+            .as_ref()
+            .map(|l| l.to_context())
+            .unwrap_or(DofigenContext::new());
+
         let image = if self.locked {
             if path == "-" {
                 return Err(Error::Custom(
                     "The '--locked' option can't be used with stdin".into(),
                 ));
             }
-            let lockfile =
-                load_lockfile(lockfile_path).ok_or(Error::Custom("No lock file found".into()))?;
-            from(lockfile.image)?
+            let lockfile = lockfile.ok_or(Error::Custom("No lock file found".into()))?;
+            context.parse_from_string(lockfile.image.as_str())?
         } else {
-            let lockfile = load_lockfile(lockfile_path.clone());
-
-            let mut context = lockfile
-                .map(|l| l.to_context())
-                .unwrap_or(DofigenContext::new());
-
             context.offline = self.options.offline;
             context.locked = self.locked;
 

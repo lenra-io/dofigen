@@ -116,7 +116,7 @@ impl LockFile {
             .collect()
     }
 
-    pub fn to_context(self) -> DofigenContext {
+    pub fn to_context(&self) -> DofigenContext {
         DofigenContext::from(self.resources(), self.images())
     }
 
@@ -149,7 +149,8 @@ impl LockFile {
         let files = context
             .used_resource_contents()
             .iter()
-            .map(|(r, c)| (r.to_string(), c.clone()))
+            .filter(|(resource, _)| matches!(resource, Resource::Url(_)))
+            .map(|(resource, content)| (resource.to_string(), content.clone()))
             .collect();
 
         Ok(LockFile {

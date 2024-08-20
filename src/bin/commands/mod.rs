@@ -1,4 +1,4 @@
-use dofigen_lib::{context::DofigenContext, lock::LockFile, Image, Resource, Result};
+use dofigen_lib::{DofigenContext, lock::LockFile, Image, Resource, Result};
 use std::path::PathBuf;
 
 pub mod effective;

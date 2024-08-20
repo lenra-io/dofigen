@@ -5,7 +5,7 @@
 use crate::*;
 pub use clap::Args;
 use commands::get_image_from_cli_path;
-use dofigen_lib::{context::DofigenContext, generate_effective_content};
+use dofigen_lib::{DofigenContext, generate_effective_content};
 
 use crate::CliCommand;
 

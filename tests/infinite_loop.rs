@@ -1,4 +1,3 @@
-use context::DofigenContext;
 use dofigen_lib::*;
 use pretty_assertions_sorted::assert_eq_sorted;
 use std::path::PathBuf;

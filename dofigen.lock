@@ -43,36 +43,4 @@ images:
         stable:
           tag_last_pushed: 2024-08-17T13:30:27.759133Z
           digest: sha256:56269ab51e8dbd76ea0e50cfa3027e28389cb7853af4fc05d6ef5869bcc2fe35
-files:
-  dofigen.yml: |
-    ---
-    builders:
-      - name: builder
-        from: clux/muslrust:stable
-        workdir: /app
-        bind:
-          - Cargo.toml
-          - Cargo.lock
-          - src/
-        run:
-          # Build with musl to work with scratch
-          - cargo build --release -F cli -F permissive
-          # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
-          - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
-        cache:
-          # Cargo cache
-          - /home/rust/.cargo
-          # build cache
-          - /app/target
-
-    # Runtime
-    workdir: /app
-    artifacts:
-      - builder: builder
-        source: "/tmp/dofigen"
-        target: "/bin/"
-    entrypoint: dofigen
-    cmd: --help
-    context:
-      - "/src"
-      - "/Cargo.*"
+files: {}
