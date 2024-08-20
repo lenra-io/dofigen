@@ -7,11 +7,17 @@ const DEFAULT_NAMESPACE: &str = "library";
 const DEFAULT_TAG: &str = "latest";
 const DEFAULT_PORT: u16 = 443;
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, PartialOrd, Eq)]
 pub struct DockerTag {
     // TODO: replace with a date type
     pub tag_last_pushed: String,
     pub digest: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, PartialOrd, Eq)]
+pub struct ResourceVersion {
+    pub hash: String,
+    pub content: String,
 }
 
 impl ImageName {
@@ -73,7 +79,7 @@ pub struct LockFile {
     pub images: HashMap<String, HashMap<String, HashMap<String, HashMap<String, DockerTag>>>>,
 
     /// The files used in the Dofigen file for 'extend' fields
-    pub resources: HashMap<String, String>,
+    pub resources: HashMap<String, ResourceVersion>,
 }
 
 impl LockFile {
@@ -108,7 +114,7 @@ impl LockFile {
         images
     }
 
-    fn resources(&self) -> HashMap<Resource, String> {
+    fn resources(&self) -> HashMap<Resource, ResourceVersion> {
         self.resources
             .clone()
             .into_iter()
@@ -216,5 +222,17 @@ impl Lock for ImageName {
                 ..self.clone()
             }),
         }
+    }
+}
+
+impl Ord for DockerTag {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.tag_last_pushed.cmp(&other.tag_last_pushed)
+    }
+}
+
+impl Ord for ResourceVersion {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.hash.cmp(&other.hash)
     }
 }

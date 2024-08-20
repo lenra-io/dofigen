@@ -1,4 +1,7 @@
-use crate::{lock::DockerTag, Error, Extend, Image, ImageName, ImagePatch, Resource, Result};
+use crate::{
+    lock::{DockerTag, ResourceVersion},
+    Error, Extend, Image, ImageName, ImagePatch, Resource, Result,
+};
 use std::{
     collections::{HashMap, HashSet},
     fs,
@@ -14,7 +17,7 @@ pub struct DofigenContext {
     pub offline: bool,
     // Load resources
     load_resource_stack: Vec<Resource>,
-    resources: HashMap<Resource, String>,
+    resources: HashMap<Resource, ResourceVersion>,
     used_resources: HashSet<Resource>,
     // Images tags
     images: HashMap<ImageName, DockerTag>,
@@ -64,9 +67,9 @@ impl DofigenContext {
 
     /// Get the content of a resource from cache if possible
     pub(crate) fn get_resource_content(&mut self, resource: Resource) -> Result<String> {
-        if let Some(content) = self.resources.get(&resource) {
+        if let Some(version) = self.resources.get(&resource) {
             self.used_resources.insert(resource.clone());
-            return Ok(content.clone());
+            return Ok(version.content.clone());
         }
         if self.locked {
             return Err(Error::Custom("Resource not found in lock file".to_string()));
@@ -97,7 +100,13 @@ impl DofigenContext {
             }
         };
         self.used_resources.insert(resource.clone());
-        self.resources.insert(resource, content.clone());
+        self.resources.insert(
+            resource,
+            ResourceVersion {
+                hash: sha256::digest(content.clone()),
+                content: content.clone(),
+            },
+        );
         Ok(content)
     }
 
@@ -125,7 +134,7 @@ impl DofigenContext {
 
     //////////  Getters  //////////
 
-    pub(crate) fn used_resource_contents(&self) -> HashMap<Resource, String> {
+    pub(crate) fn used_resource_contents(&self) -> HashMap<Resource, ResourceVersion> {
         self.used_resources
             .iter()
             .map(|res| (res.clone(), self.resources[res].clone()))
@@ -137,6 +146,70 @@ impl DofigenContext {
             .iter()
             .map(|image| (image.clone(), self.images[image].clone()))
             .collect()
+    }
+
+    //////////  Comparison  //////////
+
+    pub fn image_updates(
+        &self,
+        previous: &DofigenContext,
+    ) -> Vec<UpdateCommand<ImageName, DockerTag>> {
+        let mut updates = vec![];
+
+        let mut previous_images = previous.images.clone();
+        let current_images = self.used_image_tags();
+
+        for (image, tag) in current_images {
+            if let Some(previous_tag) = previous_images.remove(&image) {
+                if tag.digest != previous_tag.digest {
+                    updates.push(UpdateCommand::Update(image, tag, previous_tag))
+                }
+            } else {
+                updates.push(UpdateCommand::Add(image, tag))
+            }
+        }
+
+        for (image, tag) in previous_images {
+            updates.push(UpdateCommand::Remove(image, tag));
+        }
+
+        updates.sort();
+
+        updates
+    }
+
+    pub fn resource_updates(
+        &self,
+        previous: &DofigenContext,
+    ) -> Vec<UpdateCommand<Resource, ResourceVersion>> {
+        let mut updates = vec![];
+
+        let mut previous_resources = previous.resources.clone();
+        let current_resources = self.used_resource_contents();
+
+        for (resource, version) in current_resources
+            .into_iter()
+            .filter(|(r, _)| matches!(r, Resource::Url(_)))
+        {
+            if let Some(previous_version) = previous_resources.remove(&resource) {
+                if version.hash != previous_version.hash {
+                    updates.push(UpdateCommand::Update(resource, version, previous_version))
+                }
+            } else {
+                updates.push(UpdateCommand::Add(resource, version))
+            }
+        }
+
+        for (resource, version) in previous_resources
+            .into_iter()
+            .filter(|(r, _)| matches!(r, Resource::Url(_)))
+        {
+            updates.push(UpdateCommand::Remove(resource, version));
+        }
+
+        updates.sort();
+
+        updates
     }
 
     //////////  Image parsing  //////////
@@ -372,7 +445,7 @@ impl DofigenContext {
     }
 
     pub fn from(
-        resources: HashMap<Resource, String>,
+        resources: HashMap<Resource, ResourceVersion>,
         images: HashMap<ImageName, DockerTag>,
     ) -> Self {
         Self {
@@ -383,6 +456,49 @@ impl DofigenContext {
             used_resources: HashSet::new(),
             images,
             used_images: HashSet::new(),
+        }
+    }
+}
+
+#[derive(PartialEq, PartialOrd, Eq)]
+pub enum UpdateCommand<K, V> {
+    Update(K, V, V),
+    Add(K, V),
+    Remove(K, V),
+}
+
+impl<K, V> Ord for UpdateCommand<K, V>
+where
+    K: Ord,
+    V: Ord,
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (
+                UpdateCommand::Add(a, _)
+                | UpdateCommand::Update(a, _, _)
+                | UpdateCommand::Remove(a, _),
+                UpdateCommand::Add(b, _)
+                | UpdateCommand::Update(b, _, _)
+                | UpdateCommand::Remove(b, _),
+            ) => a.cmp(b),
+        }
+    }
+}
+
+impl Ord for ImageName {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.to_string().cmp(&other.to_string())
+    }
+}
+
+impl Ord for Resource {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match (self, other) {
+            (Resource::File(a), Resource::File(b)) => a.cmp(b),
+            (Resource::Url(a), Resource::Url(b)) => a.cmp(b),
+            (Resource::File(_), Resource::Url(_)) => std::cmp::Ordering::Less,
+            (Resource::Url(_), Resource::File(_)) => std::cmp::Ordering::Greater,
         }
     }
 }

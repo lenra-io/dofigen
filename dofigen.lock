@@ -6,7 +6,7 @@ image: |
   - name: builder
     from:
       path: clux/muslrust
-      digest: sha256:56269ab51e8dbd76ea0e50cfa3027e28389cb7853af4fc05d6ef5869bcc2fe35
+      digest: sha256:a0ce98126e110dbba1e58e1ec75c3d3edcb7fd913517bd22e819cb91d01e8c68
     workdir: /app
     run:
     - cargo build --release -F cli -F permissive
@@ -41,6 +41,6 @@ images:
     clux:
       muslrust:
         stable:
-          tag_last_pushed: 2024-08-17T13:30:27.759133Z
-          digest: sha256:56269ab51e8dbd76ea0e50cfa3027e28389cb7853af4fc05d6ef5869bcc2fe35
+          tag_last_pushed: 2024-08-20T13:37:06.688864Z
+          digest: sha256:a0ce98126e110dbba1e58e1ec75c3d3edcb7fd913517bd22e819cb91d01e8c68
 resources: {}
