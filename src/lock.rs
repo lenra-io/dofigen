@@ -73,7 +73,7 @@ pub struct LockFile {
     pub images: HashMap<String, HashMap<String, HashMap<String, HashMap<String, DockerTag>>>>,
 
     /// The files used in the Dofigen file for 'extend' fields
-    pub files: HashMap<String, String>,
+    pub resources: HashMap<String, String>,
 }
 
 impl LockFile {
@@ -109,7 +109,7 @@ impl LockFile {
     }
 
     fn resources(&self) -> HashMap<Resource, String> {
-        self.files
+        self.resources
             .clone()
             .into_iter()
             .map(|(path, content)| (path.parse().unwrap(), content))
@@ -156,7 +156,7 @@ impl LockFile {
         Ok(LockFile {
             image: serde_yaml::to_string(effective_image).map_err(Error::from)?,
             images,
-            files,
+            resources: files,
         })
     }
 }
