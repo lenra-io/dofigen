@@ -86,7 +86,7 @@ impl CliCommand for Generate {
                 .map_err(Error::from)?;
             };
 
-            image
+            locked_image
         };
 
         let dockerfile_content = generate_dockerfile(&image)?;

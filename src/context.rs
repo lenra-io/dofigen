@@ -1,8 +1,8 @@
 use colored::{Color, Colorize};
 
 use crate::{
-    lock::{DockerTag, ResourceVersion},
-    Error, Extend, Image, ImageName, ImagePatch, Resource, Result,
+    lock::{DockerTag, ResourceVersion, DEFAULT_NAMESPACE},
+    Error, Extend, Image, ImageName, ImagePatch, ImageVersion, Resource, Result,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -202,9 +202,45 @@ impl DofigenContext {
     }
 
     fn load_image_tag(&mut self, image: &ImageName) -> Result<DockerTag> {
-        let tag = image.load_digest()?;
-        self.images.insert(image.clone(), tag.clone());
-        Ok(tag)
+        if self.offline {
+            return Err(Error::Custom(
+                "Offline mode can't load image tag".to_string(),
+            ));
+        }
+
+        let tag = match image
+            .version
+            .clone()
+            .ok_or(Error::Custom("No version found for image".into()))?
+        {
+            ImageVersion::Tag(tag) => tag,
+            _ => {
+                return Err(Error::Custom("Image version is not a tag".to_string()));
+            }
+        };
+
+        let mut repo = image.path.clone();
+        let namespace = if repo.contains("/") {
+            let mut parts = image.path.split("/");
+            let ret = parts.next().unwrap();
+            repo = parts.collect::<Vec<&str>>().join("/");
+            ret
+        } else {
+            DEFAULT_NAMESPACE
+        };
+        let request_url = format!(
+            "https://{host}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
+            host = image
+                .host
+                .clone()
+                .ok_or(Error::Custom("No host found for image".into()))?,
+            namespace = namespace,
+            repo = repo,
+            tag = tag
+        );
+        let response = reqwest::blocking::get(&request_url).map_err(Error::from)?;
+
+        Ok(response.json().map_err(Error::from)?)
     }
 
     fn clean_unused_images(&mut self) {
