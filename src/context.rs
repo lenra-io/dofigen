@@ -390,7 +390,7 @@ impl DofigenContext {
     ///   path: ubuntu
     /// artifacts:
     ///   - builder: builder
-    ///     source: 
+    ///     source:
     ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
