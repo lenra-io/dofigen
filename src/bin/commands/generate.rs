@@ -48,7 +48,6 @@ impl Generate {
 
 impl CliCommand for Generate {
     fn run(self) -> Result<()> {
-        // Get lock file from the file
         let path = get_file_path(&self.options.file);
         let lockfile_path = get_lockfile_path(path.clone());
         let lockfile = load_lockfile(lockfile_path.clone());

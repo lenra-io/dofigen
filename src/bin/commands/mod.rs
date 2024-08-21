@@ -37,13 +37,6 @@ pub(crate) fn get_image_from_path(path: String, context: &mut DofigenContext) ->
     }
 }
 
-pub(crate) fn get_image_from_cli_path(
-    path: &Option<String>,
-    context: &mut DofigenContext,
-) -> Result<Image> {
-    get_image_from_path(get_file_path(path), context)
-}
-
 pub(crate) fn load_lockfile(path: Option<PathBuf>) -> Option<LockFile> {
     path.map(|path| {
         if path.exists() {
