@@ -266,20 +266,6 @@ impl DockerfileGenerator for AddGitRepo {
     }
 }
 
-impl Artifact {
-    fn to_copy(&self) -> Copy {
-        Copy {
-            paths: vec![self.source.clone()].into(),
-            options: CopyOptions {
-                target: Some(self.target.clone()),
-                ..Default::default()
-            },
-            from: Some(self.builder.clone()),
-            ..Default::default()
-        }
-    }
-}
-
 impl DockerfileGenerator for Image {
     fn generate_dockerfile_lines(
         &self,
@@ -553,15 +539,6 @@ impl DockerfileGenerator for Run {
             content,
             options,
         })])
-    }
-}
-
-impl DockerfileGenerator for Artifact {
-    fn generate_dockerfile_lines(
-        &self,
-        context: &GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
-        self.to_copy().generate_dockerfile_lines(context)
     }
 }
 

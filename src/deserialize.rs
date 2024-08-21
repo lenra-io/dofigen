@@ -31,7 +31,6 @@ impl_from_patch_and_add!(Image, ImagePatch);
 impl_from_patch_and_add!(Stage, StagePatch);
 impl_from_patch_and_add!(Healthcheck, HealthcheckPatch);
 impl_from_patch_and_add!(ImageName, ImageNamePatch);
-impl_from_patch_and_add!(Artifact, ArtifactPatch);
 impl_from_patch_and_add!(Run, RunPatch);
 impl_from_patch_and_add!(Cache, CachePatch);
 impl_from_patch_and_add!(Bind, BindPatch);

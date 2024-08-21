@@ -124,22 +124,6 @@ pub struct Stage {
     pub run: Run,
 }
 
-/// Represents an artifact to be copied to the stage from another one
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
-#[patch(
-    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
-)]
-pub struct Artifact {
-    pub builder: String,
-
-    pub source: String,
-
-    #[patch(attribute(serde(alias = "destination")))]
-    pub target: String,
-}
-
 /// Represents a run executed as root
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
@@ -372,7 +356,7 @@ pub struct AddGitRepo {
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 pub struct Add {
-    #[patch(name = "VecPatch<Resource>")]
+    #[patch(name = "VecPatch<Resource>", attribute(serde(alias = "file")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<Resource>,
 
