@@ -5,7 +5,8 @@ use relative_path::RelativePath;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{de::DeserializeOwned, Deserialize};
-use std::{iter, ops};
+use std::iter;
+use struct_patch::Merge;
 
 #[cfg(feature = "permissive")]
 type VecType<T> = OneOrMany<T>;
@@ -29,7 +30,7 @@ pub struct Extend<T: Default> {
 
 impl<P> Extend<P>
 where
-    P: Default + DeserializeOwned + Clone + ops::Add<P, Output = P>,
+    P: Default + DeserializeOwned + Clone + Merge,
 {
     pub fn merge(&self, context: &mut DofigenContext) -> Result<P> {
         if self.extend.is_empty() {
@@ -48,7 +49,7 @@ where
             .collect::<Result<Vec<_>>>()?
             .into_iter()
             .chain(iter::once(self.value.clone()))
-            .reduce(|a, b| a + b);
+            .reduce(|a, b| a.merge(b));
 
         Ok(merged.expect("Since we have at least one value, we should have a merged value"))
     }
@@ -107,10 +108,11 @@ impl Resource {
     }
 }
 
-macro_rules! add_patch {
+// Can't use merge on option since it removes the previous value if it's none
+macro_rules! merge_option_patch {
     ($opt_a: expr, $opt_b: expr) => {
         match ($opt_a, $opt_b) {
-            (Some(a), Some(b)) => Some(a + b),
+            (Some(a), Some(b)) => Some(a.merge(b)),
             (Some(a), None) => Some(a),
             (None, Some(b)) => Some(b),
             (None, None) => None,
@@ -118,305 +120,57 @@ macro_rules! add_patch {
     };
 }
 
-macro_rules! add_optional_add {
-    ($opt_a: expr, $opt_b: expr) => {
-        match ($opt_a, $opt_b) {
-            (Some(Some(a)), Some(Some(b))) => Some(Some(a + b)),
-            (_, Some(b)) => Some(b),
-            (Some(a), None) => Some(a),
-            (None, None) => None,
-        }
-    };
-}
-
-macro_rules! add_option {
-    ($opt_a: expr, $opt_b: expr) => {
-        match ($opt_a, $opt_b) {
-            (_, Some(b)) => Some(b),
-            (Some(a), None) => Some(a),
-            (None, None) => None,
-        }
-    };
-}
-
-impl ops::Add<Self> for ImagePatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            stage: add_patch!(self.stage, rhs.stage),
-            context: add_patch!(self.context, rhs.context),
-            ignore: add_patch!(self.ignore, rhs.ignore),
-            builders: add_patch!(self.builders, rhs.builders),
-            entrypoint: add_patch!(self.entrypoint, rhs.entrypoint),
-            cmd: add_patch!(self.cmd, rhs.cmd),
-            expose: add_patch!(self.expose, rhs.expose),
-            healthcheck: add_optional_add!(self.healthcheck, rhs.healthcheck),
-        }
-    }
-}
-
-impl ops::Add<Self> for StagePatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            from: add_optional_add!(self.from, rhs.from),
-            run: add_patch!(self.run, rhs.run),
-            name: add_option!(self.name, rhs.name),
-            user: add_optional_add!(self.user, rhs.user),
-            workdir: add_option!(self.workdir, rhs.workdir),
-            env: add_patch!(self.env, rhs.env),
-            artifacts: add_patch!(self.artifacts, rhs.artifacts),
-            copy: add_patch!(self.copy, rhs.copy),
-            root: add_optional_add!(self.root, rhs.root),
-        }
-    }
-}
-
-impl ops::Add<Self> for RunPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            run: add_patch!(self.run, rhs.run),
-            cache: add_patch!(self.cache, rhs.cache),
-            bind: add_patch!(self.bind, rhs.bind),
-        }
-    }
-}
-
-impl ops::Add<Self> for BindPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            from: add_option!(self.from, rhs.from),
-            source: add_option!(self.source, rhs.source),
-            target: add_option!(self.target, rhs.target),
-            readwrite: add_option!(self.readwrite, rhs.readwrite),
-        }
-    }
-}
-
-impl ops::Add<Self> for ImageNamePatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            host: add_option!(self.host, rhs.host),
-            path: add_option!(self.path, rhs.path),
-            version: add_option!(self.version, rhs.version),
-            port: add_option!(self.port, rhs.port),
-        }
-    }
-}
-
-impl ops::Add<Self> for HealthcheckPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            cmd: add_option!(self.cmd, rhs.cmd),
-            interval: add_option!(self.interval, rhs.interval),
-            timeout: add_option!(self.timeout, rhs.timeout),
-            start: add_option!(self.start, rhs.start),
-            retries: add_option!(self.retries, rhs.retries),
-        }
-    }
-}
-
-impl ops::Add<Self> for UserPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            user: add_option!(self.user, rhs.user),
-            group: add_option!(self.group, rhs.group),
-        }
-    }
-}
-
-impl ops::Add<Self> for PortPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            port: add_option!(self.port, rhs.port),
-            protocol: add_option!(self.protocol, rhs.protocol),
-        }
-    }
-}
-
-impl ops::Add<Self> for ArtifactPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            builder: add_option!(self.builder, rhs.builder),
-            source: add_option!(self.source, rhs.source),
-            target: add_option!(self.target, rhs.target),
-        }
-    }
-}
-
-impl ops::Add<Self> for CopyResourcePatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        match (self, rhs) {
-            (Self::Copy(a), Self::Copy(b)) => Self::Copy(a + b),
-            (Self::Copy(a), Self::Unknown(b)) => Self::Copy(a + b),
-            (Self::Unknown(a), Self::Copy(b)) => Self::Copy(a + b),
-            (Self::Add(a), Self::Add(b)) => Self::Add(a + b),
-            (Self::Add(a), Self::Unknown(b)) => Self::Add(a + b),
-            (Self::Unknown(a), Self::Add(b)) => Self::Add(a + b),
-            (Self::AddGitRepo(a), Self::AddGitRepo(b)) => Self::AddGitRepo(a + b),
-            (Self::AddGitRepo(a), Self::Unknown(b)) => Self::AddGitRepo(a + b),
-            (Self::Unknown(a), Self::AddGitRepo(b)) => Self::AddGitRepo(a + b),
-            (Self::Unknown(a), Self::Unknown(b)) => Self::Unknown(a + b),
+impl Merge for CopyResourcePatch {
+    fn merge(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Copy(a), Self::Copy(b)) => Self::Copy(a.merge(b)),
+            (Self::Copy(a), Self::Unknown(b)) => {
+                let mut a = a;
+                a.options = merge_option_patch!(a.options, b.options);
+                a.exclude = merge_option_patch!(a.exclude, b.exclude);
+                Self::Copy(a)
+            }
+            (Self::Unknown(a), Self::Copy(b)) => {
+                let mut b = b;
+                b.options = merge_option_patch!(a.options, b.options);
+                b.exclude = merge_option_patch!(a.exclude, b.exclude);
+                Self::Copy(b)
+            }
+            (Self::Add(a), Self::Add(b)) => Self::Add(a.merge(b)),
+            (Self::Add(a), Self::Unknown(b)) => {
+                let mut a = a;
+                a.options = merge_option_patch!(a.options, b.options);
+                Self::Add(a)
+            }
+            (Self::Unknown(a), Self::Add(b)) => {
+                let mut b = b;
+                b.options = merge_option_patch!(a.options, b.options);
+                Self::Add(b)
+            }
+            (Self::AddGitRepo(a), Self::AddGitRepo(b)) => Self::AddGitRepo(a.merge(b)),
+            (Self::AddGitRepo(a), Self::Unknown(b)) => {
+                let mut a = a;
+                a.options = merge_option_patch!(a.options, b.options);
+                a.exclude = merge_option_patch!(a.exclude, b.exclude);
+                Self::AddGitRepo(a)
+            }
+            (Self::Unknown(a), Self::AddGitRepo(b)) => {
+                let mut b = b;
+                b.options = merge_option_patch!(a.options, b.options);
+                b.exclude = merge_option_patch!(a.exclude, b.exclude);
+                Self::AddGitRepo(b)
+            }
+            (Self::Unknown(a), Self::Unknown(b)) => Self::Unknown(a.merge(b)),
             (a, b) => panic!("Can't add {:?} and {:?}", a, b),
         }
     }
 }
 
-impl ops::Add<Self> for CopyPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
+impl Merge for UnknownPatch {
+    fn merge(self, other: Self) -> Self {
         Self {
-            paths: add_patch!(self.paths, rhs.paths),
-            options: add_patch!(self.options, rhs.options),
-            exclude: add_patch!(self.exclude, rhs.exclude),
-            from: add_option!(self.from, rhs.from),
-            parents: add_option!(self.parents, rhs.parents),
-        }
-    }
-}
-
-impl ops::Add<UnknownPatch> for CopyPatch {
-    type Output = Self;
-
-    fn add(self, rhs: UnknownPatch) -> Self {
-        Self {
-            paths: self.paths,
-            options: add_patch!(self.options, rhs.options),
-            exclude: add_patch!(self.exclude, rhs.exclude),
-            from: self.from,
-            parents: self.parents,
-        }
-    }
-}
-
-impl ops::Add<CopyPatch> for UnknownPatch {
-    type Output = CopyPatch;
-
-    fn add(self, rhs: CopyPatch) -> CopyPatch {
-        CopyPatch {
-            paths: rhs.paths,
-            options: add_patch!(self.options, rhs.options),
-            exclude: add_patch!(self.exclude, rhs.exclude),
-            from: rhs.from,
-            parents: rhs.parents,
-        }
-    }
-}
-
-impl ops::Add<Self> for AddPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            files: add_patch!(self.files, rhs.files),
-            options: add_patch!(self.options, rhs.options),
-            checksum: add_option!(self.checksum, rhs.checksum),
-        }
-    }
-}
-
-impl ops::Add<UnknownPatch> for AddPatch {
-    type Output = Self;
-
-    fn add(self, rhs: UnknownPatch) -> Self {
-        Self {
-            files: self.files,
-            options: add_patch!(self.options, rhs.options),
-            checksum: self.checksum,
-        }
-    }
-}
-
-impl ops::Add<AddPatch> for UnknownPatch {
-    type Output = AddPatch;
-
-    fn add(self, rhs: AddPatch) -> AddPatch {
-        AddPatch {
-            files: rhs.files,
-            options: add_patch!(self.options, rhs.options),
-            checksum: rhs.checksum,
-        }
-    }
-}
-
-impl ops::Add<Self> for AddGitRepoPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            repo: add_option!(self.repo, rhs.repo),
-            options: add_patch!(self.options, rhs.options),
-            exclude: add_patch!(self.exclude, rhs.exclude),
-            keep_git_dir: add_option!(self.keep_git_dir, rhs.keep_git_dir),
-        }
-    }
-}
-
-impl ops::Add<UnknownPatch> for AddGitRepoPatch {
-    type Output = Self;
-
-    fn add(self, rhs: UnknownPatch) -> Self {
-        Self {
-            repo: self.repo,
-            options: add_patch!(self.options, rhs.options),
-            exclude: add_patch!(self.exclude, rhs.exclude),
-            keep_git_dir: self.keep_git_dir,
-        }
-    }
-}
-
-impl ops::Add<AddGitRepoPatch> for UnknownPatch {
-    type Output = AddGitRepoPatch;
-
-    fn add(self, rhs: AddGitRepoPatch) -> AddGitRepoPatch {
-        AddGitRepoPatch {
-            repo: rhs.repo,
-            options: add_patch!(self.options, rhs.options),
-            exclude: add_patch!(self.exclude, rhs.exclude),
-            keep_git_dir: rhs.keep_git_dir,
-        }
-    }
-}
-
-impl ops::Add<Self> for UnknownPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            options: add_patch!(self.options, rhs.options),
-            exclude: add_patch!(self.exclude, rhs.exclude),
-        }
-    }
-}
-
-impl ops::Add<Self> for CopyOptionsPatch {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        Self {
-            chown: add_optional_add!(self.chown, rhs.chown),
-            chmod: add_option!(self.chmod, rhs.chmod),
-            target: add_option!(self.target, rhs.target),
-            link: add_option!(self.link, rhs.link),
+            options: merge_option_patch!(self.options, other.options),
+            exclude: merge_option_patch!(self.exclude, other.exclude),
         }
     }
 }
@@ -453,32 +207,6 @@ mod test {
             )]
             struct TestSubStruct {
                 pub level: u16,
-            }
-
-            impl ops::Add<Self> for TestStructPatch {
-                type Output = Self;
-
-                fn add(self, rhs: Self) -> Self {
-                    Self {
-                        name: rhs.name.or(self.name),
-                        sub: match (self.sub, rhs.sub) {
-                            (Some(a), Some(b)) => Some(a + b),
-                            (Some(a), None) => Some(a),
-                            (None, Some(b)) => Some(b),
-                            (None, None) => None,
-                        },
-                    }
-                }
-            }
-
-            impl ops::Add<Self> for TestSubStructPatch {
-                type Output = Self;
-
-                fn add(self, rhs: Self) -> Self {
-                    Self {
-                        level: rhs.level.or(self.level),
-                    }
-                }
             }
 
             #[test]
