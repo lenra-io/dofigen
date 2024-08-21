@@ -47,7 +47,9 @@ pub(crate) fn get_image_from_cli_path(
 pub(crate) fn load_lockfile(path: Option<PathBuf>) -> Option<LockFile> {
     path.map(|path| {
         if path.exists() {
-            Resource::File(path).load(&mut DofigenContext::new()).ok()
+            let mut context = DofigenContext::new();
+            context.display_updates = false;
+            Resource::File(path).load(&mut context).ok()
         } else {
             None
         }

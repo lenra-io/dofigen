@@ -1,3 +1,5 @@
+use colored::{Color, Colorize};
+
 use crate::{
     lock::{DockerTag, ResourceVersion},
     Error, Extend, Image, ImageName, ImagePatch, Resource, Result,
@@ -13,8 +15,12 @@ const MAX_LOAD_STACK_SIZE: usize = 10;
 
 /// The representation of the Dofigen execution context
 pub struct DofigenContext {
-    pub locked: bool,
     pub offline: bool,
+    pub update_file_resources: bool,
+    pub update_url_resources: bool,
+    pub update_docker_tags: bool,
+    pub display_updates: bool,
+
     // Load resources
     load_resource_stack: Vec<Resource>,
     resources: HashMap<Resource, ResourceVersion>,
@@ -67,18 +73,50 @@ impl DofigenContext {
 
     /// Get the content of a resource from cache if possible
     pub(crate) fn get_resource_content(&mut self, resource: Resource) -> Result<String> {
-        if let Some(version) = self.resources.get(&resource) {
-            self.used_resources.insert(resource.clone());
-            return Ok(version.content.clone());
-        }
-        if self.locked {
-            return Err(Error::Custom("Resource not found in lock file".to_string()));
-        }
-        self.load_resource_content(resource)
+        let load = match resource {
+            Resource::File(_) => self.update_file_resources,
+            Resource::Url(_) => self.update_url_resources,
+        } || !self.resources.contains_key(&resource);
+
+        let version = if load {
+            let version = self.load_resource_version(&resource)?;
+            let previous = self.resources.insert(resource.clone(), version.clone());
+
+            // display update
+            if self.display_updates {
+                let resource_name = resource.to_string();
+                if let Some(previous) = previous {
+                    if previous.hash != version.hash {
+                        println!(
+                            "{:>20} {} {} -> {}",
+                            "Update resource".color(Color::Green).bold(),
+                            resource_name,
+                            previous.hash,
+                            version.hash
+                        );
+                    }
+                } else {
+                    println!(
+                        "{:>20} {} {}",
+                        "Add resource".color(Color::Blue).bold(),
+                        resource_name,
+                        version.hash
+                    );
+                }
+            }
+
+            version
+        } else {
+            self.resources[&resource].clone()
+        };
+
+        let content = version.content.clone();
+        self.used_resources.insert(resource);
+        Ok(content)
     }
 
     /// Load the content of a resource
-    pub(crate) fn load_resource_content(&mut self, resource: Resource) -> Result<String> {
+    fn load_resource_version(&self, resource: &Resource) -> Result<ResourceVersion> {
         let content = match resource.clone() {
             Resource::File(path) => fs::read_to_string(path.clone())
                 .map_err(|err| Error::Custom(format!("Could not read file {:?}: {}", path, err)))?,
@@ -99,37 +137,90 @@ impl DofigenContext {
                 })?
             }
         };
-        self.used_resources.insert(resource.clone());
-        self.resources.insert(
-            resource,
-            ResourceVersion {
-                hash: sha256::digest(content.clone()),
-                content: content.clone(),
-            },
-        );
-        Ok(content)
+        let version = ResourceVersion {
+            hash: sha256::digest(content.clone()),
+            content: content.clone(),
+        };
+        Ok(version)
+    }
+
+    fn clean_unused_resources(&mut self) {
+        for resource in self.resources.clone().keys() {
+            if !self.used_resources.contains(resource) {
+                let version = self.resources.remove(resource).unwrap();
+                if self.display_updates {
+                    println!(
+                        "{:>20} {} {}",
+                        "Remove image".color(Color::Red).bold(),
+                        resource.to_string(),
+                        version.hash
+                    );
+                }
+            }
+        }
     }
 
     //////////  Image management  //////////
 
     pub(crate) fn get_image_tag(&mut self, image: &ImageName) -> Result<DockerTag> {
-        let filled = image.fill();
-        if self.used_images.contains(&filled) {
-            return Ok(self.images[&filled].clone());
-        }
-        // TODO: handle local images
-        if self.locked || self.offline {
-            return Err(Error::Custom("Image not found in lock file".to_string()));
-        }
-        self.load_image_tag(image)
+        let image = image.fill();
+
+        let tag = if self.update_docker_tags || !self.images.contains_key(&image) {
+            let tag = self.load_image_tag(&image)?;
+            let previous = self.images.insert(image.clone(), tag.clone());
+
+            // display update
+            if self.display_updates {
+                let image_name = image.to_string();
+                if let Some(previous) = previous {
+                    if previous.digest != tag.digest {
+                        println!(
+                            "{:>20} {} {} -> {}",
+                            "Update image".color(Color::Green).bold(),
+                            image_name,
+                            previous.digest,
+                            tag.digest
+                        );
+                    }
+                } else {
+                    println!(
+                        "{:>20} {} {}",
+                        "Add image".color(Color::Blue).bold(),
+                        image_name,
+                        tag.digest
+                    );
+                }
+            }
+
+            tag
+        } else {
+            self.images[&image].clone()
+        };
+
+        self.used_images.insert(image.clone());
+        Ok(tag)
     }
 
-    pub(crate) fn load_image_tag(&mut self, image: &ImageName) -> Result<DockerTag> {
-        let filled = image.fill();
-        let tag = filled.load_digest()?;
-        self.images.insert(filled.clone(), tag.clone());
-        self.used_images.insert(filled);
+    fn load_image_tag(&mut self, image: &ImageName) -> Result<DockerTag> {
+        let tag = image.load_digest()?;
+        self.images.insert(image.clone(), tag.clone());
         Ok(tag)
+    }
+
+    fn clean_unused_images(&mut self) {
+        for image in self.images.clone().keys() {
+            if !self.used_images.contains(image) {
+                let tag = self.images.remove(image).unwrap();
+                if self.display_updates {
+                    println!(
+                        "{:>20} {} {}",
+                        "Remove image".color(Color::Red).bold(),
+                        image.to_string(),
+                        tag.digest
+                    );
+                }
+            }
+        }
     }
 
     //////////  Getters  //////////
@@ -430,12 +521,20 @@ impl DofigenContext {
         Ok(image.merge(self)?.into())
     }
 
+    pub fn clean_unused(&mut self) {
+        self.clean_unused_resources();
+        self.clean_unused_images();
+    }
+
     //////////  Constructors  //////////
 
     pub fn new() -> Self {
         Self {
-            locked: false,
             offline: false,
+            update_docker_tags: false,
+            update_file_resources: true,
+            update_url_resources: false,
+            display_updates: true,
             load_resource_stack: vec![],
             resources: HashMap::new(),
             used_resources: HashSet::new(),
@@ -449,8 +548,11 @@ impl DofigenContext {
         images: HashMap<ImageName, DockerTag>,
     ) -> Self {
         Self {
-            locked: false,
             offline: false,
+            update_docker_tags: false,
+            update_file_resources: true,
+            update_url_resources: false,
+            display_updates: true,
             load_resource_stack: vec![],
             resources,
             used_resources: HashSet::new(),

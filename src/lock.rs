@@ -155,7 +155,6 @@ impl LockFile {
         let files = context
             .used_resource_contents()
             .iter()
-            .filter(|(resource, _)| matches!(resource, Resource::Url(_)))
             .map(|(resource, content)| (resource.to_string(), content.clone()))
             .collect();
 

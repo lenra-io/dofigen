@@ -67,15 +67,14 @@ impl CliCommand for Generate {
             context.parse_from_string(lockfile.image.as_str())?
         } else {
             context.offline = self.options.offline;
-            context.locked = self.locked;
+            context.update_file_resources = true;
 
             let image = get_image_from_path(path, &mut context)?;
 
             // Replace images tags with the digest
             let locked_image = image.lock(&mut context)?;
+            context.clean_unused();
             let new_lockfile = LockFile::from_context(&locked_image, &mut context)?;
-
-            // TODO: display lockfile diff
 
             if let Some(lockfile_path) = lockfile_path {
                 serde_yaml::to_writer(
