@@ -288,7 +288,6 @@ pub enum ImageVersion {
 /// Represents a copy origin
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum FromContext {
     Image(ImageName),
     Builder(String),
