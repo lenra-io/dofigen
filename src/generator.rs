@@ -475,7 +475,7 @@ impl DockerfileGenerator for Run {
             if let Some(source) = bind.source.as_ref() {
                 bind_options.push(InstructionOptionOption::new("source", source.clone()));
             }
-            if bind.readwrite {
+            if bind.readwrite.unwrap_or(false) {
                 bind_options.push(InstructionOptionOption::new_without_value("readwrite"));
             }
             options.push(InstructionOption::WithOptions("mount".into(), bind_options));
@@ -524,7 +524,7 @@ impl DockerfileGenerator for Run {
             if let Some(sharing) = cache.sharing.as_ref() {
                 cache_options.push(InstructionOptionOption::new("sharing", sharing.to_string()));
             }
-            if cache.readonly {
+            if cache.readonly.unwrap_or(false) {
                 cache_options.push(InstructionOptionOption::new_without_value("readonly"));
             }
 

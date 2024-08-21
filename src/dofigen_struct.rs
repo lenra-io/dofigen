@@ -168,8 +168,8 @@ pub struct Cache {
     pub id: Option<String>,
     pub target: String,
     #[patch(attribute(serde(alias = "ro")))]
-    #[serde(skip_serializing_if = "is_false")]
-    pub readonly: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub readonly: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sharing: Option<CacheSharing>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -183,10 +183,6 @@ pub struct Cache {
     #[patch(name = "Option<UserPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chown: Option<User>,
-}
-
-fn is_false(b: &bool) -> bool {
-    !b
 }
 
 /// Represents a cache sharing strategy
@@ -223,8 +219,8 @@ pub struct Bind {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
     #[patch(attribute(serde(alias = "rw")))]
-    #[serde(skip_serializing_if = "is_false")]
-    pub readwrite: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub readwrite: Option<bool>,
 }
 
 /// Represents the Dockerfile healthcheck instruction

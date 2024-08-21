@@ -195,7 +195,7 @@ impl_parsable_patch!(Bind, BindPatch, s, {
         ),
         target,
         from: Some(captures.name("from").map(|m| m.as_str().into())),
-        readwrite: Some(false),
+        readwrite: Some(None),
     })
 });
 
@@ -213,7 +213,7 @@ impl_parsable_patch!(Cache, CachePatch, s, {
         chmod: Some(None),
         chown: Some(None),
         id: Some(None),
-        readonly: Some(false),
+        readonly: Some(None),
         sharing: Some(None),
     })
 });
