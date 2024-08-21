@@ -87,7 +87,7 @@ COPY \
     "." "./"
 USER rust
 RUN \
-    --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/registry \
     <<EOF
 ls -al
 cargo build --release
@@ -139,7 +139,8 @@ builders:
       - cargo build --release
 artifacts:
   - builder: builder
-    source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    source:
+      - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     destination: /app
 "#;
 
@@ -184,14 +185,17 @@ artifacts:
             }]
             .into(),
             stage: Stage {
-                artifacts: vec![Artifact {
-                    builder: String::from("builder"),
-                    source: String::from(
+                copy: vec![CopyResource::Copy(Copy {
+                    from: Some(FromContext::Builder(String::from("builder"))),
+                    paths: vec![String::from(
                         "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-                    ),
-                    target: String::from("/app"),
+                    )],
+                    options: CopyOptions {
+                        target: Some(String::from("/app")),
+                        ..Default::default()
+                    },
                     ..Default::default()
-                }]
+                })]
                 .into(),
                 ..Default::default()
             },
@@ -430,7 +434,7 @@ COPY \
     "." "./"
 USER rust
 RUN \
-    --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release
 
 # runtime
@@ -442,7 +446,7 @@ COPY \
     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust" "/app"
 USER 1001
 RUN \
-    --mount=type=cache,target=/tmp,sharing=locked,uid=1001 \
+    --mount=type=cache,target=/tmp,uid=1001 \
     echo "coucou"
 "#
     );
@@ -472,13 +476,14 @@ builders:
       - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
     cache:
       # Cargo cache
-      - /home/rust/.cargo
+      - target: /home/rust/.cargo
       # build cache
-      - /app/target
+      - target: target
 workdir: /app
 artifacts:
   - builder: builder
-    source: "/tmp/dofigen"
+    source: 
+      - "/tmp/dofigen"
     target: "/bin/"
 entrypoint:
   - /bin/dofigen
@@ -508,7 +513,7 @@ builders:
       # Cargo cache
       - /home/rust/.cargo
       # build cache
-      - /app/target
+      - target
 workdir: /app
 artifacts:
   - builder: builder
@@ -538,8 +543,8 @@ RUN \
     --mount=type=bind,target=Cargo.toml,source=Cargo.toml \
     --mount=type=bind,target=Cargo.lock,source=Cargo.lock \
     --mount=type=bind,target=src/,source=src/ \
-    --mount=type=cache,target=/home/rust/.cargo,sharing=locked \
-    --mount=type=cache,target=/app/target,sharing=locked \
+    --mount=type=cache,target=/home/rust/.cargo \
+    --mount=type=cache,target=/app/target \
     <<EOF
 cargo build --release -F cli -F permissive
 mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/

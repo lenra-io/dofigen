@@ -390,7 +390,8 @@ impl DofigenContext {
     ///   path: ubuntu
     /// artifacts:
     ///   - builder: builder
-    ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    ///     source:
+    ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
     /// let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
@@ -412,14 +413,17 @@ impl DofigenContext {
     ///                 path: "ubuntu".into(),
     ///                 ..Default::default()
     ///             }.into()),
-    ///             artifacts: vec![Artifact {
-    ///                 builder: String::from("builder"),
-    ///                 source: String::from(
+    ///             copy: vec![CopyResource::Copy(Copy{
+    ///                 from: Some(FromContext::Builder(String::from("builder"))),
+    ///                 paths: vec![String::from(
     ///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-    ///                 ),
-    ///                 target: String::from("/app"),
+    ///                 )],
+    ///                 options: CopyOptions {
+    ///                     target: Some(String::from("/app")),
+    ///                     ..Default::default()
+    ///                 },
     ///                 ..Default::default()
-    ///             }].into(),
+    ///             })].into(),
     ///             ..Default::default()
     ///         },
     ///         ..Default::default()
@@ -482,7 +486,8 @@ impl DofigenContext {
     ///     path: ubuntu
     /// artifacts:
     ///   - builder: builder
-    ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    ///     source:
+    ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
     /// let image: Image = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
@@ -504,14 +509,17 @@ impl DofigenContext {
     ///                 path: String::from("ubuntu"),
     ///                 ..Default::default()
     ///             }.into()),
-    ///             artifacts: vec![Artifact {
-    ///                 builder: String::from("builder"),
-    ///                 source: String::from(
+    ///             copy: vec![CopyResource::Copy(Copy {
+    ///                 from: Some(FromContext::Builder(String::from("builder"))),
+    ///                 paths: vec![String::from(
     ///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-    ///                 ),
-    ///                 target: String::from("/app"),
+    ///                 )],
+    ///                 options: CopyOptions {
+    ///                     target: Some(String::from("/app")),
+    ///                     ..Default::default()
+    ///                 },
     ///                 ..Default::default()
-    ///             }].into(),
+    ///             })].into(),
     ///             ..Default::default()
     ///         },
     ///         ..Default::default()
