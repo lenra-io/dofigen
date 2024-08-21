@@ -1,6 +1,6 @@
 #[cfg(feature = "permissive")]
 use crate::OneOrMany;
-use crate::{dofigen_struct::*, CopyResourcePatch, DofigenContext, Error, Result, UnknownPatch};
+use crate::{dofigen_struct::*, DofigenContext, Error, Result};
 use relative_path::RelativePath;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
@@ -105,73 +105,6 @@ impl Resource {
                 ))
             })?,
         )
-    }
-}
-
-// Can't use merge on option since it removes the previous value if it's none
-macro_rules! merge_option_patch {
-    ($opt_a: expr, $opt_b: expr) => {
-        match ($opt_a, $opt_b) {
-            (Some(a), Some(b)) => Some(a.merge(b)),
-            (Some(a), None) => Some(a),
-            (None, Some(b)) => Some(b),
-            (None, None) => None,
-        }
-    };
-}
-
-impl Merge for CopyResourcePatch {
-    fn merge(self, other: Self) -> Self {
-        match (self, other) {
-            (Self::Copy(a), Self::Copy(b)) => Self::Copy(a.merge(b)),
-            (Self::Copy(a), Self::Unknown(b)) => {
-                let mut a = a;
-                a.options = merge_option_patch!(a.options, b.options);
-                a.exclude = merge_option_patch!(a.exclude, b.exclude);
-                Self::Copy(a)
-            }
-            (Self::Unknown(a), Self::Copy(b)) => {
-                let mut b = b;
-                b.options = merge_option_patch!(a.options, b.options);
-                b.exclude = merge_option_patch!(a.exclude, b.exclude);
-                Self::Copy(b)
-            }
-            (Self::Add(a), Self::Add(b)) => Self::Add(a.merge(b)),
-            (Self::Add(a), Self::Unknown(b)) => {
-                let mut a = a;
-                a.options = merge_option_patch!(a.options, b.options);
-                Self::Add(a)
-            }
-            (Self::Unknown(a), Self::Add(b)) => {
-                let mut b = b;
-                b.options = merge_option_patch!(a.options, b.options);
-                Self::Add(b)
-            }
-            (Self::AddGitRepo(a), Self::AddGitRepo(b)) => Self::AddGitRepo(a.merge(b)),
-            (Self::AddGitRepo(a), Self::Unknown(b)) => {
-                let mut a = a;
-                a.options = merge_option_patch!(a.options, b.options);
-                a.exclude = merge_option_patch!(a.exclude, b.exclude);
-                Self::AddGitRepo(a)
-            }
-            (Self::Unknown(a), Self::AddGitRepo(b)) => {
-                let mut b = b;
-                b.options = merge_option_patch!(a.options, b.options);
-                b.exclude = merge_option_patch!(a.exclude, b.exclude);
-                Self::AddGitRepo(b)
-            }
-            (Self::Unknown(a), Self::Unknown(b)) => Self::Unknown(a.merge(b)),
-            (a, b) => panic!("Can't add {:?} and {:?}", a, b),
-        }
-    }
-}
-
-impl Merge for UnknownPatch {
-    fn merge(self, other: Self) -> Self {
-        Self {
-            options: merge_option_patch!(self.options, other.options),
-            exclude: merge_option_patch!(self.exclude, other.exclude),
-        }
     }
 }
 

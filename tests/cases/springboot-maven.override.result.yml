@@ -15,14 +15,15 @@ builders:
     - mvn package -DskipTests
     - mv target/*.jar app.jar
     cache:
-    - /root/.m2
-    - /app/target
+    - target: /root/.m2
+    - target: /app/target
 from:
   path: eclipse-temurin
   tag: 21-jre-alpine
-artifacts:
+copy:
 - builder: maven-builder
-  source: /app/app.jar
+  paths:
+  - /app/app.jar
   target: app.jar
 cmd:
 - java
