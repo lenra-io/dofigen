@@ -1,10 +1,11 @@
-use crate::{dockerfile_struct::*, dofigen_struct::*, Result, DOCKERFILE_VERSION};
+use crate::{dockerfile_struct::*, dofigen_struct::*, Error, Result, DOCKERFILE_VERSION};
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GenerationContext {
     pub user: Option<User>,
+    pub wokdir: Option<String>,
     pub default_stage_name: String,
     pub default_from: ImageName,
     pub previous_builders: Vec<String>,
@@ -286,6 +287,7 @@ impl DockerfileGenerator for Image {
     ) -> Result<Vec<DockerfileLine>> {
         let mut context: GenerationContext = GenerationContext {
             user: None,
+            wokdir: None,
             default_stage_name: String::new(),
             default_from: self.stage.from(context).clone(),
             previous_builders: vec![],
@@ -371,6 +373,7 @@ impl DockerfileGenerator for Stage {
     ) -> Result<Vec<DockerfileLine>> {
         let context = GenerationContext {
             user: self.user(context),
+            wokdir: self.workdir.clone(),
             ..context.clone()
         };
         let stage_name = self.name(&context);
@@ -477,41 +480,73 @@ impl DockerfileGenerator for Run {
         // Mount binds
         self.bind.iter().for_each(|bind| {
             let mut bind_options = vec![
-                InstructionOptionOption::new("type", "bind"),
-                InstructionOptionOption::new("target", bind.target.as_str()),
+                InstructionOptionOption::new("type", "bind".into()),
+                InstructionOptionOption::new("target", bind.target.clone()),
             ];
             if let Some(from) = bind.from.as_ref() {
-                bind_options.push(InstructionOptionOption::new("from", from));
+                bind_options.push(InstructionOptionOption::new("from", from.clone()));
             }
             if let Some(source) = bind.source.as_ref() {
-                bind_options.push(InstructionOptionOption::new("source", source));
+                bind_options.push(InstructionOptionOption::new("source", source.clone()));
             }
             if bind.readwrite {
-                bind_options.push(InstructionOptionOption::new("readwrite", "true"));
+                bind_options.push(InstructionOptionOption::new_without_value("readwrite"));
             }
             options.push(InstructionOption::WithOptions("mount".into(), bind_options));
         });
 
         // Mount caches
-        self.cache.iter().for_each(|cache| {
+        for cache in self.cache.iter() {
+            let mut target = cache.target.clone();
+
+            // Manage relative paths
+            if !target.starts_with("/") {
+                target = format!(
+                    "{}/{}",
+                    context.wokdir.clone().ok_or(Error::Custom(
+                        "The cache target must be absolute or a workdir must be defined"
+                            .to_string()
+                    ))?,
+                    target
+                );
+            }
+
             let mut cache_options = vec![
-                InstructionOptionOption::new("type", "cache"),
-                InstructionOptionOption::new("target", cache),
-                InstructionOptionOption::new("sharing", "locked"),
+                InstructionOptionOption::new("type", "cache".into()),
+                InstructionOptionOption::new("target", target),
             ];
-            if let Some(user) = &context.user {
-                if let Some(uid) = user.uid() {
-                    cache_options.push(InstructionOptionOption::new("uid", &uid.to_string()));
-                }
-                if let Some(gid) = user.gid() {
-                    cache_options.push(InstructionOptionOption::new("gid", &gid.to_string()));
+            if let Some(id) = cache.id.as_ref() {
+                cache_options.push(InstructionOptionOption::new("id", id.clone()));
+            }
+            if let Some(from) = cache.from.as_ref() {
+                cache_options.push(InstructionOptionOption::new("from", from.clone()));
+                if let Some(source) = cache.source.as_ref() {
+                    cache_options.push(InstructionOptionOption::new("source", source.clone()));
                 }
             }
+            if let Some(user) = cache.chown.as_ref().or(context.user.as_ref()) {
+                if let Some(uid) = user.uid() {
+                    cache_options.push(InstructionOptionOption::new("uid", uid.to_string()));
+                }
+                if let Some(gid) = user.gid() {
+                    cache_options.push(InstructionOptionOption::new("gid", gid.to_string()));
+                }
+            }
+            if let Some(chmod) = cache.chmod.as_ref() {
+                cache_options.push(InstructionOptionOption::new("chmod", chmod.clone()));
+            }
+            if let Some(sharing) = cache.sharing.as_ref() {
+                cache_options.push(InstructionOptionOption::new("sharing", sharing.to_string()));
+            }
+            if cache.readonly {
+                cache_options.push(InstructionOptionOption::new_without_value("readonly"));
+            }
+
             options.push(InstructionOption::WithOptions(
                 "mount".into(),
                 cache_options,
             ));
-        });
+        }
 
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "RUN".into(),
@@ -744,7 +779,11 @@ mod test {
         fn with_script_and_caches_with_named_user() {
             let builder = Run {
                 run: vec!["echo Hello".into()].into(),
-                cache: vec!["/path/to/cache".into()].into(),
+                cache: vec![Cache {
+                    target: "/path/to/cache".into(),
+                    ..Default::default()
+                }]
+                .into(),
                 ..Default::default()
             };
             let context = GenerationContext {
@@ -759,9 +798,8 @@ mod test {
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
                         vec![
-                            InstructionOptionOption::new("type", "cache"),
-                            InstructionOptionOption::new("target", "/path/to/cache"),
-                            InstructionOptionOption::new("sharing", "locked"),
+                            InstructionOptionOption::new("type", "cache".into()),
+                            InstructionOptionOption::new("target", "/path/to/cache".into()),
                         ],
                     )],
                 })]
@@ -772,7 +810,10 @@ mod test {
         fn with_script_and_caches_with_uid_user() {
             let builder = Run {
                 run: vec!["echo Hello".into()].into(),
-                cache: vec!["/path/to/cache".into()].into(),
+                cache: vec![Cache {
+                    target: "/path/to/cache".into(),
+                    ..Default::default()
+                }],
                 ..Default::default()
             };
             let context = GenerationContext {
@@ -787,11 +828,10 @@ mod test {
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
                         vec![
-                            InstructionOptionOption::new("type", "cache"),
-                            InstructionOptionOption::new("target", "/path/to/cache"),
-                            InstructionOptionOption::new("sharing", "locked"),
-                            InstructionOptionOption::new("uid", "1000"),
-                            InstructionOptionOption::new("gid", "1000"),
+                            InstructionOptionOption::new("type", "cache".into()),
+                            InstructionOptionOption::new("target", "/path/to/cache".into()),
+                            InstructionOptionOption::new("uid", "1000".into()),
+                            InstructionOptionOption::new("gid", "1000".into()),
                         ],
                     )],
                 })]
@@ -802,7 +842,10 @@ mod test {
         fn with_script_and_caches_with_uid_user_without_group() {
             let builder = Run {
                 run: vec!["echo Hello".into()].into(),
-                cache: vec!["/path/to/cache".into()].into(),
+                cache: vec![Cache {
+                    target: "/path/to/cache".into(),
+                    ..Default::default()
+                }],
                 ..Default::default()
             };
             let context = GenerationContext {
@@ -817,10 +860,9 @@ mod test {
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
                         vec![
-                            InstructionOptionOption::new("type", "cache"),
-                            InstructionOptionOption::new("target", "/path/to/cache"),
-                            InstructionOptionOption::new("sharing", "locked"),
-                            InstructionOptionOption::new("uid", "1000"),
+                            InstructionOptionOption::new("type", "cache".into()),
+                            InstructionOptionOption::new("target", "/path/to/cache".into()),
+                            InstructionOptionOption::new("uid", "1000".into()),
                         ],
                     )],
                 })]

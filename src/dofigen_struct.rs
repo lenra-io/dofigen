@@ -53,10 +53,7 @@ pub struct Image {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub expose: Vec<Port>,
 
-    #[patch(
-        name = "Option<HealthcheckPatch>",
-        add = "struct_patch::std::add_option"
-    )]
+    #[patch(name = "Option<HealthcheckPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub healthcheck: Option<Healthcheck>,
 }
@@ -79,10 +76,7 @@ pub struct Stage {
         patch(name = "Option<ParsableStruct<ImageNamePatch>>")
     )]
     #[cfg_attr(not(feature = "permissive"), patch(name = "Option<ImageNamePatch>"))]
-    #[patch(
-        add = "struct_patch::std::add_option",
-        attribute(serde(alias = "image"))
-    )]
+    #[patch(attribute(serde(alias = "image")))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<ImageName>,
 
@@ -91,7 +85,6 @@ pub struct Stage {
         patch(name = "Option<ParsableStruct<UserPatch>>")
     )]
     #[cfg_attr(not(feature = "permissive"), patch(name = "Option<UserPatch>"))]
-    #[patch(add = "struct_patch::std::add_option")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<User>,
 
@@ -122,7 +115,7 @@ pub struct Stage {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub copy: Vec<CopyResource>,
 
-    #[patch(name = "Option<RunPatch>", add = "struct_patch::std::add_option")]
+    #[patch(name = "Option<RunPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub root: Option<Run>,
 
@@ -203,13 +196,14 @@ pub struct Cache {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chmod: Option<String>,
 
-    #[patch(name = "Option<UserPatch>", add = "struct_patch::std::add_option")]
+    #[patch(name = "Option<UserPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chown: Option<User>,
 }
 
-fn is_false(b: &bool) -> bool { !b }
-
+fn is_false(b: &bool) -> bool {
+    !b
+}
 
 /// Represents a cache sharing strategy
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
@@ -219,6 +213,16 @@ pub enum CacheSharing {
     Shared,
     Private,
     Locked,
+}
+
+impl ToString for CacheSharing {
+    fn to_string(&self) -> String {
+        match self {
+            CacheSharing::Shared => "shared".into(),
+            CacheSharing::Private => "private".into(),
+            CacheSharing::Locked => "locked".into(),
+        }
+    }
 }
 
 /// Represents file system binding during a run
@@ -394,7 +398,7 @@ pub struct CopyOptions {
     pub target: Option<String>,
 
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    #[patch(name = "Option<UserPatch>", add = "struct_patch::std::add_option")]
+    #[patch(name = "Option<UserPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chown: Option<User>,
 

@@ -11,8 +11,8 @@ COPY \
     "." "./"
 USER 0:0
 RUN \
-    --mount=type=cache,target=/root/.m2,sharing=locked,uid=0,gid=0 \
-    --mount=type=cache,target=/app/target,sharing=locked,uid=0,gid=0 \
+    --mount=type=cache,target=/root/.m2,uid=0,gid=0 \
+    --mount=type=cache,target=/app/target,uid=0,gid=0 \
     <<EOF
 mvn package -DskipTests
 mv target/*.jar app.jar

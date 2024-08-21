@@ -10,7 +10,6 @@ use std::{
     marker::PhantomData,
     usize,
 };
-use core::ops;
 #[cfg(feature = "permissive")]
 use std::{ops::Deref, str::FromStr};
 use struct_patch::{Merge, Patch};
@@ -1236,7 +1235,7 @@ where
                     }
                 }
                 (
-                    VecDeepPatchCommand::Replace(self_pos, mut self_val),
+                    VecDeepPatchCommand::Replace(self_pos, self_val),
                     VecDeepPatchCommand::Patch(rhs_pos, rhs_val),
                 ) => {
                     if self_pos == rhs_pos {
@@ -1378,7 +1377,7 @@ mod test {
         #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
         struct TestStruct {
             pub name: String,
-            #[patch(name = "Option<SubTestStructPatch>", add = "struct_patch::std::add_option")]
+            #[patch(name = "Option<SubTestStructPatch>")]
             pub sub: Option<SubTestStruct>,
         }
 

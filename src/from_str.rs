@@ -195,12 +195,27 @@ impl_parsable_patch!(Bind, BindPatch, s, {
         ),
         target,
         from: Some(captures.name("from").map(|m| m.as_str().into())),
-        ..Default::default()
+        readwrite: Some(false),
     })
 });
 
 impl_parsable_patch!(Cache, CachePatch, s, {
-    todo!()
+    let regex = Regex::new(r"^(?:(?P<from>[^:]+)(?::(?P<source>\S+))? )?(?P<target>\S+)$").unwrap();
+    let Some(captures) = regex.captures(s) else {
+        return Err(Error::custom("Not matching bind pattern"));
+    };
+
+    let target = Some(captures["target"].to_string());
+    Ok(Self {
+        source: Some(captures.name("source").map(|m| m.as_str().into())),
+        target,
+        from: Some(captures.name("from").map(|m| m.as_str().into())),
+        chmod: Some(None),
+        chown: Some(None),
+        id: Some(None),
+        readonly: Some(false),
+        sharing: Some(None),
+    })
 });
 
 #[cfg(test)]
