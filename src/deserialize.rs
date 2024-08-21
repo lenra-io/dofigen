@@ -31,8 +31,8 @@ impl_from_patch_and_add!(Image, ImagePatch);
 impl_from_patch_and_add!(Stage, StagePatch);
 impl_from_patch_and_add!(Healthcheck, HealthcheckPatch);
 impl_from_patch_and_add!(ImageName, ImageNamePatch);
-impl_from_patch_and_add!(Artifact, ArtifactPatch);
 impl_from_patch_and_add!(Run, RunPatch);
+impl_from_patch_and_add!(Cache, CachePatch);
 impl_from_patch_and_add!(Bind, BindPatch);
 impl_from_patch_and_add!(Port, PortPatch);
 impl_from_patch_and_add!(User, UserPatch);
@@ -42,6 +42,15 @@ impl_from_patch_and_add!(Add, AddPatch);
 impl_from_patch_and_add!(AddGitRepo, AddGitRepoPatch);
 
 //////////////////////// Patch structures ////////////////////////
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum FromContextPatch {
+    Image(ImageNamePatch),
+    Builder(String),
+    Context(String),
+}
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -211,6 +220,16 @@ where
 
 //////////////////////// Implementations ////////////////////////
 
+impl From<FromContextPatch> for FromContext {
+    fn from(patch: FromContextPatch) -> Self {
+        match patch {
+            FromContextPatch::Image(p) => FromContext::Image(p.into()),
+            FromContextPatch::Builder(p) => FromContext::Builder(p),
+            FromContextPatch::Context(p) => FromContext::Context(p),
+        }
+    }
+}
+
 impl Default for CopyResourcePatch {
     fn default() -> Self {
         CopyResourcePatch::Unknown(UnknownPatch::default())
@@ -337,6 +356,31 @@ where
 }
 
 //////////////////////// Patch ////////////////////////
+
+impl Patch<FromContextPatch> for FromContext {
+    fn apply(&mut self, patch: FromContextPatch) {
+        match (self, patch) {
+            (Self::Image(s), FromContextPatch::Image(p)) => s.apply(p),
+            (s, patch) => *s = patch.into(),
+        }
+    }
+
+    fn into_patch(self) -> FromContextPatch {
+        match self {
+            FromContext::Image(s) => FromContextPatch::Image(s.into_patch()),
+            FromContext::Builder(s) => FromContextPatch::Builder(s),
+            FromContext::Context(s) => FromContextPatch::Context(s),
+        }
+    }
+
+    fn into_patch_by_diff(self, _previous_struct: Self) -> FromContextPatch {
+        todo!()
+    }
+
+    fn new_empty_patch() -> FromContextPatch {
+        panic!("Cannot create an empty patch for FromContext");
+    }
+}
 
 impl Patch<CopyResourcePatch> for CopyResource {
     fn apply(&mut self, patch: CopyResourcePatch) {
@@ -1013,7 +1057,83 @@ where
     }
 }
 
-//////////////////////// Add //////////////////////////
+//////////////////////// Merge //////////////////////////
+
+// Can't use merge on option since it removes the previous value if it's none
+macro_rules! merge_option_patch {
+    ($opt_a: expr, $opt_b: expr) => {
+        match ($opt_a, $opt_b) {
+            (Some(a), Some(b)) => Some(a.merge(b)),
+            (Some(a), None) => Some(a),
+            (None, Some(b)) => Some(b),
+            (None, None) => None,
+        }
+    };
+}
+
+impl Merge for FromContextPatch {
+    fn merge(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Image(a), Self::Image(b)) => Self::Image(a.merge(b)),
+            (_, b) => b,
+        }
+    }
+}
+
+impl Merge for CopyResourcePatch {
+    fn merge(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Copy(a), Self::Copy(b)) => Self::Copy(a.merge(b)),
+            (Self::Copy(a), Self::Unknown(b)) => {
+                let mut a = a;
+                a.options = merge_option_patch!(a.options, b.options);
+                a.exclude = merge_option_patch!(a.exclude, b.exclude);
+                Self::Copy(a)
+            }
+            (Self::Unknown(a), Self::Copy(b)) => {
+                let mut b = b;
+                b.options = merge_option_patch!(a.options, b.options);
+                b.exclude = merge_option_patch!(a.exclude, b.exclude);
+                Self::Copy(b)
+            }
+            (Self::Add(a), Self::Add(b)) => Self::Add(a.merge(b)),
+            (Self::Add(a), Self::Unknown(b)) => {
+                let mut a = a;
+                a.options = merge_option_patch!(a.options, b.options);
+                Self::Add(a)
+            }
+            (Self::Unknown(a), Self::Add(b)) => {
+                let mut b = b;
+                b.options = merge_option_patch!(a.options, b.options);
+                Self::Add(b)
+            }
+            (Self::AddGitRepo(a), Self::AddGitRepo(b)) => Self::AddGitRepo(a.merge(b)),
+            (Self::AddGitRepo(a), Self::Unknown(b)) => {
+                let mut a = a;
+                a.options = merge_option_patch!(a.options, b.options);
+                a.exclude = merge_option_patch!(a.exclude, b.exclude);
+                Self::AddGitRepo(a)
+            }
+            (Self::Unknown(a), Self::AddGitRepo(b)) => {
+                let mut b = b;
+                b.options = merge_option_patch!(a.options, b.options);
+                b.exclude = merge_option_patch!(a.exclude, b.exclude);
+                Self::AddGitRepo(b)
+            }
+            (Self::Unknown(a), Self::Unknown(b)) => Self::Unknown(a.merge(b)),
+            (a, b) => panic!("Can't merge {:?} and {:?}", a, b),
+        }
+    }
+}
+
+impl Merge for UnknownPatch {
+    fn merge(self, other: Self) -> Self {
+        Self {
+            options: merge_option_patch!(self.options, other.options),
+            exclude: merge_option_patch!(self.exclude, other.exclude),
+        }
+    }
+}
 
 #[cfg(feature = "permissive")]
 impl<T> Merge for ParsableStruct<T>
