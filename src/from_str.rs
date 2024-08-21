@@ -194,7 +194,11 @@ impl_parsable_patch!(Bind, BindPatch, s, {
                 .or(target.clone()),
         ),
         target,
-        from: Some(captures.name("from").map(|m| m.as_str().into())),
+        from: Some(
+            captures
+                .name("from")
+                .map(|m| FromContextPatch::Context(m.as_str().into())),
+        ),
         readwrite: Some(None),
     })
 });

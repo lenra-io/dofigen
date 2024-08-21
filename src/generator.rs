@@ -150,6 +150,26 @@ impl ToString for Resource {
     }
 }
 
+impl ToString for CacheSharing {
+    fn to_string(&self) -> String {
+        match self {
+            CacheSharing::Shared => "shared".into(),
+            CacheSharing::Private => "private".into(),
+            CacheSharing::Locked => "locked".into(),
+        }
+    }
+}
+
+impl ToString for FromContext {
+    fn to_string(&self) -> String {
+        match self {
+            FromContext::Builder(name) => name.clone(),
+            FromContext::Context(context) => context.clone(),
+            FromContext::Image(image) => image.to_string(),
+        }
+    }
+}
+
 impl DockerfileGenerator for CopyResource {
     fn generate_dockerfile_lines(
         &self,
@@ -188,7 +208,10 @@ impl DockerfileGenerator for Copy {
     ) -> Result<Vec<DockerfileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
         if let Some(from) = &self.from {
-            options.push(InstructionOption::WithValue("from".into(), from.into()));
+            options.push(InstructionOption::WithValue(
+                "from".into(),
+                from.to_string(),
+            ));
         }
         add_copy_options(&mut options, &self.options, context);
         // excludes are not supported yet: minimal version 1.7-labs
@@ -470,7 +493,7 @@ impl DockerfileGenerator for Run {
                 InstructionOptionOption::new("target", bind.target.clone()),
             ];
             if let Some(from) = bind.from.as_ref() {
-                bind_options.push(InstructionOptionOption::new("from", from.clone()));
+                bind_options.push(InstructionOptionOption::new("from", from.to_string()));
             }
             if let Some(source) = bind.source.as_ref() {
                 bind_options.push(InstructionOptionOption::new("source", source.clone()));

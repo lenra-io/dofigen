@@ -137,9 +137,9 @@ builders:
         - "*"
     script:
       - cargo build --release
-add:
-  - from: builder
-    paths:
+artifacts:
+  - builder: builder
+    source:
       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     destination: /app
 "#;
@@ -153,9 +153,9 @@ builders:
     - "*"
   script:
     - cargo build --release
-add:
-- from: builder
-  paths: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+artifacts:
+- builder: builder
+  source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
   destination: /app
 "#;
     let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
@@ -186,7 +186,7 @@ add:
             .into(),
             stage: Stage {
                 copy: vec![CopyResource::Copy(Copy {
-                    from: Some(String::from("builder")),
+                    from: Some(FromContext::Builder(String::from("builder"))),
                     paths: vec![String::from(
                         "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
                     )],
@@ -476,13 +476,14 @@ builders:
       - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
     cache:
       # Cargo cache
-      - /home/rust/.cargo
+      - target: /home/rust/.cargo
       # build cache
-      - target
+      - target: target
 workdir: /app
 artifacts:
   - builder: builder
-    source: "/tmp/dofigen"
+    source: 
+      - "/tmp/dofigen"
     target: "/bin/"
 entrypoint:
   - /bin/dofigen

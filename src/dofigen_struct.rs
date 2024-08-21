@@ -138,7 +138,14 @@ pub struct Run {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub run: Vec<String>,
 
-    #[patch(name = "VecDeepPatch<Cache, ParsableStruct<CachePatch>>")]
+    #[cfg_attr(
+        feature = "permissive",
+        patch(name = "VecDeepPatch<Cache, ParsableStruct<CachePatch>>")
+    )]
+    #[cfg_attr(
+        not(feature = "permissive"),
+        patch(name = "VecDeepPatch<Cache, CachePatch>")
+    )]
     #[patch(attribute(serde(alias = "caches")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<Cache>,
@@ -157,6 +164,7 @@ pub struct Run {
 }
 
 /// Represents a cache definition during a run
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypecache
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
@@ -166,14 +174,20 @@ pub struct Run {
 pub struct Cache {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
+
     pub target: String,
+
     #[patch(attribute(serde(alias = "ro")))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readonly: Option<bool>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sharing: Option<CacheSharing>,
+
+    ///
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<String>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 
@@ -195,17 +209,8 @@ pub enum CacheSharing {
     Locked,
 }
 
-impl ToString for CacheSharing {
-    fn to_string(&self) -> String {
-        match self {
-            CacheSharing::Shared => "shared".into(),
-            CacheSharing::Private => "private".into(),
-            CacheSharing::Locked => "locked".into(),
-        }
-    }
-}
-
 /// Represents file system binding during a run
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypebind
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
@@ -214,10 +219,14 @@ impl ToString for CacheSharing {
 )]
 pub struct Bind {
     pub target: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from: Option<String>,
+
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
+    pub from: Option<FromContext>,
+
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
+
     #[patch(attribute(serde(alias = "rw")))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readwrite: Option<bool>,
@@ -276,6 +285,16 @@ pub enum ImageVersion {
     Digest(String),
 }
 
+/// Represents a copy origin
+#[derive(Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum FromContext {
+    Image(ImageName),
+    Builder(String),
+    Context(String),
+}
+
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum CopyResource {
@@ -294,9 +313,9 @@ pub enum CopyResource {
 )]
 pub struct Copy {
     /// See https://docs.docker.com/reference/dockerfile/#copy---from
-    #[patch(attribute(serde(alias = "builder")))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from: Option<String>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
+    pub from: Option<FromContext>,
 
     #[patch(
         name = "VecPatch<String>",
@@ -624,7 +643,7 @@ mod test {
     "exclude": ["file3.txt"],
     "link": true,
     "parents": true,
-    "from": "source/"
+    "image": {"path": "my-image"}
 }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
@@ -645,7 +664,10 @@ mod test {
                         },
                         exclude: vec!["file3.txt".into()].into(),
                         parents: Some(true),
-                        from: Some("source/".into())
+                        from: Some(FromContext::Image(ImageName {
+                            path: "my-image".into(),
+                            ..Default::default()
+                        }))
                     })
                 );
             }

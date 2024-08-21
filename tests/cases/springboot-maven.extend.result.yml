@@ -21,7 +21,7 @@ from:
   path: eclipse-temurin
   tag: 17-jre-alpine
 copy:
-- from: maven-builder
+- builder: maven-builder
   paths:
   - /app/app.jar
   target: app.jar

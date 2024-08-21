@@ -390,7 +390,8 @@ impl DofigenContext {
     ///   path: ubuntu
     /// artifacts:
     ///   - builder: builder
-    ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    ///     source: 
+    ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
     /// let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
@@ -413,7 +414,7 @@ impl DofigenContext {
     ///                 ..Default::default()
     ///             }.into()),
     ///             copy: vec![CopyResource::Copy(Copy{
-    ///                 from: Some(String::from("builder")),
+    ///                 from: Some(FromContext::Builder(String::from("builder"))),
     ///                 paths: vec![String::from(
     ///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
     ///                 )],
@@ -485,7 +486,8 @@ impl DofigenContext {
     ///     path: ubuntu
     /// artifacts:
     ///   - builder: builder
-    ///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    ///     source:
+    ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
     /// let image: Image = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
@@ -508,7 +510,7 @@ impl DofigenContext {
     ///                 ..Default::default()
     ///             }.into()),
     ///             copy: vec![CopyResource::Copy(Copy {
-    ///                 from: Some(String::from("builder")),
+    ///                 from: Some(FromContext::Builder(String::from("builder"))),
     ///                 paths: vec![String::from(
     ///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
     ///                 )],
