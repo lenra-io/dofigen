@@ -35,7 +35,9 @@ fn test_cases() {
 
         println!("Processing {}", basename);
 
-        let image: Image = from_file_path(path).unwrap();
+        let image: Image = DofigenContext::new()
+            .parse_from_resource(Resource::File(path.clone()))
+            .unwrap();
 
         if let Some(content) = yaml_results.get(basename.as_str()) {
             println!("Compare with YAML result");
@@ -95,7 +97,9 @@ fn test_load_url() {
     let url = url.to_string();
     let url: Url = url.parse().unwrap();
 
-    let image: Image = from_resource(Resource::Url(url)).unwrap();
+    let image: Image = DofigenContext::new()
+        .parse_from_resource(Resource::Url(url))
+        .unwrap();
 
     let yaml = generate_effective_content(&image).unwrap();
     assert_eq_sorted!(
