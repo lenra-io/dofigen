@@ -30,14 +30,21 @@ pub enum InstructionOption {
 #[derive(Debug, Clone, PartialEq)]
 pub struct InstructionOptionOption {
     pub name: String,
-    pub value: String,
+    pub value: Option<String>,
 }
 
 impl InstructionOptionOption {
-    pub fn new(name: &str, value: &str) -> Self {
+    pub fn new(name: &str, value: String) -> Self {
         Self {
             name: name.into(),
-            value: value.into(),
+            value: Some(value.into()),
+        }
+    }
+
+    pub fn new_without_value(name: &str) -> Self {
+        Self {
+            name: name.into(),
+            value: None,
         }
     }
 }
@@ -92,10 +99,14 @@ impl DockerfileContent for InstructionOption {
 
 impl DockerfileContent for InstructionOptionOption {
     fn generate_content(&self) -> String {
-        if self.value.contains(" ") {
-            format!("{}='{}'", self.name, self.value)
+        if let Some(value) = &self.value {
+            if value.contains(" ") || value.contains(",") || value.contains("=") {
+                format!("{}='{}'", self.name, value)
+            } else {
+                format!("{}={}", self.name, value)
+            }
         } else {
-            format!("{}={}", self.name, self.value)
+            self.name.clone()
         }
     }
 }
@@ -148,8 +159,8 @@ mod test {
 
     #[test]
     fn test_generate_content_with_options_option() {
-        let sub_option1 = InstructionOptionOption::new("sub_arg1", "sub_value1");
-        let sub_option2 = InstructionOptionOption::new("sub_arg2", "sub_value2");
+        let sub_option1 = InstructionOptionOption::new("sub_arg1", "sub_value1".into());
+        let sub_option2 = InstructionOptionOption::new("sub_arg2", "sub_value2".into());
         let options = vec![sub_option1, sub_option2];
         let option = InstructionOption::WithOptions("arg1".into(), options);
         let expected = "--arg1=sub_arg1=sub_value1,sub_arg2=sub_value2";
@@ -158,7 +169,7 @@ mod test {
 
     #[test]
     fn test_generate_content_instruction_option_option() {
-        let option = InstructionOptionOption::new("arg1", "value1");
+        let option = InstructionOptionOption::new("arg1", "value1".into());
         let expected = "arg1=value1";
         assert_eq_sorted!(option.generate_content(), expected);
     }

@@ -98,11 +98,12 @@ pub struct Stage {
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>,
 
-    #[patch(name = "VecDeepPatch<Artifact, ArtifactPatch>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub artifacts: Vec<Artifact>,
-
-    #[patch(attribute(serde(alias = "add", alias = "adds")))]
+    #[patch(attribute(serde(
+        alias = "add",
+        alias = "adds",
+        alias = "artifact",
+        alias = "artifacts"
+    )))]
     #[cfg_attr(
         feature = "permissive",
         patch(name = "VecDeepPatch<CopyResource, ParsableStruct<CopyResourcePatch>>")
@@ -123,22 +124,6 @@ pub struct Stage {
     pub run: Run,
 }
 
-/// Represents an artifact to be copied to the stage from another one
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
-#[patch(
-    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
-)]
-pub struct Artifact {
-    pub builder: String,
-
-    pub source: String,
-
-    #[patch(attribute(serde(alias = "destination")))]
-    pub target: String,
-}
-
 /// Represents a run executed as root
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
@@ -153,10 +138,17 @@ pub struct Run {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub run: Vec<String>,
 
-    #[patch(name = "VecPatch<String>")]
+    #[cfg_attr(
+        feature = "permissive",
+        patch(name = "VecDeepPatch<Cache, ParsableStruct<CachePatch>>")
+    )]
+    #[cfg_attr(
+        not(feature = "permissive"),
+        patch(name = "VecDeepPatch<Cache, CachePatch>")
+    )]
     #[patch(attribute(serde(alias = "caches")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub cache: Vec<String>,
+    pub cache: Vec<Cache>,
 
     #[cfg_attr(
         feature = "permissive",
@@ -171,6 +163,54 @@ pub struct Run {
     pub bind: Vec<Bind>,
 }
 
+/// Represents a cache definition during a run
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypecache
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default)),
+    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
+pub struct Cache {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    pub target: String,
+
+    #[patch(attribute(serde(alias = "ro")))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub readonly: Option<bool>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sharing: Option<CacheSharing>,
+
+    ///
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub from: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chmod: Option<String>,
+
+    #[patch(name = "Option<UserPatch>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chown: Option<User>,
+}
+
+/// Represents a cache sharing strategy
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum CacheSharing {
+    Shared,
+    Private,
+    Locked,
+}
+
+/// Represents file system binding during a run
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypebind
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
@@ -179,9 +219,17 @@ pub struct Run {
 )]
 pub struct Bind {
     pub target: String,
-    pub from: Option<String>,
+
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
+    pub from: Option<FromContext>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
-    pub readwrite: bool,
+
+    #[patch(attribute(serde(alias = "rw")))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub readwrite: Option<bool>,
 }
 
 /// Represents the Dockerfile healthcheck instruction
@@ -237,6 +285,15 @@ pub enum ImageVersion {
     Digest(String),
 }
 
+/// Represents a copy origin
+#[derive(Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum FromContext {
+    Image(ImageName),
+    Builder(String),
+    Context(String),
+}
+
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum CopyResource {
@@ -254,7 +311,15 @@ pub enum CopyResource {
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 pub struct Copy {
-    #[patch(name = "VecPatch<String>")]
+    /// See https://docs.docker.com/reference/dockerfile/#copy---from
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
+    pub from: Option<FromContext>,
+
+    #[patch(
+        name = "VecPatch<String>",
+        attribute(serde(alias = "path", alias = "source"))
+    )]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
 
@@ -270,10 +335,6 @@ pub struct Copy {
     /// See https://docs.docker.com/reference/dockerfile/#copy---parents
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parents: Option<bool>,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---from
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from: Option<String>,
 }
 
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
@@ -309,7 +370,7 @@ pub struct AddGitRepo {
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 pub struct Add {
-    #[patch(name = "VecPatch<Resource>")]
+    #[patch(name = "VecPatch<Resource>", attribute(serde(alias = "file")))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<Resource>,
 
@@ -330,6 +391,7 @@ pub struct Add {
     attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
 pub struct CopyOptions {
+    #[patch(attribute(serde(alias = "destination")))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
 
@@ -580,7 +642,7 @@ mod test {
     "exclude": ["file3.txt"],
     "link": true,
     "parents": true,
-    "from": "source/"
+    "image": {"path": "my-image"}
 }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
@@ -601,7 +663,10 @@ mod test {
                         },
                         exclude: vec!["file3.txt".into()].into(),
                         parents: Some(true),
-                        from: Some("source/".into())
+                        from: Some(FromContext::Image(ImageName {
+                            path: "my-image".into(),
+                            ..Default::default()
+                        }))
                     })
                 );
             }
