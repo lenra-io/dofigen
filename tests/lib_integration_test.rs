@@ -5,7 +5,10 @@ use pretty_assertions_sorted::assert_eq_sorted;
 fn yaml_to_dockerfile_empty() {
     let yaml = "";
 
-    let image: Image = from(yaml.into()).map_err(Error::from).unwrap();
+    let image: Image = DofigenContext::new()
+        .parse_from_string(yaml)
+        .map_err(Error::from)
+        .unwrap();
     let dockerfile: String = generate_dockerfile(&image).unwrap();
 
     assert_eq_sorted!(
@@ -63,7 +66,10 @@ ignores:
   - test
         "#;
 
-    let image: Image = from(yaml.into()).map_err(Error::from).unwrap();
+    let image: Image = DofigenContext::new()
+        .parse_from_string(yaml)
+        .map_err(Error::from)
+        .unwrap();
     let dockerfile: String = generate_dockerfile(&image).unwrap();
 
     assert_eq_sorted!(
@@ -151,7 +157,7 @@ artifacts:
   source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
   destination: /app
 "#;
-    let image: Image = from(yaml.into()).unwrap();
+    let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
     assert_eq_sorted!(
         image,
         Image {
@@ -205,7 +211,7 @@ run:
     fi
 "#;
 
-    let image: Image = from(yaml.into()).unwrap();
+    let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
     let dockerfile: String = generate_dockerfile(&image).unwrap();
 
     assert_eq_sorted!(
@@ -245,7 +251,7 @@ from:
 image: scratch
 from: alpine
 "#;
-    let result = from(yaml.into());
+    let result = DofigenContext::new().parse_from_string(yaml);
     assert!(
         result.is_err(),
         "The parsing must fail since from and image are not compatible",
@@ -268,7 +274,7 @@ test: Fake value
 from: alpine
 test: Fake value
 "#;
-    let result = from(yaml.into());
+    let result = DofigenContext::new().parse_from_string(yaml);
     assert!(
         result.is_err(),
         "The parsing must fail since 'test' is not a valid field"
@@ -287,7 +293,7 @@ test: Fake value
 
 #[test]
 #[cfg(feature = "permissive")]
-fn manage_plural_aliases() -> Result<()> {
+fn manage_plural_aliases() {
     #[cfg(not(feature = "permissive"))]
     let yaml = r#"
 builders:
@@ -354,8 +360,9 @@ ignore:
   - test
 "#;
 
-    from(yaml.into())?;
-    Ok(())
+    let result = DofigenContext::new().parse_from_string(yaml);
+
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -405,7 +412,7 @@ run: echo "coucou"
 cache: /tmp
 "#;
 
-    let image: Image = from(yaml.into()).unwrap();
+    let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
     let dockerfile: String = generate_dockerfile(&image).unwrap();
 
     assert_eq_sorted!(
@@ -514,7 +521,7 @@ context:
   - "/Cargo.*"
 "#;
 
-    let image: Image = from(yaml.into()).unwrap();
+    let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
     let dockerfile: String = generate_dockerfile(&image).unwrap();
 
     assert_eq_sorted!(

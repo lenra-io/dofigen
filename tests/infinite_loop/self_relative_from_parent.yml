@@ -1,0 +1,2 @@
+extend:
+  - ../infinite_loop/self_relative_from_parent.yml
