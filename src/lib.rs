@@ -2,7 +2,22 @@
 //!
 //! `dofigen_lib` help creating Dockerfile with a simplified structure and made to cache the build with Buildkit.
 //! You also can parse the structure from YAML or JSON.
+//!
+//! ```
+//! use dofigen_lib::*;
+//! use pretty_assertions_sorted::assert_eq_sorted;
+//!
+//! let mut dofigen = DofigenContext::new();
+//!
+//! let image = dofigen.parse_from_string(r#"
+//! from:
+//!   path: ubuntu
+//! "#).unwrap();
+//!
+//! let dockerfile = generate_dockerfile(&image).unwrap();
+//! ```
 
+mod context;
 mod deserialize;
 mod dockerfile_struct;
 mod dofigen_struct;
@@ -13,14 +28,12 @@ mod from_str;
 mod generator;
 #[cfg(feature = "json_schema")]
 mod json_schema;
-// mod stage;
+pub mod lock;
 use dockerfile_struct::{DockerfileContent, DockerfileLine};
 use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]
 use schemars::gen::*;
-pub use {deserialize::*, dofigen_struct::*, errors::*, extend::*};
-// use schemars::schema_for;
-use std::io::Read;
+pub use {context::*, deserialize::*, dofigen_struct::*, errors::*, extend::*};
 
 pub const DOCKERFILE_VERSION: &str = "1.7";
 
@@ -32,227 +45,6 @@ const FILE_HEADER_LINES: [&str; 3] = [
     concat!("# See ", env!("CARGO_PKG_REPOSITORY")),
     "",
 ];
-
-/// Parse an Image from a string.
-///
-/// # Examples
-///
-/// Basic parsing
-///
-/// ```
-/// use dofigen_lib::*;
-/// use pretty_assertions_sorted::assert_eq_sorted;
-///
-/// let yaml = "
-/// from:
-///   path: ubuntu
-/// ";
-/// let image: Image = from(yaml.into()).unwrap();
-/// assert_eq_sorted!(
-///     image,
-///     Image {
-///       stage: Stage {
-///         from: Some(ImageName {
-///             path: String::from("ubuntu"),
-///             ..Default::default()
-///         }.into()),
-///         ..Default::default()
-///       },
-///      ..Default::default()
-///     }
-/// );
-/// ```
-///
-/// Basic parsing
-///
-/// ```
-/// use dofigen_lib::*;
-/// use pretty_assertions_sorted::assert_eq_sorted;
-///
-/// let yaml = r#"
-/// builders:
-///   - name: builder
-///     from:
-///       path: ekidd/rust-musl-builder
-///     add:
-///       - paths: ["*"]
-///     run:
-///       - cargo build --release
-/// from:
-///   path: ubuntu
-/// artifacts:
-///   - builder: builder
-///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-///     target: /app
-/// "#;
-/// let image: Image = from(yaml.into()).unwrap();
-/// assert_eq_sorted!(
-///     image,
-///     Image {
-///         builders: vec![Stage {
-///             name: Some(String::from("builder")),
-///             from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
-///             copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
-///             run: Run {
-///                 run: vec!["cargo build --release".parse().unwrap()].into(),
-///                 ..Default::default()
-///             },
-///             ..Default::default()
-///         }].into(),
-///         stage: Stage {
-///             from: Some(ImageName {
-///                 path: "ubuntu".into(),
-///                 ..Default::default()
-///             }.into()),
-///             copy: vec![CopyResource::Copy(Copy{
-///                 from: Some(String::from("builder")),
-///                 paths: vec![String::from(
-///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///                 )],
-///                 options: CopyOptions {
-///                     target: Some(String::from("/app")),
-///                     ..Default::default()
-///                 },
-///                 ..Default::default()
-///             })].into(),
-///             ..Default::default()
-///         },
-///         ..Default::default()
-///     }
-/// );
-/// ```
-pub fn from(input: String) -> Result<Image> {
-    merge_extended_image(
-        serde_yaml::from_str(&input).map_err(|err| Error::Deserialize(err))?,
-        &mut LoadContext::new(),
-    )
-}
-
-/// Parse an Image from a reader.
-///
-/// # Examples
-///
-/// Basic parsing
-///
-/// ```
-/// use dofigen_lib::*;
-/// use pretty_assertions_sorted::assert_eq_sorted;
-///
-/// let yaml = "
-/// from:
-///   path: ubuntu
-/// ";
-/// let image: Image = from_reader(yaml.as_bytes()).unwrap();
-/// assert_eq_sorted!(
-///     image,
-///     Image {
-///         stage: Stage {
-///             from: Some(ImageName {
-///                 path: String::from("ubuntu"),
-///                 ..Default::default()
-///             }.into()),
-///             ..Default::default()
-///         },
-///         ..Default::default()
-///     }
-/// );
-/// ```
-///
-/// Basic parsing
-///
-/// ```
-/// use dofigen_lib::*;
-/// use pretty_assertions_sorted::assert_eq_sorted;
-///
-/// let yaml = r#"
-/// builders:
-///   - name: builder
-///     from:
-///       path: ekidd/rust-musl-builder
-///     add:
-///       - paths: ["*"]
-///     run:
-///       - cargo build --release
-/// from:
-///     path: ubuntu
-/// artifacts:
-///   - builder: builder
-///     source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
-///     target: /app
-/// "#;
-/// let image: Image = from_reader(yaml.as_bytes()).unwrap();
-/// assert_eq_sorted!(
-///     image,
-///     Image {
-///         builders: vec![Stage {
-///             name: Some(String::from("builder")),
-///             from: ImageName{path: "ekidd/rust-musl-builder".into(), ..Default::default()}.into(),
-///             copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
-///             run: Run {
-///                 run: vec!["cargo build --release".parse().unwrap()].into(),
-///                 ..Default::default()
-///             },
-///             ..Default::default()
-///         }].into(),
-///         stage: Stage {
-///             from: Some(ImageName {
-///                 path: String::from("ubuntu"),
-///                 ..Default::default()
-///             }.into()),
-///             copy: vec![CopyResource::Copy(Copy{
-///                 from: Some(String::from("builder")),
-///                 paths: vec![String::from(
-///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
-///                 )],
-///                 options: CopyOptions {
-///                     target: Some(String::from("/app")),
-///                     ..Default::default()
-///                 },
-///                 ..Default::default()
-///             })].into(),
-///             ..Default::default()
-///         },
-///         ..Default::default()
-///     }
-/// );
-/// ```
-pub fn from_reader<R: Read>(reader: R) -> Result<Image> {
-    merge_extended_image(
-        serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))?,
-        &mut LoadContext::new(),
-    )
-}
-
-/// Parse an Image from a YAML or JSON file path.
-pub fn from_file_path(path: &std::path::PathBuf) -> Result<Image> {
-    match path.extension() {
-        Some(os_str) => match os_str.to_str() {
-            Some("yml" | "yaml" | "json") => from_resource(Resource::File(
-                path.canonicalize()
-                    .map_err(|error| {
-                        Error::Custom(format!("Failed to canonicalize path {:?}: {}", path, error))
-                    })?
-                    .to_path_buf(),
-            )),
-            Some(ext) => Err(Error::Custom(format!(
-                "Not managed Dofigen file extension {}",
-                ext
-            ))),
-            None => Err(Error::Custom("The Dofigen file has no extension".into())),
-        },
-        None => Err(Error::Custom("The Dofigen file has no extension".into())),
-    }
-}
-
-/// Parse an Image from a YAML or JSON file resource (path or URL).
-pub fn from_resource(resource: Resource) -> Result<Image> {
-    let mut context = LoadContext::new();
-    merge_extended_image(resource.load(&mut context)?, &mut context)
-}
-
-fn merge_extended_image(image: Extend<ImagePatch>, context: &mut LoadContext) -> Result<Image> {
-    Ok(image.merge(context)?.into())
-}
 
 /// Generates the Dockerfile content from an Image.
 ///

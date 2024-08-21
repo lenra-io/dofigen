@@ -2,7 +2,6 @@ use crate::deserialize::*;
 use crate::dofigen_struct::*;
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
-use std::ops;
 use std::str::FromStr;
 use struct_patch::Patch;
 use url::Url;
@@ -34,14 +33,6 @@ macro_rules! impl_parsable_patch {
         impl From<ParsableStruct<$patch>> for $struct {
             fn from(value: ParsableStruct<$patch>) -> Self {
                 value.0.into()
-            }
-        }
-
-        impl ops::Add<ParsableStruct<$patch>> for $struct {
-            type Output = Self;
-            fn add(mut self, rhs: ParsableStruct<$patch>) -> Self {
-                self.apply(rhs);
-                self
             }
         }
 

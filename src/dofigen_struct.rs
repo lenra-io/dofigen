@@ -263,7 +263,7 @@ pub struct Healthcheck {
 }
 
 /// Represents a Docker image name
-#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch, Hash, Eq, PartialOrd)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     attribute(serde(deny_unknown_fields, default)),
@@ -284,7 +284,7 @@ pub struct ImageName {
 }
 
 /// Represents a Docker image version
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Hash, Eq, PartialOrd)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum ImageVersion {
@@ -445,7 +445,7 @@ pub enum PortProtocol {
 }
 
 /// Represents a resource
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Hash, Eq)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Hash, Eq, PartialOrd)]
 #[serde(untagged)]
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum Resource {

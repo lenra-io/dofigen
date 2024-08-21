@@ -12,7 +12,7 @@ use crate::CliCommand;
 pub struct Schema;
 
 impl CliCommand for Schema {
-    fn run(&self) -> Result<()> {
+    fn run(self) -> Result<()> {
         println!("{}", generate_json_schema());
         Ok(())
     }

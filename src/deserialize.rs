@@ -13,7 +13,7 @@ use std::{
 use core::ops;
 #[cfg(feature = "permissive")]
 use std::{ops::Deref, str::FromStr};
-use struct_patch::Patch;
+use struct_patch::{Merge, Patch};
 
 /// Implements the From trait for a struct from a patch
 macro_rules! impl_from_patch_and_add {
@@ -23,21 +23,6 @@ macro_rules! impl_from_patch_and_add {
                 let mut s = Self::default();
                 s.apply(value);
                 s
-            }
-        }
-
-        impl_add_patch!($struct, $patch);
-    };
-}
-
-macro_rules! impl_add_patch {
-    ($struct:ty, $patch:ty) => {
-        impl ops::Add<$patch> for $struct {
-            type Output = Self;
-
-            fn add(mut self, rhs: $patch) -> Self {
-                self.apply(rhs);
-                self
             }
         }
     };
@@ -57,8 +42,6 @@ impl_from_patch_and_add!(CopyOptions, CopyOptionsPatch);
 impl_from_patch_and_add!(Copy, CopyPatch);
 impl_from_patch_and_add!(Add, AddPatch);
 impl_from_patch_and_add!(AddGitRepo, AddGitRepoPatch);
-
-impl_add_patch!(Vec<String>, VecPatch<String>);
 
 //////////////////////// Patch structures ////////////////////////
 
@@ -1032,45 +1015,32 @@ where
     }
 }
 
-//////////////////////// Add ////////////////////////
-
-impl ops::Add<CopyResourcePatch> for CopyResource {
-    type Output = Self;
-
-    fn add(mut self, rhs: CopyResourcePatch) -> Self {
-        self.apply(rhs);
-        self
-    }
-}
+//////////////////////// Add //////////////////////////
 
 #[cfg(feature = "permissive")]
-impl<T> ops::Add<Self> for ParsableStruct<T>
+impl<T> Merge for ParsableStruct<T>
 where
-    T: Clone + FromStr + ops::Add<T, Output = T>,
+    T: Clone + FromStr + Merge,
 {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        ParsableStruct(self.0 + rhs.0)
+    fn merge(self, other: Self) -> Self {
+        ParsableStruct(self.0.merge(other.0))
     }
 }
 
-impl<T> ops::Add<Self> for VecPatch<T>
+impl<T> Merge for VecPatch<T>
 where
     T: Clone,
 {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        if rhs.commands.len() == 1
-            && matches!(rhs.commands.first(), Some(VecPatchCommand::ReplaceAll(_)))
+    fn merge(self, other: Self) -> Self {
+        if other.commands.len() == 1
+            && matches!(other.commands.first(), Some(VecPatchCommand::ReplaceAll(_)))
         {
-            return rhs;
+            return other;
         }
         if self.commands.len() == 1 {
             if let Some(VecPatchCommand::ReplaceAll(self_vec)) = self.commands.first() {
                 let mut self_vec = self_vec.clone();
-                self_vec.apply(rhs);
+                self_vec.apply(other);
                 return VecPatch {
                     commands: vec![VecPatchCommand::ReplaceAll(self_vec)],
                 };
@@ -1080,7 +1050,7 @@ where
         let mut commands: Vec<VecPatchCommand<T>> = vec![];
 
         let mut self_it = self.commands.iter();
-        let mut rhs_it = rhs.commands.iter();
+        let mut rhs_it = other.commands.iter();
 
         let mut self_next = self_it.next();
         let mut rhs_next = rhs_it.next();
@@ -1191,26 +1161,24 @@ where
     }
 }
 
-impl<T, P> ops::Add<Self> for VecDeepPatch<T, P>
+impl<T, P> Merge for VecDeepPatch<T, P>
 where
     T: Clone + Patch<P> + From<P>,
-    P: Clone + ops::Add<P, Output = P>,
+    P: Clone + Merge,
 {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
-        if rhs.commands.len() == 1
+    fn merge(self, other: Self) -> Self {
+        if other.commands.len() == 1
             && matches!(
-                rhs.commands.first(),
+                other.commands.first(),
                 Some(VecDeepPatchCommand::ReplaceAll(_))
             )
         {
-            return rhs;
+            return other;
         }
         if self.commands.len() == 1 {
             if let Some(VecDeepPatchCommand::ReplaceAll(self_vec)) = self.commands.first() {
                 let mut self_vec = self_vec.clone();
-                self_vec.apply(rhs);
+                self_vec.apply(other);
                 return VecDeepPatch {
                     commands: vec![VecDeepPatchCommand::ReplaceAll(self_vec)],
                 };
@@ -1220,7 +1188,7 @@ where
         let mut commands: Vec<VecDeepPatchCommand<T, P>> = vec![];
 
         let mut self_it = self.commands.iter();
-        let mut rhs_it = rhs.commands.iter();
+        let mut rhs_it = other.commands.iter();
 
         let mut self_next = self_it.next();
         let mut rhs_next = rhs_it.next();
@@ -1272,8 +1240,9 @@ where
                     VecDeepPatchCommand::Patch(rhs_pos, rhs_val),
                 ) => {
                     if self_pos == rhs_pos {
-                        self_val.apply(rhs_val);
-                        commands.push(VecDeepPatchCommand::Replace(rhs_pos, self_val));
+                        let mut val = self_val.clone();
+                        val.apply(rhs_val);
+                        commands.push(VecDeepPatchCommand::Replace(rhs_pos, val));
                         self_next = self_it.next();
                         rhs_next = rhs_it.next();
                     } else if self_pos < rhs_pos {
@@ -1305,7 +1274,7 @@ where
                     VecDeepPatchCommand::Patch(rhs_pos, rhs_val),
                 ) => {
                     if self_pos == rhs_pos {
-                        commands.push(VecDeepPatchCommand::Patch(rhs_pos, self_val + rhs_val));
+                        commands.push(VecDeepPatchCommand::Patch(rhs_pos, self_val.merge(rhs_val)));
                         self_next = self_it.next();
                         rhs_next = rhs_it.next();
                     } else if self_pos < rhs_pos {
@@ -1372,16 +1341,14 @@ where
     }
 }
 
-impl<K, V> ops::Add<Self> for HashMapPatch<K, V>
+impl<K, V> Merge for HashMapPatch<K, V>
 where
     K: Clone + Eq + Hash,
     V: Clone,
 {
-    type Output = Self;
-
-    fn add(self, rhs: Self) -> Self {
+    fn merge(self, other: Self) -> Self {
         let mut patches = self.patches;
-        for (key, value) in rhs.patches {
+        for (key, value) in other.patches {
             match value {
                 Some(value) => {
                     patches.insert(key, Some(value));
