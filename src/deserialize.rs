@@ -73,7 +73,6 @@ pub struct UnknownPatch {
 /// A struct that can be parsed from a string
 #[cfg(feature = "permissive")]
 #[derive(Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct ParsableStruct<T>(pub(crate) T)
 where
     T: FromStr;
@@ -82,7 +81,6 @@ where
 #[cfg(feature = "permissive")]
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(from = "OneOrManyDeserializable<T>")]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct OneOrMany<T>(pub Vec<T>);
 
 /// Patch for Vec<T> that handle some commands based on the position:
@@ -143,7 +141,6 @@ where
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub struct HashMapPatch<K, V>
 where
     K: Clone + Eq + std::hash::Hash,

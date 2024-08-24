@@ -8,20 +8,26 @@ use url::Url;
 
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[serde(rename_all = "camelCase")]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     // attribute(serde(deny_unknown_fields)),
-    attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(default))
 )]
-#[serde(rename_all = "camelCase")]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Image", rename = "Image"))
+    )
+)]
 pub struct Image {
     #[patch(name = "VecPatch<String>")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub context: Vec<String>,
 
     #[patch(name = "VecPatch<String>")]
-    #[patch(attribute(serde(alias = "ignores")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "ignores"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
 
@@ -49,7 +55,10 @@ pub struct Image {
         not(feature = "permissive"),
         patch(name = "VecDeepPatch<Port, PortPatch>")
     )]
-    #[patch(attribute(serde(alias = "port", alias = "ports")))]
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(alias = "port", alias = "ports")))
+    )]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub expose: Vec<Port>,
 
@@ -64,9 +73,14 @@ pub struct Image {
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     // attribute(serde(deny_unknown_fields)),
     attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
-
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Stage", rename = "Stage"))
+    )
+)]
 pub struct Stage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -76,7 +90,7 @@ pub struct Stage {
         patch(name = "Option<ParsableStruct<ImageNamePatch>>")
     )]
     #[cfg_attr(not(feature = "permissive"), patch(name = "Option<ImageNamePatch>"))]
-    #[patch(attribute(serde(alias = "image")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "image"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub from: Option<ImageName>,
 
@@ -91,19 +105,20 @@ pub struct Stage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workdir: Option<String>,
 
-    #[patch(
-        name = "HashMapPatch<String, String>",
-        attribute(serde(alias = "envs"))
-    )]
+    #[patch(name = "HashMapPatch<String, String>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "envs"))))]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>,
 
-    #[patch(attribute(serde(
-        alias = "add",
-        alias = "adds",
-        alias = "artifact",
-        alias = "artifacts"
-    )))]
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(
+            alias = "add",
+            alias = "adds",
+            alias = "artifact",
+            alias = "artifacts"
+        )))
+    )]
     #[cfg_attr(
         feature = "permissive",
         patch(name = "VecDeepPatch<CopyResource, ParsableStruct<CopyResourcePatch>>")
@@ -130,11 +145,17 @@ pub struct Stage {
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     // attribute(serde(deny_unknown_fields)),
     attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Run", rename = "Run"))
+    )
 )]
 pub struct Run {
     #[patch(name = "VecPatch<String>")]
-    #[patch(attribute(serde(alias = "script")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "script"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub run: Vec<String>,
 
@@ -146,7 +167,7 @@ pub struct Run {
         not(feature = "permissive"),
         patch(name = "VecDeepPatch<Cache, CachePatch>")
     )]
-    #[patch(attribute(serde(alias = "caches")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "caches"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<Cache>,
 
@@ -158,7 +179,7 @@ pub struct Run {
         not(feature = "permissive"),
         patch(name = "VecDeepPatch<Bind, BindPatch>")
     )]
-    #[patch(attribute(serde(alias = "binds")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "binds"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub bind: Vec<Bind>,
 }
@@ -168,8 +189,14 @@ pub struct Run {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Cache", rename = "Cache"))
+    )
 )]
 pub struct Cache {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -177,7 +204,7 @@ pub struct Cache {
 
     pub target: String,
 
-    #[patch(attribute(serde(alias = "ro")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "ro"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readonly: Option<bool>,
 
@@ -199,23 +226,19 @@ pub struct Cache {
     pub chown: Option<User>,
 }
 
-/// Represents a cache sharing strategy
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum CacheSharing {
-    Shared,
-    Private,
-    Locked,
-}
-
 /// Represents file system binding during a run
 /// See https://docs.docker.com/reference/dockerfile/#run---mounttypebind
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Bind", rename = "Bind"))
+    )
 )]
 pub struct Bind {
     pub target: String,
@@ -227,7 +250,7 @@ pub struct Bind {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 
-    #[patch(attribute(serde(alias = "rw")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "rw"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readwrite: Option<bool>,
 }
@@ -236,8 +259,14 @@ pub struct Bind {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Healthcheck", rename = "Healthcheck"))
+    )
 )]
 pub struct Healthcheck {
     pub cmd: String,
@@ -259,8 +288,14 @@ pub struct Healthcheck {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch, Hash, Eq, PartialOrd)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "ImageName", rename = "ImageName"))
+    )
 )]
 pub struct ImageName {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -275,6 +310,184 @@ pub struct ImageName {
     #[patch(attribute(serde(flatten)))]
     pub version: Option<ImageVersion>,
 }
+
+/// Represents the COPY instruction in a Dockerfile.
+/// See https://docs.docker.com/reference/dockerfile/#copy
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Copy", rename = "Copy"))
+    )
+)]
+pub struct Copy {
+    /// See https://docs.docker.com/reference/dockerfile/#copy---from
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
+    pub from: Option<FromContext>,
+
+    #[patch(name = "VecPatch<String>")]
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(alias = "path", alias = "source")))
+    )]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub paths: Vec<String>,
+
+    #[serde(flatten)]
+    #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
+    pub options: CopyOptions,
+
+    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[patch(name = "VecPatch<String>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
+
+    /// See https://docs.docker.com/reference/dockerfile/#copy---parents
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parents: Option<bool>,
+}
+
+/// Represents the ADD instruction in a Dockerfile specific for Git repo.
+/// See https://docs.docker.com/reference/dockerfile/#adding-private-git-repositories
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default, rename_all = "camelCase"))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "AddGitRepo", rename = "AddGitRepo"))
+    )
+)]
+pub struct AddGitRepo {
+    pub repo: String,
+
+    #[serde(flatten)]
+    #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
+    pub options: CopyOptions,
+
+    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[patch(name = "VecPatch<String>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
+
+    /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub keep_git_dir: Option<bool>,
+}
+
+/// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Add", rename = "Add"))
+    )
+)]
+pub struct Add {
+    #[patch(name = "VecPatch<Resource>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "file"))))]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<Resource>,
+
+    #[serde(flatten)]
+    #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
+    pub options: CopyOptions,
+
+    /// See https://docs.docker.com/reference/dockerfile/#add---checksum
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksum: Option<String>,
+}
+
+/// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "CopyOptions", rename = "CopyOptions"))
+    )
+)]
+pub struct CopyOptions {
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(alias = "destination")))
+    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+
+    /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
+    #[patch(name = "Option<UserPatch>")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chown: Option<User>,
+
+    /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chmod: Option<String>,
+
+    /// See https://docs.docker.com/reference/dockerfile/#copy---link
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub link: Option<bool>,
+}
+
+/// Represents user and group definition
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "User", rename = "User"))
+    )
+)]
+pub struct User {
+    pub user: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub group: Option<String>,
+}
+
+/// Represents a port definition
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Port", rename = "Port"))
+    )
+)]
+pub struct Port {
+    pub port: u16,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<PortProtocol>,
+}
+
+///////////////// Enums //////////////////
 
 /// Represents a Docker image version
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Hash, Eq, PartialOrd)]
@@ -302,139 +515,14 @@ pub enum CopyResource {
     Add(Add),
 }
 
-/// Represents the COPY instruction in a Dockerfile.
-/// See https://docs.docker.com/reference/dockerfile/#copy
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
-#[patch(
-    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
-)]
-pub struct Copy {
-    /// See https://docs.docker.com/reference/dockerfile/#copy---from
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
-    pub from: Option<FromContext>,
-
-    #[patch(
-        name = "VecPatch<String>",
-        attribute(serde(alias = "path", alias = "source"))
-    )]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub paths: Vec<String>,
-
-    #[serde(flatten)]
-    #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
-    pub options: CopyOptions,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[patch(name = "VecPatch<String>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub exclude: Vec<String>,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---parents
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parents: Option<bool>,
-}
-
-/// Represents the ADD instruction in a Dockerfile specific for Git repo.
-/// See https://docs.docker.com/reference/dockerfile/#adding-private-git-repositories
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
-#[patch(
-    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default, rename_all = "camelCase")),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
-)]
-pub struct AddGitRepo {
-    pub repo: String,
-
-    #[serde(flatten)]
-    #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
-    pub options: CopyOptions,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[patch(name = "VecPatch<String>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub exclude: Vec<String>,
-
-    /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub keep_git_dir: Option<bool>,
-}
-
-/// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
-#[patch(
-    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
-)]
-pub struct Add {
-    #[patch(name = "VecPatch<Resource>", attribute(serde(alias = "file")))]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub files: Vec<Resource>,
-
-    #[serde(flatten)]
-    #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
-    pub options: CopyOptions,
-
-    /// See https://docs.docker.com/reference/dockerfile/#add---checksum
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub checksum: Option<String>,
-}
-
-/// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
-#[patch(
-    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
-)]
-pub struct CopyOptions {
-    #[patch(attribute(serde(alias = "destination")))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub target: Option<String>,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    #[patch(name = "Option<UserPatch>")]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chown: Option<User>,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chmod: Option<String>,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---link
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub link: Option<bool>,
-}
-
-/// Represents user and group definition
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
-#[patch(
-    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
-)]
-pub struct User {
-    pub user: String,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub group: Option<String>,
-}
-
-/// Represents a port definition
-#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
-#[patch(
-    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
-)]
-pub struct Port {
-    pub port: u16,
-
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub protocol: Option<PortProtocol>,
+/// Represents a cache sharing strategy
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum CacheSharing {
+    Shared,
+    Private,
+    Locked,
 }
 
 /// Represents a port protocol

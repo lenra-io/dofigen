@@ -499,7 +499,7 @@ impl DockerfileGenerator for Run {
                 bind_options.push(InstructionOptionOption::new("source", source.clone()));
             }
             if bind.readwrite.unwrap_or(false) {
-                bind_options.push(InstructionOptionOption::new_without_value("readwrite"));
+                bind_options.push(InstructionOptionOption::new_flag("readwrite"));
             }
             options.push(InstructionOption::WithOptions("mount".into(), bind_options));
         });
@@ -548,7 +548,7 @@ impl DockerfileGenerator for Run {
                 cache_options.push(InstructionOptionOption::new("sharing", sharing.to_string()));
             }
             if cache.readonly.unwrap_or(false) {
-                cache_options.push(InstructionOptionOption::new_without_value("readonly"));
+                cache_options.push(InstructionOptionOption::new_flag("readonly"));
             }
 
             options.push(InstructionOption::WithOptions(

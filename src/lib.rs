@@ -35,7 +35,10 @@ use generator::{DockerfileGenerator, GenerationContext};
 use schemars::gen::*;
 pub use {context::*, deserialize::*, dofigen_struct::*, errors::*, extend::*};
 
-pub const DOCKERFILE_VERSION: &str = "1.7";
+#[cfg(all(feature = "strict", feature = "permissive"))]
+compile_error!("You can't enable both 'strict' and 'permissive' features at the same time.");
+
+pub(crate) const DOCKERFILE_VERSION: &str = "1.7";
 
 const FILE_HEADER_LINES: [&str; 3] = [
     concat!(
@@ -195,7 +198,7 @@ pub fn generate_effective_content(image: &Image) -> Result<String> {
 pub fn generate_json_schema() -> String {
     let settings = SchemaSettings::default().with(|s| {
         s.option_nullable = true;
-        s.option_add_null_type = false;
+        s.option_add_null_type = true;
     });
     let gen = settings.into_generator();
     let schema = gen.into_root_schema_for::<Extend<ImagePatch>>();

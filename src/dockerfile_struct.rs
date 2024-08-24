@@ -41,7 +41,7 @@ impl InstructionOptionOption {
         }
     }
 
-    pub fn new_without_value(name: &str) -> Self {
+    pub fn new_flag(name: &str) -> Self {
         Self {
             name: name.into(),
             value: None,

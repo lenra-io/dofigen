@@ -14,12 +14,15 @@ type VecType<T> = OneOrMany<T>;
 #[cfg(not(feature = "permissive"))]
 type VecType<T> = Vec<T>;
 
-/// Extends a list of resources with a patch
 #[derive(Debug, Clone, PartialEq, Default, Deserialize)]
 // #[serde(deny_unknown_fields)]
 #[serde(default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema), schemars(default))]
-pub struct Extend<T: Default> {
+#[cfg_attr(
+    feature = "json_schema",
+    derive(JsonSchema),
+    schemars(rename = "Extend<{T}>", default)
+)]
+pub struct Extend<T: Default + Merge> {
     #[serde(alias = "extends")]
     pub extend: VecType<Resource>,
 

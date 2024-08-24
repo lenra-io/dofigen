@@ -27,6 +27,7 @@ default = ["permissive"]
 cli = ["clap"]
 json_schema = ["schemars", "serde_json"]
 permissive = []
+strict = []
 
 [dependencies]
 serde = "1.0"
