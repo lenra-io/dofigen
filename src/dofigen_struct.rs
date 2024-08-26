@@ -31,9 +31,9 @@ pub struct Image {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
 
-    #[patch(name = "VecDeepPatch<Stage, StagePatch>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub builders: Vec<Stage>,
+    #[patch(name = "HashMapDeepPatch<String, StagePatch>")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub builders: HashMap<String, Stage>,
 
     #[patch(name = "StagePatch", attribute(serde(flatten)))]
     #[serde(flatten)]
@@ -82,17 +82,9 @@ pub struct Image {
     )
 )]
 pub struct Stage {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-
-    #[cfg_attr(
-        feature = "permissive",
-        patch(name = "Option<ParsableStruct<ImageNamePatch>>")
-    )]
-    #[cfg_attr(not(feature = "permissive"), patch(name = "Option<ImageNamePatch>"))]
-    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "image"))))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from: Option<ImageName>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten, default)))]
+    pub from: Option<FromContext>,
 
     #[cfg_attr(
         feature = "permissive",
@@ -502,9 +494,9 @@ pub enum ImageVersion {
 #[derive(Serialize, Debug, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub enum FromContext {
-    Image(ImageName),
-    Builder(String),
-    Context(String),
+    FromImage(ImageName),
+    FromBuilder(String),
+    FromContext(String),
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq)]
@@ -543,6 +535,47 @@ pub enum Resource {
     File(PathBuf),
 }
 
+///////////////// Enum Patches //////////////////
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum FromContextPatch {
+    #[cfg(not(feature = "permissive"))]
+    #[cfg_attr(not(feature = "strict"), serde(alias = "image"))]
+    FromImage(ImageNamePatch),
+
+    #[cfg(feature = "permissive")]
+    #[cfg_attr(not(feature = "strict"), serde(alias = "image"))]
+    FromImage(ParsableStruct<ImageNamePatch>),
+
+    #[cfg_attr(not(feature = "strict"), serde(alias = "builder"))]
+    FromBuilder(String),
+
+    #[cfg_attr(not(feature = "strict"), serde(alias = "from"))]
+    FromContext(String),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum CopyResourcePatch {
+    Copy(CopyPatch),
+    AddGitRepo(AddGitRepoPatch),
+    Add(AddPatch),
+    Unknown(UnknownPatch),
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct UnknownPatch {
+    #[serde(flatten)]
+    pub options: Option<CopyOptionsPatch>,
+    pub exclude: Option<VecPatch<String>>,
+}
+
+///////////////// Tests //////////////////
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -567,7 +600,7 @@ mod test {
             #[test]
             fn from() {
                 let data = r#"
-                from:
+                fromImage:
                   path: ubuntu
                 "#;
 
@@ -578,10 +611,10 @@ mod test {
                     image,
                     Image {
                         stage: Stage {
-                            from: Some(ImageName {
+                            from: Some(FromContext::FromImage(ImageName {
                                 path: "ubuntu".into(),
                                 ..Default::default()
-                            }),
+                            })),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -589,8 +622,7 @@ mod test {
                 );
             }
 
-            #[ignore]
-            // Not managed yet by serde: https://serde.rs/field-attrs.html#flatten
+            #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn duplicate_from() {
                 let data = r#"
@@ -607,8 +639,7 @@ mod test {
                 assert!(image.is_err());
             }
 
-            #[ignore]
-            // Not managed yet by serde: https://serde.rs/field-attrs.html#flatten
+            #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn duplicate_from_and_alias() {
                 let data = r#"
@@ -642,7 +673,7 @@ mod test {
             #[test]
             fn from() {
                 let data = r#"
-                from:
+                fromImage:
                   path: ubuntu
                 "#;
 
@@ -652,21 +683,25 @@ mod test {
                 assert_eq_sorted!(
                     stage,
                     Stage {
-                        from: Some(ImageName {
-                            path: "ubuntu".into(),
-                            ..Default::default()
-                        }),
+                        from: Some(
+                            FromContext::FromImage(ImageName {
+                                path: "ubuntu".into(),
+                                ..Default::default()
+                            })
+                            .into()
+                        ),
                         ..Default::default()
                     }
                 );
             }
 
+            #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn duplicate_from() {
                 let data = r#"
-                from:
+                fromImage:
                     path: ubuntu
-                from:
+                fromImage:
                     path: alpine
                 "#;
 
@@ -675,10 +710,11 @@ mod test {
                 assert!(stage.is_err());
             }
 
+            #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn duplicate_from_and_alias() {
                 let data = r#"
-                from:
+                fromImage:
                   path: ubuntu
                 image:
                   path: alpine
@@ -730,7 +766,7 @@ mod test {
     "exclude": ["file3.txt"],
     "link": true,
     "parents": true,
-    "image": {"path": "my-image"}
+    "fromImage": {"path": "my-image"}
 }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
@@ -751,10 +787,37 @@ mod test {
                         },
                         exclude: vec!["file3.txt".into()].into(),
                         parents: Some(true),
-                        from: Some(FromContext::Image(ImageName {
+                        from: Some(FromContext::FromImage(ImageName {
                             path: "my-image".into(),
                             ..Default::default()
                         }))
+                    })
+                );
+            }
+
+            #[test]
+            fn copy_simple() {
+                let json_data = r#"{
+    "paths": ["file1.txt"]
+}"#;
+
+                let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResourcePatch::Copy(CopyPatch {
+                        paths: Some(vec!["file1.txt".into()].into_patch()),
+                        ..Default::default()
+                    })
+                );
+
+                let copy_resource: CopyResource = copy_resource.into();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResource::Copy(Copy {
+                        paths: vec!["file1.txt".into()].into(),
+                        ..Default::default()
                     })
                 );
             }
@@ -864,7 +927,7 @@ mod test {
             #[test]
             fn with_bind() {
                 let json_data = r#"
-from:
+fromImage:
   path: clux/muslrust:stable
 workdir: /app
 bind:
@@ -878,14 +941,13 @@ run:
                     .unwrap()
                     .into();
 
-                assert_eq!(
+                assert_eq_sorted!(
                     builder,
                     Stage {
-                        from: ImageName {
+                        from: Some(FromContext::FromImage(ImageName {
                             path: "clux/muslrust:stable".into(),
                             ..Default::default()
-                        }
-                        .into(),
+                        })),
                         workdir: Some("/app".into()),
                         run: Run {
                             bind: vec![Bind {

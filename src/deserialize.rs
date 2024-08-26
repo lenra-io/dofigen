@@ -43,33 +43,6 @@ impl_from_patch_and_add!(AddGitRepo, AddGitRepoPatch);
 
 //////////////////////// Patch structures ////////////////////////
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum FromContextPatch {
-    Image(ImageNamePatch),
-    Builder(String),
-    Context(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize)]
-#[serde(untagged)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum CopyResourcePatch {
-    Copy(CopyPatch),
-    AddGitRepo(AddGitRepoPatch),
-    Add(AddPatch),
-    Unknown(UnknownPatch),
-}
-
-#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub struct UnknownPatch {
-    #[serde(flatten)]
-    pub options: Option<CopyOptionsPatch>,
-    pub exclude: Option<VecPatch<String>>,
-}
-
 /// A struct that can be parsed from a string
 #[cfg(feature = "permissive")]
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -150,6 +123,16 @@ where
     patches: HashMap<K, Option<V>>,
 }
 
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+pub struct HashMapDeepPatch<K, V>
+where
+    K: Clone + Eq + std::hash::Hash,
+    V: Clone,
+{
+    #[serde(flatten)]
+    patches: HashMap<K, Option<V>>,
+}
+
 //////////////////////// Deserialization structures ////////////////////////
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -220,10 +203,16 @@ where
 impl From<FromContextPatch> for FromContext {
     fn from(patch: FromContextPatch) -> Self {
         match patch {
-            FromContextPatch::Image(p) => FromContext::Image(p.into()),
-            FromContextPatch::Builder(p) => FromContext::Builder(p),
-            FromContextPatch::Context(p) => FromContext::Context(p),
+            FromContextPatch::FromImage(p) => FromContext::FromImage(p.into()),
+            FromContextPatch::FromBuilder(p) => FromContext::FromBuilder(p),
+            FromContextPatch::FromContext(p) => FromContext::FromContext(p),
         }
+    }
+}
+
+impl Default for FromContext {
+    fn default() -> Self {
+        FromContext::FromContext("scratch".to_string())
     }
 }
 
@@ -357,16 +346,16 @@ where
 impl Patch<FromContextPatch> for FromContext {
     fn apply(&mut self, patch: FromContextPatch) {
         match (self, patch) {
-            (Self::Image(s), FromContextPatch::Image(p)) => s.apply(p),
+            (Self::FromImage(s), FromContextPatch::FromImage(p)) => s.apply(p),
             (s, patch) => *s = patch.into(),
         }
     }
 
     fn into_patch(self) -> FromContextPatch {
         match self {
-            FromContext::Image(s) => FromContextPatch::Image(s.into_patch()),
-            FromContext::Builder(s) => FromContextPatch::Builder(s),
-            FromContext::Context(s) => FromContextPatch::Context(s),
+            FromContext::FromImage(s) => FromContextPatch::FromImage(s.into_patch()),
+            FromContext::FromBuilder(s) => FromContextPatch::FromBuilder(s),
+            FromContext::FromContext(s) => FromContextPatch::FromContext(s),
         }
     }
 
@@ -780,6 +769,44 @@ where
     }
 }
 
+impl<K, T, P> Patch<HashMapDeepPatch<K, P>> for HashMap<K, T>
+where
+    K: Clone + Eq + Hash,
+    T: Clone + Patch<P> + From<P>,
+    P: Clone,
+{
+    fn apply(&mut self, patch: HashMapDeepPatch<K, P>) {
+        for (key, value) in patch.patches {
+            match value {
+                Some(value) => {
+                    self.insert(key, value.into());
+                }
+                None => {
+                    self.remove(&key);
+                }
+            }
+        }
+    }
+
+    fn into_patch(self) -> HashMapDeepPatch<K, P> {
+        let mut patches = HashMap::new();
+        for (key, value) in self {
+            patches.insert(key, Some(value.into_patch()));
+        }
+        HashMapDeepPatch { patches }
+    }
+
+    fn into_patch_by_diff(self, _previous_struct: Self) -> HashMapDeepPatch<K, P> {
+        todo!()
+    }
+
+    fn new_empty_patch() -> HashMapDeepPatch<K, P> {
+        HashMapDeepPatch {
+            patches: HashMap::new(),
+        }
+    }
+}
+
 //////////////////////// Deserialize ////////////////////////
 
 #[cfg(feature = "permissive")]
@@ -1071,7 +1098,7 @@ macro_rules! merge_option_patch {
 impl Merge for FromContextPatch {
     fn merge(self, other: Self) -> Self {
         match (self, other) {
-            (Self::Image(a), Self::Image(b)) => Self::Image(a.merge(b)),
+            (Self::FromImage(a), Self::FromImage(b)) => Self::FromImage(a.merge(b)),
             (_, b) => b,
         }
     }
@@ -1474,6 +1501,31 @@ where
             }
         }
         HashMapPatch { patches }
+    }
+}
+
+impl<K, V> Merge for HashMapDeepPatch<K, V>
+where
+    K: Clone + Eq + Hash,
+    V: Clone + Merge,
+{
+    fn merge(mut self, other: Self) -> Self {
+        for (key, value) in other.patches {
+            match value {
+                Some(value) => match self.patches.get_mut(&key) {
+                    Some(Some(patch)) => {
+                        *patch = patch.clone().merge(value);
+                    }
+                    _ => {
+                        self.patches.insert(key, Some(value));
+                    }
+                },
+                None => {
+                    self.patches.remove(&key);
+                }
+            }
+        }
+        self
     }
 }
 
@@ -1984,6 +2036,92 @@ mod test {
                     subs: HashMap::from([
                         ("sub1".to_string(), "value1".to_string()),
                         ("sub3".to_string(), "value3".to_string())
+                    ])
+                }
+            );
+        }
+    }
+
+    mod hashmap_deep_patch {
+        use super::*;
+        use serde::Deserialize;
+        use struct_patch::Patch;
+
+        #[derive(Debug, Clone, PartialEq, Patch, Default)]
+        #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
+        struct TestStruct {
+            pub name: String,
+            #[patch(name = "HashMapDeepPatch<String, TestSubStructPatch>")]
+            pub subs: HashMap<String, TestSubStruct>,
+        }
+
+        #[derive(Debug, Clone, PartialEq, Patch, Default)]
+        #[patch(attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)))]
+        struct TestSubStruct {
+            pub name: String,
+        }
+
+        impl From<TestStructPatch> for TestStruct {
+            fn from(patch: TestStructPatch) -> Self {
+                let mut sub = Self::default();
+                sub.apply(patch);
+                sub
+            }
+        }
+
+        impl From<TestSubStructPatch> for TestSubStruct {
+            fn from(patch: TestSubStructPatch) -> Self {
+                let mut sub = Self::default();
+                sub.apply(patch);
+                sub
+            }
+        }
+
+        #[test]
+        fn test_simple_patch() {
+            let base = r#"
+                name: patch1
+                subs:
+                  sub1:
+                    name: value1
+                  sub2:
+                    name: value2
+            "#;
+
+            let patch = r#"
+                name: patch2
+                subs:
+                  sub1:
+                    name: value2
+                  sub2: null
+                  sub3:
+                    name: value3
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch2".into(),
+                    subs: HashMap::from([
+                        (
+                            "sub1".to_string(),
+                            TestSubStruct {
+                                name: "value2".to_string()
+                            }
+                        ),
+                        (
+                            "sub3".to_string(),
+                            TestSubStruct {
+                                name: "value3".to_string()
+                            }
+                        )
                     ])
                 }
             );

@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use crate::{dockerfile_struct::*, dofigen_struct::*, Error, Result, DOCKERFILE_VERSION};
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
@@ -6,9 +8,8 @@ pub const LINE_SEPARATOR: &str = " \\\n    ";
 pub struct GenerationContext {
     pub user: Option<User>,
     pub wokdir: Option<String>,
-    pub default_stage_name: String,
-    pub default_from: ImageName,
-    pub previous_builders: Vec<String>,
+    pub stage_name: String,
+    pub default_from: FromContext,
 }
 pub trait DockerfileGenerator {
     fn generate_dockerfile_lines(&self, context: &GenerationContext)
@@ -16,12 +17,7 @@ pub trait DockerfileGenerator {
 }
 
 impl Stage {
-    pub fn name(&self, context: &GenerationContext) -> String {
-        self.name
-            .clone()
-            .unwrap_or_else(|| context.default_stage_name.clone())
-    }
-    pub fn from(&self, context: &GenerationContext) -> ImageName {
+    pub fn from(&self, context: &GenerationContext) -> FromContext {
         self.from.clone().unwrap_or(context.default_from.clone())
     }
 
@@ -163,9 +159,9 @@ impl ToString for CacheSharing {
 impl ToString for FromContext {
     fn to_string(&self) -> String {
         match self {
-            FromContext::Builder(name) => name.clone(),
-            FromContext::Context(context) => context.clone(),
-            FromContext::Image(image) => image.to_string(),
+            FromContext::FromBuilder(name) => name.clone(),
+            FromContext::FromContext(context) => context.clone(),
+            FromContext::FromImage(image) => image.to_string(),
         }
     }
 }
@@ -297,26 +293,28 @@ impl DockerfileGenerator for Image {
         let mut context: GenerationContext = GenerationContext {
             user: None,
             wokdir: None,
-            default_stage_name: String::new(),
+            stage_name: String::new(),
             default_from: self.stage.from(context).clone(),
-            previous_builders: vec![],
         };
         let mut lines = vec![
             DockerfileLine::Comment(format!("syntax=docker/dockerfile:{}", DOCKERFILE_VERSION)),
             DockerfileLine::Empty,
         ];
-        for (pos, builder) in self.builders.iter().enumerate() {
-            context.default_stage_name = format!("builder-{}", pos);
+
+        let stage_resolver = &mut StagesDependencyResolver::new(self);
+
+        for name in stage_resolver.get_sorted_builders()? {
+            context.stage_name = name.clone();
+            let builder = self
+                .builders
+                .get(&name)
+                .ok_or(Error::Custom(format!("The builder '{}' not found", name)))?;
             lines.append(&mut Stage::generate_dockerfile_lines(builder, &context)?);
             lines.push(DockerfileLine::Empty);
-            context.previous_builders.push(builder.name(&context));
         }
         context.user = Some(User::new("1000"));
-        context.default_stage_name = "runtime".into();
-        context.default_from = ImageName {
-            path: "scratch".into(),
-            ..Default::default()
-        };
+        context.stage_name = "runtime".into();
+        context.default_from = FromContext::default();
         lines.append(&mut self.stage.generate_dockerfile_lines(&context)?);
         self.expose.iter().for_each(|port| {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
@@ -385,7 +383,7 @@ impl DockerfileGenerator for Stage {
             wokdir: self.workdir.clone(),
             ..context.clone()
         };
-        let stage_name = self.name(&context);
+        let stage_name = context.stage_name.clone();
 
         // From
         let mut lines = vec![
@@ -586,6 +584,121 @@ fn string_vec_into(string_vec: Vec<String>) -> String {
     )
 }
 
+impl Stage {
+    pub(crate) fn get_dependencies(&self) -> Vec<String> {
+        let mut dependencies = vec![];
+        for copy in self.copy.iter() {
+            dependencies.append(&mut copy.get_dependencies());
+        }
+        dependencies
+    }
+}
+
+impl CopyResource {
+    pub(crate) fn get_dependencies(&self) -> Vec<String> {
+        match self {
+            CopyResource::Copy(copy) => match &copy.from {
+                Some(FromContext::FromBuilder(builder)) => vec![builder.clone()],
+                _ => vec![],
+            },
+            _ => vec![],
+        }
+    }
+}
+
+struct StagesDependencyResolver {
+    dependencies: HashMap<String, Vec<String>>,
+    recursive_dependencies: HashMap<String, Vec<String>>,
+}
+
+impl StagesDependencyResolver {
+    pub fn get_sorted_builders(&mut self) -> Result<Vec<String>> {
+        let mut stages: Vec<(String, Vec<String>)> = self
+            .dependencies
+            .clone()
+            .keys()
+            .into_iter()
+            .filter(|stage| **stage != "runtime")
+            .map(|stage| Ok((stage.clone(), self.resolve_dependencies(stage.clone())?)))
+            .collect::<Result<_>>()?;
+
+        stages.sort_by(|(a_stage, a_deps), (b_stage, b_deps)| {
+            if a_deps.contains(b_stage) {
+                return std::cmp::Ordering::Greater;
+            }
+            if b_deps.contains(a_stage) {
+                return std::cmp::Ordering::Less;
+            }
+            std::cmp::Ordering::Equal
+        });
+
+        Ok(stages.into_iter().map(|(stage, _)| stage).collect())
+    }
+
+    pub fn resolve_dependencies(&mut self, stage: String) -> Result<Vec<String>> {
+        self.resolve_recursive_dependencies(&mut vec![stage])
+    }
+
+    fn resolve_recursive_dependencies(&mut self, path: &mut Vec<String>) -> Result<Vec<String>> {
+        let stage = path
+            .last()
+            .ok_or(Error::Custom("The path is empty".to_string()))?
+            .clone();
+        if let Some(dependencies) = self.recursive_dependencies.get(&stage) {
+            return Ok(dependencies.clone());
+        }
+        let mut deps = HashSet::new();
+        let dependencies = self
+            .dependencies
+            .get(&stage)
+            .ok_or(Error::Custom(format!(
+                "The stage dependencies {} not found",
+                stage
+            )))?
+            .clone();
+        for dependency in dependencies {
+            if path.contains(&dependency) {
+                return Err(Error::Custom(format!(
+                    "Circular dependency detected: {} -> {}",
+                    path.join(" -> "),
+                    dependency
+                )));
+            }
+            deps.insert(dependency.clone());
+            path.push(dependency.clone());
+            deps.extend(self.resolve_recursive_dependencies(path)?);
+            path.pop();
+        }
+        let deps: Vec<String> = deps.into_iter().collect();
+        self.recursive_dependencies
+            .insert(stage.clone(), deps.clone());
+        Ok(deps)
+    }
+
+    pub fn new(image: &Image) -> Self {
+        let mut dependencies: HashMap<String, Vec<String>> = image
+            .builders
+            .iter()
+            .map(|(name, builder)| {
+                if name == "runtime" {
+                    panic!("The builder name 'runtime' is reserved");
+                }
+                let deps = builder.get_dependencies();
+                if deps.contains(&"runtime".to_string()) {
+                    panic!("The builder '{}' can't depend on the 'runtime'", name);
+                }
+                (name.clone(), deps)
+            })
+            .collect();
+
+        dependencies.insert("runtime".into(), image.stage.get_dependencies());
+        Self {
+            dependencies,
+            recursive_dependencies: HashMap::new(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -593,31 +706,6 @@ mod test {
 
     mod builder {
         use super::*;
-
-        #[test]
-        fn name_with_name() {
-            let builder = Stage {
-                name: Some(String::from("my-builder")),
-                ..Default::default()
-            };
-            let name = builder.name(&GenerationContext {
-                previous_builders: vec!["builder-0".into()],
-                default_stage_name: "builder-1".into(),
-                ..Default::default()
-            });
-            assert_eq_sorted!(name, "my-builder");
-        }
-
-        #[test]
-        fn name_without_name() {
-            let builder = Stage::default();
-            let name = builder.name(&GenerationContext {
-                previous_builders: vec!["builder-0".into(), "bob".into()],
-                default_stage_name: "builder-2".into(),
-                ..Default::default()
-            });
-            assert_eq_sorted!(name, "builder-2");
-        }
 
         #[test]
         fn user_with_user() {
@@ -647,40 +735,14 @@ mod test {
         use super::*;
 
         #[test]
-        fn runtime_default() {
-            let image = Image {
-                stage: Stage {
-                    from: Some(
-                        ImageName {
-                            path: String::from("my-image"),
-                            ..Default::default()
-                        }
-                        .into(),
-                    ),
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-            let name = image.stage.name(&GenerationContext {
-                previous_builders: vec!["builder-0".into(), "builder-1".into(), "builder-2".into()],
-                default_stage_name: "runtime".into(),
-                ..Default::default()
-            });
-            assert_eq_sorted!(name, "runtime");
-        }
-
-        #[test]
         fn user_with_user() {
             let image = Image {
                 stage: Stage {
                     user: Some(User::new_without_group("my-user").into()),
-                    from: Some(
-                        ImageName {
-                            path: String::from("my-image"),
-                            ..Default::default()
-                        }
-                        .into(),
-                    ),
+                    from: Some(FromContext::FromImage(ImageName {
+                        path: String::from("my-image"),
+                        ..Default::default()
+                    })),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -702,13 +764,10 @@ mod test {
         fn user_without_user() {
             let image = Image {
                 stage: Stage {
-                    from: Some(
-                        ImageName {
-                            path: String::from("my-image"),
-                            ..Default::default()
-                        }
-                        .into(),
-                    ),
+                    from: Some(FromContext::FromImage(ImageName {
+                        path: String::from("my-image"),
+                        ..Default::default()
+                    })),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -866,6 +925,89 @@ mod test {
                         ],
                     )],
                 })]
+            );
+        }
+    }
+
+    mod stages_dependency_resolver {
+        use super::*;
+
+        #[test]
+        fn resolve_dependencies() {
+            let image = Image {
+                builders: HashMap::from([
+                    (
+                        "builder1".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: Some(FromContext::FromBuilder("builder2".into())),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "builder2".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: Some(FromContext::FromBuilder("builder3".into())),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "builder3".into(),
+                        Stage {
+                            run: Run {
+                                run: vec!["echo Hello".into()].into(),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                    ),
+                ]),
+                ..Default::default()
+            };
+
+            let mut resolver = StagesDependencyResolver::new(&image);
+
+            let mut dependencies = resolver.resolve_dependencies("runtime".into()).unwrap();
+            dependencies.sort();
+            assert_eq_sorted!(
+                dependencies,
+                Vec::<String>::new()
+            );
+            
+            dependencies = resolver.resolve_dependencies("builder1".into()).unwrap();
+            dependencies.sort();
+            assert_eq_sorted!(
+                dependencies,
+                vec!["builder2", "builder3"]
+            );
+
+            dependencies = resolver.resolve_dependencies("builder2".into()).unwrap();
+            assert_eq_sorted!(
+                dependencies,
+                vec!["builder3"]
+            );
+            
+            dependencies = resolver.resolve_dependencies("builder3".into()).unwrap();
+            assert_eq_sorted!(
+                dependencies,
+                Vec::<String>::new()
+            );
+
+            let mut builders = resolver.get_sorted_builders().unwrap();
+            builders.sort();
+
+            assert_eq_sorted!(
+                builders,
+                vec!["builder1", "builder2", "builder3"]
             );
         }
     }

@@ -197,7 +197,7 @@ impl_parsable_patch!(Bind, BindPatch, s, {
         from: Some(
             captures
                 .name("from")
-                .map(|m| FromContextPatch::Context(m.as_str().into())),
+                .map(|m| FromContextPatch::FromContext(m.as_str().into())),
         ),
         readwrite: Some(None),
     })

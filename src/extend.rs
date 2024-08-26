@@ -233,7 +233,7 @@ mod test {
             #[test]
             fn only_from() {
                 let data = r#"
-from:
+fromImage:
   path: ubuntu
 "#;
 
@@ -244,14 +244,14 @@ from:
                     Extend {
                         value: ImagePatch {
                             stage: Some(StagePatch {
-                                from: Some(Some(
+                                from: Some(Some(FromContextPatch::FromImage(
                                     ImageNamePatch {
                                         path: Some("ubuntu".into()),
                                         version: Some(None),
                                         ..Default::default()
                                     }
                                     .into() // To manage permissive
-                                )),
+                                ))),
                                 run: Some(RunPatch::default()),
                                 ..Default::default()
                             }),

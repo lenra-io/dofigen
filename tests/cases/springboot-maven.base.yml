@@ -1,6 +1,6 @@
 builders:
-  - name: maven-builder
-    from: 
+  maven-builder:
+    fromImage: 
       path: maven
       tag: 3.9-eclipse-temurin-17-alpine
     workdir: /app
@@ -13,11 +13,11 @@ builders:
       cache:
         - target: /root/.m2
         - target: /app/target
-from: 
+fromImage: 
   path: eclipse-temurin
   tag: 17-jre-alpine
 artifacts:
-  - builder: maven-builder
+  - fromBuilder: maven-builder
     source: 
       - /app/app.jar
     target: app.jar

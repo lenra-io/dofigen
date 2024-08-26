@@ -159,6 +159,22 @@ where
     }
 }
 
+impl<K, V> Lock for HashMap<K, V>
+where
+    K: Eq + std::hash::Hash + Clone,
+    V: Lock,
+{
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        self.iter()
+            .map(|(key, value)| {
+                value
+                    .lock(context)
+                    .map(|locked_value| (key.clone(), locked_value))
+            })
+            .collect()
+    }
+}
+
 impl Lock for Image {
     fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
         Ok(Self {
@@ -175,6 +191,15 @@ impl Lock for Stage {
             from: self.from.lock(context)?,
             ..self.clone()
         })
+    }
+}
+
+impl Lock for FromContext {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        match self {
+            Self::FromImage(image_name) => Ok(Self::FromImage(image_name.lock(context)?)),
+            other => Ok(other.clone()),
+        }
     }
 }
 
