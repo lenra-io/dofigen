@@ -18,10 +18,10 @@ use url::Url;
     feature = "json_schema",
     patch(
         attribute(derive(JsonSchema)),
-        attribute(schemars(title = "Image", rename = "Image"))
+        attribute(schemars(title = "Dofigen", rename = "Dofigen"))
     )
 )]
-pub struct Image {
+pub struct Dofigen {
     #[patch(name = "VecPatch<String>")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub context: Vec<String>,
@@ -584,17 +584,17 @@ mod test {
     mod deserialize {
         use super::*;
 
-        mod image {
+        mod dofigen {
             use super::*;
 
             #[test]
             fn empty() {
                 let data = r#""#;
 
-                let image: ImagePatch = serde_yaml::from_str(data).unwrap();
-                let image: Image = image.into();
+                let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
 
-                assert_eq_sorted!(image, Image::default());
+                assert_eq_sorted!(dofigen, Dofigen::default());
             }
 
             #[test]
@@ -604,12 +604,12 @@ mod test {
                   path: ubuntu
                 "#;
 
-                let image: ImagePatch = serde_yaml::from_str(data).unwrap();
-                let image: Image = image.into();
+                let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
 
                 assert_eq_sorted!(
-                    image,
-                    Image {
+                    dofigen,
+                    Dofigen {
                         stage: Stage {
                             from: Some(FromContext::FromImage(ImageName {
                                 path: "ubuntu".into(),
@@ -632,11 +632,11 @@ mod test {
                     path: alpine
                 "#;
 
-                let image: serde_yaml::Result<ImagePatch> = serde_yaml::from_str(data);
+                let dofigen: serde_yaml::Result<DofigenPatch> = serde_yaml::from_str(data);
 
-                println!("{:?}", image);
+                println!("{:?}", dofigen);
 
-                assert!(image.is_err());
+                assert!(dofigen.is_err());
             }
 
             #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
@@ -649,11 +649,11 @@ mod test {
                   path: alpine
                 "#;
 
-                let image: serde_yaml::Result<ImagePatch> = serde_yaml::from_str(data);
+                let dofigen: serde_yaml::Result<DofigenPatch> = serde_yaml::from_str(data);
 
-                println!("{:?}", image);
+                println!("{:?}", dofigen);
 
-                assert!(image.is_err());
+                assert!(dofigen.is_err());
             }
         }
 

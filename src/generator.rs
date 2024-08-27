@@ -285,7 +285,7 @@ impl DockerfileGenerator for AddGitRepo {
     }
 }
 
-impl DockerfileGenerator for Image {
+impl DockerfileGenerator for Dofigen {
     fn generate_dockerfile_lines(
         &self,
         context: &GenerationContext,
@@ -675,8 +675,8 @@ impl StagesDependencyResolver {
         Ok(deps)
     }
 
-    pub fn new(image: &Image) -> Self {
-        let mut dependencies: HashMap<String, Vec<String>> = image
+    pub fn new(dofigen: &Dofigen) -> Self {
+        let mut dependencies: HashMap<String, Vec<String>> = dofigen
             .builders
             .iter()
             .map(|(name, builder)| {
@@ -691,7 +691,7 @@ impl StagesDependencyResolver {
             })
             .collect();
 
-        dependencies.insert("runtime".into(), image.stage.get_dependencies());
+        dependencies.insert("runtime".into(), dofigen.stage.get_dependencies());
         Self {
             dependencies,
             recursive_dependencies: HashMap::new(),
@@ -736,7 +736,7 @@ mod test {
 
         #[test]
         fn user_with_user() {
-            let image = Image {
+            let dofigen = Dofigen {
                 stage: Stage {
                     user: Some(User::new_without_group("my-user").into()),
                     from: Some(FromContext::FromImage(ImageName {
@@ -747,7 +747,7 @@ mod test {
                 },
                 ..Default::default()
             };
-            let user = image.stage.user(&GenerationContext {
+            let user = dofigen.stage.user(&GenerationContext {
                 user: Some(User::new("1000")),
                 ..Default::default()
             });
@@ -762,7 +762,7 @@ mod test {
 
         #[test]
         fn user_without_user() {
-            let image = Image {
+            let dofigen = Dofigen {
                 stage: Stage {
                     from: Some(FromContext::FromImage(ImageName {
                         path: String::from("my-image"),
@@ -772,7 +772,7 @@ mod test {
                 },
                 ..Default::default()
             };
-            let user = image.stage.user(&GenerationContext {
+            let user = dofigen.stage.user(&GenerationContext {
                 user: Some(User::new("1000")),
                 ..Default::default()
             });
@@ -934,7 +934,7 @@ mod test {
 
         #[test]
         fn resolve_dependencies() {
-            let image = Image {
+            let dofigen = Dofigen {
                 builders: HashMap::from([
                     (
                         "builder1".into(),
@@ -974,7 +974,7 @@ mod test {
                 ..Default::default()
             };
 
-            let mut resolver = StagesDependencyResolver::new(&image);
+            let mut resolver = StagesDependencyResolver::new(&dofigen);
 
             let mut dependencies = resolver.resolve_dependencies("runtime".into()).unwrap();
             dependencies.sort();

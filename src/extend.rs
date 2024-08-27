@@ -205,7 +205,7 @@ mod test {
         }
 
         mod extend_image {
-            use crate::{ImageNamePatch, ImagePatch, RunPatch, StagePatch};
+            use crate::{ImageNamePatch, DofigenPatch, RunPatch, StagePatch};
 
             use super::*;
 
@@ -213,12 +213,12 @@ mod test {
             fn empty() {
                 let data = r#"{}"#;
 
-                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
+                let extend_image: Extend<DofigenPatch> = serde_yaml::from_str(data).unwrap();
 
                 assert_eq_sorted!(
                     extend_image,
                     Extend {
-                        value: ImagePatch {
+                        value: DofigenPatch {
                             stage: Some(StagePatch {
                                 run: Some(RunPatch::default()),
                                 ..Default::default()
@@ -237,12 +237,12 @@ fromImage:
   path: ubuntu
 "#;
 
-                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
+                let extend_image: Extend<DofigenPatch> = serde_yaml::from_str(data).unwrap();
 
                 assert_eq_sorted!(
                     extend_image,
                     Extend {
-                        value: ImagePatch {
+                        value: DofigenPatch {
                             stage: Some(StagePatch {
                                 from: Some(Some(FromContextPatch::FromImage(
                                     ImageNamePatch {

@@ -27,7 +27,7 @@ macro_rules! impl_from_patch_and_add {
     };
 }
 
-impl_from_patch_and_add!(Image, ImagePatch);
+impl_from_patch_and_add!(Dofigen, DofigenPatch);
 impl_from_patch_and_add!(Stage, StagePatch);
 impl_from_patch_and_add!(Healthcheck, HealthcheckPatch);
 impl_from_patch_and_add!(ImageName, ImageNamePatch);

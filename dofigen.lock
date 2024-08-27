@@ -1,4 +1,4 @@
-image: |
+effective: |
   context:
   - /src
   - /Cargo.*

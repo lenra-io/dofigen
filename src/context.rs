@@ -2,7 +2,7 @@ use colored::{Color, Colorize};
 
 use crate::{
     lock::{DockerTag, ResourceVersion, DEFAULT_NAMESPACE},
-    Error, Extend, Image, ImageName, ImagePatch, ImageVersion, Resource, Result,
+    Error, Extend, Dofigen, ImageName, DofigenPatch, ImageVersion, Resource, Result,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -339,13 +339,13 @@ impl DofigenContext {
         updates
     }
 
-    //////////  Image parsing  //////////
+    //////////  Dofigen parsing  //////////
 
-    /// Parse an Image from a string.
+    /// Parse an Dofigen from a string.
     ///
     /// # Examples
     ///
-    /// Basic image
+    /// Basic struct
     ///
     /// ```
     /// use dofigen_lib::*;
@@ -355,10 +355,10 @@ impl DofigenContext {
     /// from:
     ///   path: ubuntu
     /// ";
-    /// let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
+    /// let image: Dofigen = DofigenContext::new().parse_from_string(yaml).unwrap();
     /// assert_eq_sorted!(
     ///     image,
-    ///     Image {
+    ///     Dofigen {
     ///       stage: Stage {
     ///         from: Some(ImageName {
     ///             path: String::from("ubuntu"),
@@ -394,10 +394,10 @@ impl DofigenContext {
     ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
-    /// let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
+    /// let image: Dofigen = DofigenContext::new().parse_from_string(yaml).unwrap();
     /// assert_eq_sorted!(
     ///     image,
-    ///     Image {
+    ///     Dofigen {
     ///         builders: vec![Stage {
     ///             name: Some(String::from("builder")),
     ///             from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
@@ -430,17 +430,17 @@ impl DofigenContext {
     ///     }
     /// );
     /// ```
-    pub fn parse_from_string(&mut self, input: &str) -> Result<Image> {
+    pub fn parse_from_string(&mut self, input: &str) -> Result<Dofigen> {
         self.merge_extended_image(
             serde_yaml::from_str(input).map_err(|err| Error::Deserialize(err))?,
         )
     }
 
-    /// Parse an Image from an IO stream.
+    /// Parse an Dofigen from an IO stream.
     ///
     /// # Examples
     ///
-    /// Basic image
+    /// Basic struct
     ///
     /// ```
     /// use dofigen_lib::*;
@@ -451,10 +451,10 @@ impl DofigenContext {
     ///   path: ubuntu
     /// ";
     ///
-    /// let image: Image = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
+    /// let image: Dofigen = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
     /// assert_eq_sorted!(
     ///     image,
-    ///     Image {
+    ///     Dofigen {
     ///         stage: Stage {
     ///             from: Some(ImageName {
     ///                 path: String::from("ubuntu"),
@@ -490,10 +490,10 @@ impl DofigenContext {
     ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
-    /// let image: Image = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
+    /// let image: Dofigen = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
     /// assert_eq_sorted!(
     ///     image,
-    ///     Image {
+    ///     Dofigen {
     ///         builders: vec![Stage {
     ///             name: Some(String::from("builder")),
     ///             from: ImageName{path: "ekidd/rust-musl-builder".into(), ..Default::default()}.into(),
@@ -526,13 +526,13 @@ impl DofigenContext {
     ///     }
     /// );
     /// ```
-    pub fn parse_from_reader<R: Read>(&mut self, reader: R) -> Result<Image> {
+    pub fn parse_from_reader<R: Read>(&mut self, reader: R) -> Result<Dofigen> {
         self.merge_extended_image(
             serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))?,
         )
     }
 
-    /// Parse an Image from a Resource (File or Url)
+    /// Parse an Dofigen from a Resource (File or Url)
     ///
     /// # Example
     ///
@@ -541,10 +541,10 @@ impl DofigenContext {
     /// use pretty_assertions_sorted::assert_eq_sorted;
     /// use std::path::PathBuf;
     ///
-    /// let image: Image = DofigenContext::new().parse_from_resource(Resource::File(PathBuf::from("tests/cases/simple.yml"))).unwrap();
+    /// let dofigen: Dofigen = DofigenContext::new().parse_from_resource(Resource::File(PathBuf::from("tests/cases/simple.yml"))).unwrap();
     /// assert_eq_sorted!(
     ///     image,
-    ///     Image {
+    ///     Dofigen {
     ///         stage: Stage {
     ///             from: Some(ImageName {
     ///                 path: String::from("alpine"),
@@ -556,13 +556,13 @@ impl DofigenContext {
     ///     }
     /// );
     /// ```
-    pub fn parse_from_resource(&mut self, resource: Resource) -> Result<Image> {
-        let image = resource.load(self)?;
-        self.merge_extended_image(image)
+    pub fn parse_from_resource(&mut self, resource: Resource) -> Result<Dofigen> {
+        let dofigen = resource.load(self)?;
+        self.merge_extended_image(dofigen)
     }
 
-    fn merge_extended_image(&mut self, image: Extend<ImagePatch>) -> Result<Image> {
-        Ok(image.merge(self)?.into())
+    fn merge_extended_image(&mut self, dofigen: Extend<DofigenPatch>) -> Result<Dofigen> {
+        Ok(dofigen.merge(self)?.into())
     }
 
     pub fn clean_unused(&mut self) {
