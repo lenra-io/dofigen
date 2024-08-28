@@ -82,9 +82,9 @@ pub struct Dofigen {
     )
 )]
 pub struct Stage {
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten, default)))]
-    pub from: Option<FromContext>,
+    #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
+    #[patch(name = "FromContextPatch", attribute(serde(flatten, default)))]
+    pub from: FromContext,
 
     #[cfg_attr(
         feature = "permissive",
@@ -235,9 +235,9 @@ pub struct Cache {
 pub struct Bind {
     pub target: String,
 
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
-    pub from: Option<FromContext>,
+    #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
+    #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
+    pub from: FromContext,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
@@ -319,9 +319,9 @@ pub struct ImageName {
 )]
 pub struct Copy {
     /// See https://docs.docker.com/reference/dockerfile/#copy---from
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
-    pub from: Option<FromContext>,
+    #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
+    #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
+    pub from: FromContext,
 
     #[patch(name = "VecPatch<String>")]
     #[cfg_attr(
@@ -334,15 +334,16 @@ pub struct Copy {
     #[serde(flatten)]
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
+    // excludes are not supported yet: minimal version 1.7-labs
+    // /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    // #[patch(name = "VecPatch<String>")]
+    // #[serde(skip_serializing_if = "Vec::is_empty")]
+    // pub exclude: Vec<String>,
 
-    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[patch(name = "VecPatch<String>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub exclude: Vec<String>,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---parents
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parents: Option<bool>,
+    // parents are not supported yet: minimal version 1.7-labs
+    // /// See https://docs.docker.com/reference/dockerfile/#copy---parents
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub parents: Option<bool>,
 }
 
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
@@ -496,7 +497,7 @@ pub enum ImageVersion {
 pub enum FromContext {
     FromImage(ImageName),
     FromBuilder(String),
-    FromContext(String),
+    FromContext(Option<String>),
 }
 
 #[derive(Serialize, Debug, Clone, PartialEq)]
@@ -553,7 +554,7 @@ pub enum FromContextPatch {
     FromBuilder(String),
 
     #[cfg_attr(not(feature = "strict"), serde(alias = "from"))]
-    FromContext(String),
+    FromContext(Option<String>),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -571,7 +572,8 @@ pub enum CopyResourcePatch {
 pub struct UnknownPatch {
     #[serde(flatten)]
     pub options: Option<CopyOptionsPatch>,
-    pub exclude: Option<VecPatch<String>>,
+    // exclude are not supported yet: minimal version 1.7-labs
+    // pub exclude: Option<VecPatch<String>>,
 }
 
 ///////////////// Tests //////////////////
@@ -611,10 +613,10 @@ mod test {
                     dofigen,
                     Dofigen {
                         stage: Stage {
-                            from: Some(FromContext::FromImage(ImageName {
+                            from: FromContext::FromImage(ImageName {
                                 path: "ubuntu".into(),
                                 ..Default::default()
-                            })),
+                            }),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -683,13 +685,11 @@ mod test {
                 assert_eq_sorted!(
                     stage,
                     Stage {
-                        from: Some(
-                            FromContext::FromImage(ImageName {
-                                path: "ubuntu".into(),
-                                ..Default::default()
-                            })
-                            .into()
-                        ),
+                        from: FromContext::FromImage(ImageName {
+                            path: "ubuntu".into(),
+                            ..Default::default()
+                        })
+                        .into(),
                         ..Default::default()
                     }
                 );
@@ -763,9 +763,7 @@ mod test {
         "group": "root"
     },
     "chmod": "755",
-    "exclude": ["file3.txt"],
     "link": true,
-    "parents": true,
     "fromImage": {"path": "my-image"}
 }"#;
 
@@ -785,16 +783,15 @@ mod test {
                             chmod: Some("755".into()),
                             link: Some(true),
                         },
-                        exclude: vec!["file3.txt".into()].into(),
-                        parents: Some(true),
-                        from: Some(FromContext::FromImage(ImageName {
+                        from: FromContext::FromImage(ImageName {
                             path: "my-image".into(),
                             ..Default::default()
-                        }))
+                        })
                     })
                 );
             }
 
+            // #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn copy_simple() {
                 let json_data = r#"{
@@ -807,6 +804,7 @@ mod test {
                     copy_resource,
                     CopyResourcePatch::Copy(CopyPatch {
                         paths: Some(vec!["file1.txt".into()].into_patch()),
+                        options: Some(CopyOptionsPatch::default()),
                         ..Default::default()
                     })
                 );
@@ -817,6 +815,7 @@ mod test {
                     copy_resource,
                     CopyResource::Copy(Copy {
                         paths: vec!["file1.txt".into()].into(),
+                        options: CopyOptions::default(),
                         ..Default::default()
                     })
                 );
@@ -944,10 +943,10 @@ run:
                 assert_eq_sorted!(
                     builder,
                     Stage {
-                        from: Some(FromContext::FromImage(ImageName {
+                        from: FromContext::FromImage(ImageName {
                             path: "clux/muslrust:stable".into(),
                             ..Default::default()
-                        })),
+                        }),
                         workdir: Some("/app".into()),
                         run: Run {
                             bind: vec![Bind {

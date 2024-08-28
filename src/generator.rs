@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{dockerfile_struct::*, dofigen_struct::*, Error, Result, DOCKERFILE_VERSION};
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
+pub const DEFAULT_FROM: &str = "scratch";
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct GenerationContext {
@@ -18,7 +19,20 @@ pub trait DockerfileGenerator {
 
 impl Stage {
     pub fn from(&self, context: &GenerationContext) -> FromContext {
-        self.from.clone().unwrap_or(context.default_from.clone())
+        match &self.from {
+            FromContext::FromImage(image) => FromContext::FromImage(image.clone()),
+            FromContext::FromBuilder(builder) => FromContext::FromBuilder(builder.clone()),
+            FromContext::FromContext(Some(context)) => {
+                FromContext::FromContext(Some(context.clone()))
+            }
+            _ => match &context.default_from {
+                FromContext::FromImage(image) => FromContext::FromImage(image.clone()),
+                FromContext::FromBuilder(builder) => FromContext::FromBuilder(builder.clone()),
+                FromContext::FromContext(context) => {
+                    FromContext::FromContext(context.clone().or(Some(DEFAULT_FROM.to_string())))
+                }
+            },
+        }
     }
 
     pub fn user(&self, context: &GenerationContext) -> Option<User> {
@@ -160,8 +174,8 @@ impl ToString for FromContext {
     fn to_string(&self) -> String {
         match self {
             FromContext::FromBuilder(name) => name.clone(),
-            FromContext::FromContext(context) => context.clone(),
             FromContext::FromImage(image) => image.to_string(),
+            FromContext::FromContext(context) => context.clone().unwrap_or_default(),
         }
     }
 }
@@ -203,11 +217,14 @@ impl DockerfileGenerator for Copy {
         context: &GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
-        if let Some(from) = &self.from {
-            options.push(InstructionOption::WithValue(
-                "from".into(),
-                from.to_string(),
-            ));
+
+        let from = match &self.from {
+            FromContext::FromImage(image) => Some(image.to_string()),
+            FromContext::FromBuilder(builder) => Some(builder.clone()),
+            FromContext::FromContext(context) => context.clone(),
+        };
+        if let Some(from) = from {
+            options.push(InstructionOption::WithValue("from".into(), from));
         }
         add_copy_options(&mut options, &self.options, context);
         // excludes are not supported yet: minimal version 1.7-labs
@@ -490,8 +507,13 @@ impl DockerfileGenerator for Run {
                 InstructionOptionOption::new("type", "bind".into()),
                 InstructionOptionOption::new("target", bind.target.clone()),
             ];
-            if let Some(from) = bind.from.as_ref() {
-                bind_options.push(InstructionOptionOption::new("from", from.to_string()));
+            let from = match &bind.from {
+                FromContext::FromImage(image) => Some(image.to_string()),
+                FromContext::FromBuilder(builder) => Some(builder.clone()),
+                FromContext::FromContext(context) => context.clone(),
+            };
+            if let Some(from) = from {
+                bind_options.push(InstructionOptionOption::new("from", from));
             }
             if let Some(source) = bind.source.as_ref() {
                 bind_options.push(InstructionOptionOption::new("source", source.clone()));
@@ -598,7 +620,7 @@ impl CopyResource {
     pub(crate) fn get_dependencies(&self) -> Vec<String> {
         match self {
             CopyResource::Copy(copy) => match &copy.from {
-                Some(FromContext::FromBuilder(builder)) => vec![builder.clone()],
+                FromContext::FromBuilder(builder) => vec![builder.clone()],
                 _ => vec![],
             },
             _ => vec![],
@@ -739,10 +761,10 @@ mod test {
             let dofigen = Dofigen {
                 stage: Stage {
                     user: Some(User::new_without_group("my-user").into()),
-                    from: Some(FromContext::FromImage(ImageName {
+                    from: FromContext::FromImage(ImageName {
                         path: String::from("my-image"),
                         ..Default::default()
-                    })),
+                    }),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -764,10 +786,10 @@ mod test {
         fn user_without_user() {
             let dofigen = Dofigen {
                 stage: Stage {
-                    from: Some(FromContext::FromImage(ImageName {
+                    from: FromContext::FromImage(ImageName {
                         path: String::from("my-image"),
                         ..Default::default()
-                    })),
+                    }),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -940,7 +962,7 @@ mod test {
                         "builder1".into(),
                         Stage {
                             copy: vec![CopyResource::Copy(Copy {
-                                from: Some(FromContext::FromBuilder("builder2".into())),
+                                from: FromContext::FromBuilder("builder2".into()),
                                 paths: vec!["/path/to/copy".into()],
                                 options: Default::default(),
                                 ..Default::default()
@@ -952,7 +974,7 @@ mod test {
                         "builder2".into(),
                         Stage {
                             copy: vec![CopyResource::Copy(Copy {
-                                from: Some(FromContext::FromBuilder("builder3".into())),
+                                from: FromContext::FromBuilder("builder3".into()),
                                 paths: vec!["/path/to/copy".into()],
                                 options: Default::default(),
                                 ..Default::default()
@@ -978,37 +1000,22 @@ mod test {
 
             let mut dependencies = resolver.resolve_dependencies("runtime".into()).unwrap();
             dependencies.sort();
-            assert_eq_sorted!(
-                dependencies,
-                Vec::<String>::new()
-            );
-            
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
+
             dependencies = resolver.resolve_dependencies("builder1".into()).unwrap();
             dependencies.sort();
-            assert_eq_sorted!(
-                dependencies,
-                vec!["builder2", "builder3"]
-            );
+            assert_eq_sorted!(dependencies, vec!["builder2", "builder3"]);
 
             dependencies = resolver.resolve_dependencies("builder2".into()).unwrap();
-            assert_eq_sorted!(
-                dependencies,
-                vec!["builder3"]
-            );
-            
+            assert_eq_sorted!(dependencies, vec!["builder3"]);
+
             dependencies = resolver.resolve_dependencies("builder3".into()).unwrap();
-            assert_eq_sorted!(
-                dependencies,
-                Vec::<String>::new()
-            );
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
 
             let mut builders = resolver.get_sorted_builders().unwrap();
             builders.sort();
 
-            assert_eq_sorted!(
-                builders,
-                vec!["builder1", "builder2", "builder3"]
-            );
+            assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
         }
     }
 }

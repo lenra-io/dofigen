@@ -10,7 +10,7 @@
 //! let mut context = DofigenContext::new();
 //!
 //! let dofigen = context.parse_from_string(r#"
-//! from:
+//! fromImage:
 //!   path: ubuntu
 //! "#).unwrap();
 //!
@@ -59,10 +59,10 @@ const FILE_HEADER_LINES: [&str; 3] = [
 ///
 /// let dofigen = Dofigen {
 ///     stage: Stage {
-///         from: Some(ImageName {
+///         from: ImageName {
 ///             path: String::from("ubuntu"),
 ///             ..Default::default()
-///         }.into()),
+///         }.into(),
 ///         ..Default::default()
 ///     },
 ///     ..Default::default()
@@ -174,10 +174,10 @@ pub fn generate_dockerignore(dofigen: &Dofigen) -> String {
 ///
 /// let dofigen = Dofigen {
 ///     stage: Stage {
-///         from: Some(ImageName {
+///         from: ImageName {
 ///             path: String::from("ubuntu"),
 ///             ..Default::default()
-///         }.into()),
+///         }.into(),
 ///         ..Default::default()
 ///     },
 ///     ..Default::default()
@@ -185,7 +185,7 @@ pub fn generate_dockerignore(dofigen: &Dofigen) -> String {
 /// let dofigen: String = generate_effective_content(&dofigen).unwrap();
 /// assert_eq_sorted!(
 ///     dofigen,
-///     "from:\n  path: ubuntu\n"
+///     "fromImage:\n  path: ubuntu\n"
 /// );
 /// ```
 pub fn generate_effective_content(dofigen: &Dofigen) -> Result<String> {

@@ -205,10 +205,10 @@ mod test {
         }
 
         mod extend_image {
-            use crate::{ImageNamePatch, DofigenPatch, RunPatch, StagePatch};
-
             use super::*;
+            use crate::{DofigenPatch, ImageNamePatch, RunPatch, StagePatch};
 
+            // #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn empty() {
                 let data = r#"{}"#;
@@ -244,14 +244,14 @@ fromImage:
                     Extend {
                         value: DofigenPatch {
                             stage: Some(StagePatch {
-                                from: Some(Some(FromContextPatch::FromImage(
+                                from: Some(FromContextPatch::FromImage(
                                     ImageNamePatch {
                                         path: Some("ubuntu".into()),
                                         version: Some(None),
                                         ..Default::default()
                                     }
                                     .into() // To manage permissive
-                                ))),
+                                )),
                                 run: Some(RunPatch::default()),
                                 ..Default::default()
                             }),

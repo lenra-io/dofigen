@@ -163,10 +163,10 @@ artifacts:
             builders: HashMap::from([(
                 "builder".into(),
                 Stage {
-                    from: Some(FromContext::FromImage(ImageName {
+                    from: FromContext::FromImage(ImageName {
                         path: String::from("ekidd/rust-musl-builder"),
                         ..Default::default()
-                    })),
+                    }),
                     copy: vec![CopyResource::Copy(Copy {
                         paths: vec![String::from("*")].into(),
                         ..Default::default()
@@ -180,7 +180,7 @@ artifacts:
             )]),
             stage: Stage {
                 copy: vec![CopyResource::Copy(Copy {
-                    from: Some(FromContext::FromBuilder(String::from("builder"))),
+                    from: FromContext::FromBuilder(String::from("builder")),
                     paths: vec![String::from(
                         "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
                     )],
@@ -231,23 +231,22 @@ EOF
     );
 }
 
-#[ignore]
-// Not managed yet by serde: https://serde.rs/field-attrs.html#flatten
+#[ignore = "Not managed yet by serde: https://serde.rs/field-attrs.html#flatten"]
 #[test]
 #[cfg(feature = "permissive")]
 fn combine_field_and_aliases() {
     #[cfg(not(feature = "permissive"))]
     let yaml = r#"
-image: 
+fromContext: 
   path: scratch
-from:
+fromImage:
   path: alpine
 "#;
 
     #[cfg(feature = "permissive")]
     let yaml = r#"
-image: scratch
-from: alpine
+fromContext: scratch
+fromImage: alpine
 "#;
     let result = DofigenContext::new().parse_from_string(yaml);
     assert!(
@@ -256,20 +255,20 @@ from: alpine
     );
 }
 
-#[ignore]
+#[ignore = "Not managed yet by serde: https://serde.rs/field-attrs.html#flatten"]
 #[test]
 #[cfg(feature = "permissive")]
 fn fail_on_unknow_field() {
     #[cfg(not(feature = "permissive"))]
     let yaml = r#"
-from:
+fromImage:
   path: alpine
 test: Fake value
 "#;
 
     #[cfg(feature = "permissive")]
     let yaml = r#"
-from: alpine
+fromImage: alpine
 test: Fake value
 "#;
     let result = DofigenContext::new().parse_from_string(yaml);
