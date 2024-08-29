@@ -383,15 +383,15 @@ impl DofigenContext {
     ///   builder:
     ///     fromImage:
     ///       path: ekidd/rust-musl-builder
-    ///     add:
+    ///     copy:
     ///       - paths: ["*"]
     ///     run:
     ///       - cargo build --release
     /// fromImage:
     ///     path: ubuntu
-    /// artifacts:
+    /// copy:
     ///   - fromBuilder: builder
-    ///     source:
+    ///     paths:
     ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
@@ -481,15 +481,15 @@ impl DofigenContext {
     ///   builder:
     ///     fromImage:
     ///       path: ekidd/rust-musl-builder
-    ///     add:
+    ///     copy:
     ///       - paths: ["*"]
     ///     run:
     ///       - cargo build --release
     /// fromImage:
     ///     path: ubuntu
-    /// artifacts:
+    /// copy:
     ///   - fromBuilder: builder
-    ///     source:
+    ///     paths:
     ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;

@@ -4,7 +4,7 @@ builders:
       path: maven
       tag: 3.9-eclipse-temurin-17-alpine
     workdir: /app
-    add:
+    copy:
       - paths: ["."]
     root:
       run:
@@ -16,9 +16,9 @@ builders:
 fromImage: 
   path: eclipse-temurin
   tag: 17-jre-alpine
-artifacts:
+copy:
   - fromBuilder: maven-builder
-    source: 
+    paths:
       - /app/app.jar
     target: app.jar
 cmd: ["java","-jar","app.jar"]

@@ -469,9 +469,9 @@ builders:
       # build cache
       - target: target
 workdir: /app
-artifacts:
+copy:
   - fromBuilder: builder
-    source: 
+    paths: 
       - "/tmp/dofigen"
     target: "/bin/"
 entrypoint:
