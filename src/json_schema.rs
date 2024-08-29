@@ -226,7 +226,11 @@ where
     V: Clone + JsonSchema,
 {
     fn schema_name() -> String {
-        format!("HashMapDeepPatch<{}, {}>", K::schema_name(), V::schema_name())
+        format!(
+            "HashMapDeepPatch<{}, {}>",
+            K::schema_name(),
+            V::schema_name()
+        )
     }
 
     fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
