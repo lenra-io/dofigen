@@ -87,13 +87,12 @@ Usage: dofigen <COMMAND>"#;
         assert_eq!(output, format!("dofigen {}\n", env!("CARGO_PKG_VERSION")));
     }
 
-    #[test]
-    fn generate() {
-        let temp = assert_fs::TempDir::new().unwrap();
+    // #[test]
+    // fn generate() {
+    //     let temp = assert_fs::TempDir::new().unwrap();
 
-        let mut cmd = BIN.command();
-        cmd.current_dir(temp.path());
-        cmd.arg("generate");
-
-    }
+    //     let mut cmd = BIN.command();
+    //     cmd.current_dir(temp.path());
+    //     cmd.arg("generate");
+    // }
 }
