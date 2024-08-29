@@ -61,61 +61,61 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose --no-default-features
+        args: --no-default-features
 
     - name: "-F cli"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose --no-default-features -F cli
+        args: --no-default-features -F cli
 
     - name: "-F json_schema"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose --no-default-features -F json_schema
+        args: --no-default-features -F json_schema
 
     - name: "-F json_schema -F cli"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose --no-default-features -F json_schema -F cli
+        args: --no-default-features -F json_schema -F cli
 
     - name: "-F permissive"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose --no-default-features -F permissive
+        args: --no-default-features -F permissive
 
     - name: "-F permissive -F json_schema"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose --no-default-features -F permissive -F json_schema
+        args: --no-default-features -F permissive -F json_schema
 
     - name: "-F permissive -F json_schema -F cli"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose -F permissive -F json_schema -F cli
+        args: --no-default-features -F permissive -F json_schema -F cli
 
     - name: "-F strict"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose --no-default-features -F strict
+        args: --no-default-features -F strict
 
     - name: "-F strict -F json_schema"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose --no-default-features -F strict -F json_schema
+        args: --no-default-features -F strict -F json_schema
 
     - name: "-F strict -F json_schema -F cli"
       uses: actions-rs/cargo@v1
       with:
         command: test
-        args: --verbose -F strict -F json_schema -F cli
+        args: --no-default-features -F strict -F json_schema -F cli
 
   build:
     name: Build ${{ matrix.os }} ${{ matrix.arch }}
