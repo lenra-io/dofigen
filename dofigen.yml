@@ -1,4 +1,3 @@
----
 builders:
   muslrust:
     fromImage: clux/muslrust:stable

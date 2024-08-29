@@ -40,9 +40,8 @@ images:
           digest: sha256:24eae8a7f139ec53da9d73bcd9acf32196d08510de750b10c47aa89316b7ae5e
 resources:
   dofigen.yml:
-    hash: 2899918f1eb51cfe0826355831aac8ac991bded443f9bc31e6a518410e2bc842
+    hash: 78895c87dab3b4280d175b048442302af4d1f1e38369f615f5719de9c9cf4b86
     content: |
-      ---
       builders:
         muslrust:
           fromImage: clux/muslrust:stable

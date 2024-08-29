@@ -31,7 +31,7 @@ It defines default values and behaviors that simplify the creation of Dockerfile
 
 Dofigen is also made to use the Buildkit optimizations that speed-up the Docker image build by parallelizing the layer builds.
 It uses the [`--link` option](https://docs.docker.com/engine/reference/builder/#benefits-of-using---link) when adding files and the [`--mount=type=cache` option](https://docs.docker.com/engine/reference/builder/#run---mounttypecache) when running scripts (when you define `caches` attribute).
-You can use Buildkit with the [`docker buildx buid` subcommand](https://docs.docker.com/engine/reference/commandline/buildx_build/) like this: 
+You can use Buildkit with the [`docker buildx build` subcommand](https://docs.docker.com/engine/reference/commandline/buildx_build/) like this: 
 
 ```bash
 docker buildx build --cache-to=type=local,dest=.dockercache --cache-from=type=local,src=.dockercache -t my-app:latest --load .
@@ -92,8 +92,10 @@ Generate the Dockerfile and .dockerignore files
 Usage: dofigen generate [OPTIONS]
 
 Options:
-  -f, --file <FILE>      The input file Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json Define to - to read from stdin
+  -f, --file <FILE>      The input Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json Use "-" to read from stdin
+      --offline          The command won't load data from any URL. This disables extending file from URL and loading image tag
   -o, --output <OUTPUT>  The output Dockerfile file Define to - to write to stdout [default: Dockerfile]
+  -l, --locked           Locked version of the dofigen definition
   -h, --help             Print help
 ```
 
@@ -104,131 +106,70 @@ dofigen --help
 ```
 
 
-### Image descriptor
+### Dofigen descriptor
 
-The structure of the image descriptor was created to be simpler than the Dockerfile.
+The structure of the Dofigen descriptor was created to be simpler than the Dockerfile.
+
+The JSON Schema of the Dofigen descriptor is available [here](./docs/dofigen.schema.json).
 
 Here is an example to generate the Dofigen Dockerfile:
 
 ```yaml
----
 builders:
-- name: builder
-  from: ekidd/rust-musl-builder
-  add:
-  - "."
-  run:
-  # Build with musl to work with scratch
-  - cargo build --release --target=x86_64-unknown-linux-musl
-  # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
-  - mv target/x86_64-unknown-linux-musl/release/dofigen ../
-  cache:
-  # Cargo cache
-  - /home/rust/.cargo
-  # build cache
-  - /home/rust/src/target
-from: scratch
+  muslrust:
+    fromImage: clux/muslrust:stable
+    workdir: /app
+    bind:
+      - Cargo.toml
+      - Cargo.lock
+      - src/
+    run:
+      # Build with musl to work with scratch
+      - cargo build --release -F cli -F permissive
+      # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
+      - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
+    cache:
+      # Cargo cache
+      - /home/rust/.cargo
+      # build cache
+      - /app/target
+
+# Runtime
 workdir: /app
-artifacts:
-- builder: builder
-  source: "/home/rust/dofigen"
-  target: "/bin/"
-entrypoint: 
-- /bin/dofigen
-cmd:
-- --help
+copy:
+  - fromBuilder: muslrust
+    paths: "/tmp/dofigen"
+    target: "/bin/"
+entrypoint: dofigen
+cmd: --help
 context:
-- "/dofigen"
-- "/dofigen_lib"
-- "/Cargo.*"
+  - "/src"
+  - "/Cargo.*"
 ```
 
-#### Image
+### Extending external files
 
-The image is the main element. It defines the runtime stage of the Dockerfile:
+You can extend the Dofigen file with external files using the `extend` attribute:
 
-| Field            | Alias            | Type             | Description                   |
-|------------------|------------------|------------------|-------------------------------|
-| `from`           | `image`          | String?          | The `FROM` Docker image       |
-| `user`           |                  | String?          | The runtime user (default `1000`) |
-| `workdir`        |                  | String?          | The runtime work directory    |
-| `env`            | `envs`           | Map<String, String>? | The runtime environment variables |
-| `artifacts`      |                  | [Artifact](#artifact)[]? | Defines artifacts to copy from builders |
-| `add`            | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
-| `root`           |                  | [Root](#root)?   | Actions made using the `root` user |
-| `run`            | `script`         | String[]?        | Script commands to execute    |
-| `bind`           | `binds`          | [Bind](#bind)[]? | Filesystem binding during the `run` |
-| `cache`          | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
-| `builders`       |                  | [Builder](#builder)[]? | Build stages executed before the runtime stage and not in the final Docker image. Mostly to generate artifacts |
-| `expose`         | `ports`          | int[]?           | The list of exposed ports of the Docker image |
-| `healthcheck`    |                  | [Healthcheck](#healthcheck)? | The Docker image healthcheck definition. |
-| `entrypoint`     |                  | String[]?        | The Docker image `ENTRYPOINT` parts |
-| `cmd`            |                  | String[]?        | The Docker image `CMD` parts  |
-| `context`        |                  | String[]?        | Paths of the elements to include in the Docker build context. They are used to generate the `.dockerignore` file |
-| `ignore`         | `ignores`        | String[]?        | Paths to generate the `.dockerignore` file |
+```yaml
+extend:
+  - https://raw.githubusercontent.com/lenra-io/dofigen/main/dofigen.yml
+```
 
-#### Builder
+You can also override or merge the structure of the extended files:
 
-The builders are stages executed before the runtime stage and not in the final Docker image. Mostly to generate artifacts :
+```yaml
+extend:
+  - https://raw.githubusercontent.com/lenra-io/dofigen/main/dofigen.yml
+user: 1001
+```
 
-| Field            | Alias            | Type             | Description                   |
-|------------------|------------------|------------------|-------------------------------|
-| `name`           |                  | String?          | The builder name. If not defined, a name is defined with the given pattern: `builder-<position in the builders list starting at 0>` |
-| `from`           | `image`          | String?          | The `FROM` Docker image of the builder |
-| `user`           |                  | String?          | The builder user              |
-| `workdir`        |                  | String?          | The builder work directory    |
-| `env`            | `envs`           | Map<String, String>? | The builder environment variables |
-| `artifacts`      |                  | [Artifact](#artifact)[]? | Defines artifacts to copy from previous builders |
-| `add`            | `adds`           | String[]?        | Paths of elements to add at build time to the workdir |
-| `root`           |                  | [Root](#root)?   | Actions made using the `root` user |
-| `run`            | `script`         | String[]?        | Script commands to execute    |
-| `bind`           | `binds`          | [Bind](#bind)[]? | Filesystem binding during the `run` |
-| `cache`          | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
+### The lock file
 
-#### Artifact
-
-Artifacts are element copied from a previous build to the current stage :
-
-| Field            | Alias            | Type             | Description                   |
-|------------------|------------------|------------------|-------------------------------|
-| `builder`        |                  | String           | The builder name from which the artifact will be copied |
-| `source`         |                  | String           | The source of the artifact in the given builder |
-| `target`         | `destination`    | String           | The target path in the current stage |
-
-#### Bind
-
-Bind let you bind files or directories from the host, a builder or an image to the stage during the run :
-
-| Field            | Alias            | Type             | Description                   |
-|------------------|------------------|------------------|-------------------------------|
-| `from`           |                  | String?          | Build stage or image name for the root of the source. Defaults to the build context |
-| `source`         |                  | String?          | Source path in the `from`. Defaults to the root of the `from` |
-| `target`         |                  | String           | The target path in the current stage |
-| `readwrite`      |                  | bool?            | Allow writes on the mount. Written data will be discarded |
-
-See https://docs.docker.com/reference/dockerfile/#run---mounttypebind for more information.
-
-#### Root
-
-Actions made using the `root` user :
-
-| Field            | Alias            | Type             | Description                   |
-|------------------|------------------|------------------|-------------------------------|
-| `run`            | `script`         | String[]?        | Script commands to execute    |
-| `bind`           | `binds`          | [Bind](#bind)[]? | Filesystem binding during the `run` |
-| `cache`          | `caches`         | String[]?        | Paths in the image stage to cache during the `script` execution. Be careful when using caches because the cached directory is not present after the script execution |
-
-#### Healthcheck
-
-The Docker image's healthcheck definition. It defines when the container is not healthy :
-
-| Field            | Alias            | Type             | Description                   |
-|------------------|------------------|------------------|-------------------------------|
-| `cmd`            |                  | String           | The command executed to check the container health |
-| `interval`       |                  | String?          | The command execution interval (default `30s`) |
-| `timeout`        |                  | String?          | The command execution timeout (default `30s`) |
-| `start`          |                  | String?          | The duration before starting the command execution at container start (default `0s`) |
-| `retries`        |                  | int?             | The number of retries before defining the container as unhealthy (default `3`) |
+Dofigen generates a lock file to keep the version of the Dofigen descriptor used to generate the Dockerfile.
+The lock file also keep the loaded resources and images tags to rebuild the Dockerfile with the same versions.
+To update the images and resources, you can use the `dofigen update` command.
+To regenerate the Dockerfile with the same versions, you can use the `dofigen gen --locked` command.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
