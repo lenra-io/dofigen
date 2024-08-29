@@ -219,3 +219,33 @@ where
         .into()
     }
 }
+
+impl<K, V> JsonSchema for HashMapDeepPatch<K, V>
+where
+    K: Clone + Eq + std::hash::Hash + JsonSchema,
+    V: Clone + JsonSchema,
+{
+    fn schema_name() -> String {
+        format!("HashMapDeepPatch<{}, {}>", K::schema_name(), V::schema_name())
+    }
+
+    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
+        SchemaObject {
+            metadata: Some(Box::new(Metadata {
+                title: Some(Self::schema_name()),
+                ..Default::default()
+            })),
+            object: Some(Box::new(ObjectValidation {
+                pattern_properties: vec![(
+                    String::from(r"^.+$"),
+                    generator.subschema_for::<Option<V>>(),
+                )]
+                .into_iter()
+                .collect(),
+                ..Default::default()
+            })),
+            ..Default::default()
+        }
+        .into()
+    }
+}

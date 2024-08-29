@@ -23,7 +23,7 @@ path = "src/bin/main.rs"
 required-features = ["cli"]
 
 [features]
-default = ["permissive"]
+default = ["permissive", "cli"]
 cli = ["clap"]
 json_schema = ["schemars", "serde_json"]
 permissive = []
@@ -46,5 +46,9 @@ sha256 = { version = "1.5.0", default-features = false }
 colored = "2.1.0"
 
 [dev-dependencies]
+assert_cmd = "2.0.16"
+assert_fs = "1.1.2"
+escargot = "0.5.12"
 httptest = "0.16.1"
+lazy_static = "1.5.0"
 pretty_assertions_sorted = "1.2.3"

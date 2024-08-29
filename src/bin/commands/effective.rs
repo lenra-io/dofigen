@@ -36,7 +36,7 @@ impl CliCommand for Effective {
                 ));
             }
             let lockfile = lockfile.ok_or(Error::Custom("No lock file found".into()))?;
-            context.parse_from_string(lockfile.image.as_str())?
+            context.parse_from_string(lockfile.effective.as_str())?
         } else {
             context.offline = self.options.offline;
             context.update_file_resources = true;
