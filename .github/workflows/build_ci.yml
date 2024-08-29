@@ -41,8 +41,8 @@ jobs:
         command: fmt
         args: --all -- --check
 
-  test:
-    name: Test
+  test-base:
+    name: Test base
     needs: [style]
     runs-on: ubuntu-20.04
     timeout-minutes: 5
@@ -81,6 +81,22 @@ jobs:
         command: test
         args: --no-default-features -F json_schema -F cli
 
+  test-permissive:
+    name: Test permissive
+    needs: [style]
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
     - name: "-F permissive"
       uses: actions-rs/cargo@v1
       with:
@@ -98,6 +114,22 @@ jobs:
       with:
         command: test
         args: --no-default-features -F permissive -F json_schema -F cli
+
+  test-strict:
+    name: Test strict
+    needs: [style]
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
 
     - name: "-F strict"
       uses: actions-rs/cargo@v1
@@ -119,7 +151,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.os }} ${{ matrix.arch }}
-    needs: [test, get-next-version]
+    needs: [test-base, test-permissive, test-strict, get-next-version]
     runs-on: "${{ matrix.runner }}"
     env:
       VERSION: ${{ needs.get-next-version.outputs.version }}
