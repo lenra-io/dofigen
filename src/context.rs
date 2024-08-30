@@ -243,7 +243,7 @@ impl DofigenContext {
                 tag = tag
             );
             let response = client.get(&request_url).send().map_err(Error::from)?;
-            
+
             response.json().map_err(Error::from)?
         } else {
             let request_url = format!(
