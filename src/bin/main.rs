@@ -23,7 +23,8 @@ pub struct GlobalOptions {
     #[clap(short, long)]
     pub file: Option<String>,
 
-    /// Locked version of the image
+    /// The command won't load data from any URL.
+    /// This disables extending file from URL and loading image tag
     #[clap(long, action)]
     pub offline: bool,
 }

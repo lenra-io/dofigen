@@ -1,8 +1,8 @@
 extend:
   - springboot-maven.base.yml
 builders:
-  0<:
-    from: 
+  maven-builder:
+    fromImage: 
       tag: 3-eclipse-temurin-21-alpine
-from:
+fromImage:
   tag: 21-jre-alpine

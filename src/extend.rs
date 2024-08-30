@@ -14,12 +14,15 @@ type VecType<T> = OneOrMany<T>;
 #[cfg(not(feature = "permissive"))]
 type VecType<T> = Vec<T>;
 
-/// Extends a list of resources with a patch
 #[derive(Debug, Clone, PartialEq, Default, Deserialize)]
 // #[serde(deny_unknown_fields)]
 #[serde(default)]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema), schemars(default))]
-pub struct Extend<T: Default> {
+#[cfg_attr(
+    feature = "json_schema",
+    derive(JsonSchema),
+    schemars(rename = "Extend<{T}>", default)
+)]
+pub struct Extend<T: Default + Merge> {
     #[serde(alias = "extends")]
     pub extend: VecType<Resource>,
 
@@ -202,20 +205,20 @@ mod test {
         }
 
         mod extend_image {
-            use crate::{ImageNamePatch, ImagePatch, RunPatch, StagePatch};
-
             use super::*;
+            use crate::{DofigenPatch, ImageNamePatch, RunPatch, StagePatch};
 
+            // #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn empty() {
                 let data = r#"{}"#;
 
-                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
+                let extend_image: Extend<DofigenPatch> = serde_yaml::from_str(data).unwrap();
 
                 assert_eq_sorted!(
                     extend_image,
                     Extend {
-                        value: ImagePatch {
+                        value: DofigenPatch {
                             stage: Some(StagePatch {
                                 run: Some(RunPatch::default()),
                                 ..Default::default()
@@ -230,18 +233,18 @@ mod test {
             #[test]
             fn only_from() {
                 let data = r#"
-from:
+fromImage:
   path: ubuntu
 "#;
 
-                let extend_image: Extend<ImagePatch> = serde_yaml::from_str(data).unwrap();
+                let extend_image: Extend<DofigenPatch> = serde_yaml::from_str(data).unwrap();
 
                 assert_eq_sorted!(
                     extend_image,
                     Extend {
-                        value: ImagePatch {
+                        value: DofigenPatch {
                             stage: Some(StagePatch {
-                                from: Some(Some(
+                                from: Some(FromContextPatch::FromImage(
                                     ImageNamePatch {
                                         path: Some("ubuntu".into()),
                                         version: Some(None),

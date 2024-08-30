@@ -2,26 +2,26 @@ context:
 - /pom.xml
 - /src/main/
 builders:
-- name: maven-builder
-  from:
-    path: maven
-    tag: 3-eclipse-temurin-21-alpine
-  workdir: /app
-  copy:
-  - paths:
-    - .
-  root:
-    run:
-    - mvn package -DskipTests
-    - mv target/*.jar app.jar
-    cache:
-    - target: /root/.m2
-    - target: /app/target
-from:
+  maven-builder:
+    fromImage:
+      path: maven
+      tag: 3-eclipse-temurin-21-alpine
+    workdir: /app
+    copy:
+    - paths:
+      - .
+    root:
+      run:
+      - mvn package -DskipTests
+      - mv target/*.jar app.jar
+      cache:
+      - target: /root/.m2
+      - target: /app/target
+fromImage:
   path: eclipse-temurin
   tag: 21-jre-alpine
 copy:
-- builder: maven-builder
+- fromBuilder: maven-builder
   paths:
   - /app/app.jar
   target: app.jar

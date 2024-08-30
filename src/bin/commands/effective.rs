@@ -14,7 +14,7 @@ pub struct Effective {
     #[command(flatten)]
     pub options: GlobalOptions,
 
-    /// Locked version of the image
+    /// Locked version of the dofigen definition
     #[clap(short, long, action)]
     locked: bool,
 }
@@ -29,25 +29,25 @@ impl CliCommand for Effective {
             .map(|l| l.to_context())
             .unwrap_or(DofigenContext::new());
 
-        let image = if self.locked {
+        let dofigen = if self.locked {
             if path == "-" {
                 return Err(Error::Custom(
                     "The '--locked' option can't be used with stdin".into(),
                 ));
             }
             let lockfile = lockfile.ok_or(Error::Custom("No lock file found".into()))?;
-            context.parse_from_string(lockfile.image.as_str())?
+            context.parse_from_string(lockfile.effective.as_str())?
         } else {
             context.offline = self.options.offline;
             context.update_file_resources = true;
             context.display_updates = false;
 
-            let image = get_image_from_path(path, &mut context)?;
+            let dofigen = get_image_from_path(path, &mut context)?;
 
-            image.lock(&mut context)?
+            dofigen.lock(&mut context)?
         };
 
-        println!("{}", generate_effective_content(&image)?);
+        println!("{}", generate_effective_content(&dofigen)?);
         Ok(())
     }
 }

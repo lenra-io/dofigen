@@ -8,26 +8,32 @@ use url::Url;
 
 /** Represents the Dockerfile main stage */
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[serde(rename_all = "camelCase")]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     // attribute(serde(deny_unknown_fields)),
-    attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(default))
 )]
-#[serde(rename_all = "camelCase")]
-pub struct Image {
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Dofigen", rename = "Dofigen"))
+    )
+)]
+pub struct Dofigen {
     #[patch(name = "VecPatch<String>")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub context: Vec<String>,
 
     #[patch(name = "VecPatch<String>")]
-    #[patch(attribute(serde(alias = "ignores")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "ignores"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
 
-    #[patch(name = "VecDeepPatch<Stage, StagePatch>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub builders: Vec<Stage>,
+    #[patch(name = "HashMapDeepPatch<String, StagePatch>")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub builders: HashMap<String, Stage>,
 
     #[patch(name = "StagePatch", attribute(serde(flatten)))]
     #[serde(flatten)]
@@ -49,7 +55,10 @@ pub struct Image {
         not(feature = "permissive"),
         patch(name = "VecDeepPatch<Port, PortPatch>")
     )]
-    #[patch(attribute(serde(alias = "port", alias = "ports")))]
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(alias = "port", alias = "ports")))
+    )]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub expose: Vec<Port>,
 
@@ -64,21 +73,18 @@ pub struct Image {
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     // attribute(serde(deny_unknown_fields)),
     attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
 )]
-
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Stage", rename = "Stage"))
+    )
+)]
 pub struct Stage {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-
-    #[cfg_attr(
-        feature = "permissive",
-        patch(name = "Option<ParsableStruct<ImageNamePatch>>")
-    )]
-    #[cfg_attr(not(feature = "permissive"), patch(name = "Option<ImageNamePatch>"))]
-    #[patch(attribute(serde(alias = "image")))]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from: Option<ImageName>,
+    #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
+    #[patch(name = "FromContextPatch", attribute(serde(flatten, default)))]
+    pub from: FromContext,
 
     #[cfg_attr(
         feature = "permissive",
@@ -91,19 +97,20 @@ pub struct Stage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workdir: Option<String>,
 
-    #[patch(
-        name = "HashMapPatch<String, String>",
-        attribute(serde(alias = "envs"))
-    )]
+    #[patch(name = "HashMapPatch<String, String>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "envs"))))]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>,
 
-    #[patch(attribute(serde(
-        alias = "add",
-        alias = "adds",
-        alias = "artifact",
-        alias = "artifacts"
-    )))]
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(
+            alias = "add",
+            alias = "adds",
+            alias = "artifact",
+            alias = "artifacts"
+        )))
+    )]
     #[cfg_attr(
         feature = "permissive",
         patch(name = "VecDeepPatch<CopyResource, ParsableStruct<CopyResourcePatch>>")
@@ -130,11 +137,17 @@ pub struct Stage {
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     // attribute(serde(deny_unknown_fields)),
     attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Run", rename = "Run"))
+    )
 )]
 pub struct Run {
     #[patch(name = "VecPatch<String>")]
-    #[patch(attribute(serde(alias = "script")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "script"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub run: Vec<String>,
 
@@ -146,7 +159,7 @@ pub struct Run {
         not(feature = "permissive"),
         patch(name = "VecDeepPatch<Cache, CachePatch>")
     )]
-    #[patch(attribute(serde(alias = "caches")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "caches"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<Cache>,
 
@@ -158,7 +171,7 @@ pub struct Run {
         not(feature = "permissive"),
         patch(name = "VecDeepPatch<Bind, BindPatch>")
     )]
-    #[patch(attribute(serde(alias = "binds")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "binds"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub bind: Vec<Bind>,
 }
@@ -168,8 +181,14 @@ pub struct Run {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Cache", rename = "Cache"))
+    )
 )]
 pub struct Cache {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -177,7 +196,7 @@ pub struct Cache {
 
     pub target: String,
 
-    #[patch(attribute(serde(alias = "ro")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "ro"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readonly: Option<bool>,
 
@@ -199,35 +218,31 @@ pub struct Cache {
     pub chown: Option<User>,
 }
 
-/// Represents a cache sharing strategy
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum CacheSharing {
-    Shared,
-    Private,
-    Locked,
-}
-
 /// Represents file system binding during a run
 /// See https://docs.docker.com/reference/dockerfile/#run---mounttypebind
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Bind", rename = "Bind"))
+    )
 )]
 pub struct Bind {
     pub target: String,
 
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
-    pub from: Option<FromContext>,
+    #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
+    #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
+    pub from: FromContext,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 
-    #[patch(attribute(serde(alias = "rw")))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "rw"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readwrite: Option<bool>,
 }
@@ -236,8 +251,14 @@ pub struct Bind {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Healthcheck", rename = "Healthcheck"))
+    )
 )]
 pub struct Healthcheck {
     pub cmd: String,
@@ -259,8 +280,14 @@ pub struct Healthcheck {
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch, Hash, Eq, PartialOrd)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "ImageName", rename = "ImageName"))
+    )
 )]
 pub struct ImageName {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -276,49 +303,30 @@ pub struct ImageName {
     pub version: Option<ImageVersion>,
 }
 
-/// Represents a Docker image version
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Hash, Eq, PartialOrd)]
-#[serde(rename_all = "camelCase")]
-#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
-pub enum ImageVersion {
-    Tag(String),
-    Digest(String),
-}
-
-/// Represents a copy origin
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub enum FromContext {
-    Image(ImageName),
-    Builder(String),
-    Context(String),
-}
-
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[serde(untagged)]
-pub enum CopyResource {
-    Copy(Copy),
-    AddGitRepo(AddGitRepo),
-    Add(Add),
-}
-
 /// Represents the COPY instruction in a Dockerfile.
 /// See https://docs.docker.com/reference/dockerfile/#copy
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Copy", rename = "Copy"))
+    )
 )]
 pub struct Copy {
     /// See https://docs.docker.com/reference/dockerfile/#copy---from
-    #[serde(flatten, skip_serializing_if = "Option::is_none")]
-    #[patch(name = "Option<FromContextPatch>", attribute(serde(flatten)))]
-    pub from: Option<FromContext>,
+    #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
+    #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
+    pub from: FromContext,
 
-    #[patch(
-        name = "VecPatch<String>",
-        attribute(serde(alias = "path", alias = "source"))
+    #[patch(name = "VecPatch<String>")]
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(alias = "path", alias = "source")))
     )]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
@@ -326,15 +334,16 @@ pub struct Copy {
     #[serde(flatten)]
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
+    // excludes are not supported yet: minimal version 1.7-labs
+    // /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    // #[patch(name = "VecPatch<String>")]
+    // #[serde(skip_serializing_if = "Vec::is_empty")]
+    // pub exclude: Vec<String>,
 
-    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[patch(name = "VecPatch<String>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub exclude: Vec<String>,
-
-    /// See https://docs.docker.com/reference/dockerfile/#copy---parents
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub parents: Option<bool>,
+    // parents are not supported yet: minimal version 1.7-labs
+    // /// See https://docs.docker.com/reference/dockerfile/#copy---parents
+    // #[serde(skip_serializing_if = "Option::is_none")]
+    // pub parents: Option<bool>,
 }
 
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
@@ -342,8 +351,14 @@ pub struct Copy {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default, rename_all = "camelCase")),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default, rename_all = "camelCase"))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "AddGitRepo", rename = "AddGitRepo"))
+    )
 )]
 pub struct AddGitRepo {
     pub repo: String,
@@ -366,11 +381,18 @@ pub struct AddGitRepo {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Add", rename = "Add"))
+    )
 )]
 pub struct Add {
-    #[patch(name = "VecPatch<Resource>", attribute(serde(alias = "file")))]
+    #[patch(name = "VecPatch<Resource>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "file"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<Resource>,
 
@@ -387,11 +409,20 @@ pub struct Add {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "CopyOptions", rename = "CopyOptions"))
+    )
 )]
 pub struct CopyOptions {
-    #[patch(attribute(serde(alias = "destination")))]
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(alias = "destination")))
+    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
 
@@ -413,8 +444,14 @@ pub struct CopyOptions {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "User", rename = "User"))
+    )
 )]
 pub struct User {
     pub user: String,
@@ -427,14 +464,58 @@ pub struct User {
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
-    attribute(serde(deny_unknown_fields, default)),
-    attribute(cfg_attr(feature = "json_schema", derive(JsonSchema)))
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Port", rename = "Port"))
+    )
 )]
 pub struct Port {
     pub port: u16,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol: Option<PortProtocol>,
+}
+
+///////////////// Enums //////////////////
+
+/// Represents a Docker image version
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Hash, Eq, PartialOrd)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum ImageVersion {
+    Tag(String),
+    Digest(String),
+}
+
+/// Represents a copy origin
+#[derive(Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum FromContext {
+    FromImage(ImageName),
+    FromBuilder(String),
+    FromContext(Option<String>),
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum CopyResource {
+    Copy(Copy),
+    AddGitRepo(AddGitRepo),
+    Add(Add),
+}
+
+/// Represents a cache sharing strategy
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum CacheSharing {
+    Shared,
+    Private,
+    Locked,
 }
 
 /// Represents a port protocol
@@ -455,6 +536,48 @@ pub enum Resource {
     File(PathBuf),
 }
 
+///////////////// Enum Patches //////////////////
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum FromContextPatch {
+    #[cfg(not(feature = "permissive"))]
+    #[cfg_attr(not(feature = "strict"), serde(alias = "image"))]
+    FromImage(ImageNamePatch),
+
+    #[cfg(feature = "permissive")]
+    #[cfg_attr(not(feature = "strict"), serde(alias = "image"))]
+    FromImage(ParsableStruct<ImageNamePatch>),
+
+    #[cfg_attr(not(feature = "strict"), serde(alias = "builder"))]
+    FromBuilder(String),
+
+    #[cfg_attr(not(feature = "strict"), serde(alias = "from"))]
+    FromContext(Option<String>),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum CopyResourcePatch {
+    Copy(CopyPatch),
+    AddGitRepo(AddGitRepoPatch),
+    Add(AddPatch),
+    Unknown(UnknownPatch),
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub struct UnknownPatch {
+    #[serde(flatten)]
+    pub options: Option<CopyOptionsPatch>,
+    // exclude are not supported yet: minimal version 1.7-labs
+    // pub exclude: Option<VecPatch<String>>,
+}
+
+///////////////// Tests //////////////////
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -463,34 +586,34 @@ mod test {
     mod deserialize {
         use super::*;
 
-        mod image {
+        mod dofigen {
             use super::*;
 
             #[test]
             fn empty() {
                 let data = r#""#;
 
-                let image: ImagePatch = serde_yaml::from_str(data).unwrap();
-                let image: Image = image.into();
+                let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
 
-                assert_eq_sorted!(image, Image::default());
+                assert_eq_sorted!(dofigen, Dofigen::default());
             }
 
             #[test]
             fn from() {
                 let data = r#"
-                from:
+                fromImage:
                   path: ubuntu
                 "#;
 
-                let image: ImagePatch = serde_yaml::from_str(data).unwrap();
-                let image: Image = image.into();
+                let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
 
                 assert_eq_sorted!(
-                    image,
-                    Image {
+                    dofigen,
+                    Dofigen {
                         stage: Stage {
-                            from: Some(ImageName {
+                            from: FromContext::FromImage(ImageName {
                                 path: "ubuntu".into(),
                                 ..Default::default()
                             }),
@@ -501,8 +624,7 @@ mod test {
                 );
             }
 
-            #[ignore]
-            // Not managed yet by serde: https://serde.rs/field-attrs.html#flatten
+            #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn duplicate_from() {
                 let data = r#"
@@ -512,15 +634,14 @@ mod test {
                     path: alpine
                 "#;
 
-                let image: serde_yaml::Result<ImagePatch> = serde_yaml::from_str(data);
+                let dofigen: serde_yaml::Result<DofigenPatch> = serde_yaml::from_str(data);
 
-                println!("{:?}", image);
+                println!("{:?}", dofigen);
 
-                assert!(image.is_err());
+                assert!(dofigen.is_err());
             }
 
-            #[ignore]
-            // Not managed yet by serde: https://serde.rs/field-attrs.html#flatten
+            #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn duplicate_from_and_alias() {
                 let data = r#"
@@ -530,11 +651,11 @@ mod test {
                   path: alpine
                 "#;
 
-                let image: serde_yaml::Result<ImagePatch> = serde_yaml::from_str(data);
+                let dofigen: serde_yaml::Result<DofigenPatch> = serde_yaml::from_str(data);
 
-                println!("{:?}", image);
+                println!("{:?}", dofigen);
 
-                assert!(image.is_err());
+                assert!(dofigen.is_err());
             }
         }
 
@@ -554,7 +675,7 @@ mod test {
             #[test]
             fn from() {
                 let data = r#"
-                from:
+                fromImage:
                   path: ubuntu
                 "#;
 
@@ -564,21 +685,23 @@ mod test {
                 assert_eq_sorted!(
                     stage,
                     Stage {
-                        from: Some(ImageName {
+                        from: FromContext::FromImage(ImageName {
                             path: "ubuntu".into(),
                             ..Default::default()
-                        }),
+                        })
+                        .into(),
                         ..Default::default()
                     }
                 );
             }
 
+            #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn duplicate_from() {
                 let data = r#"
-                from:
+                fromImage:
                     path: ubuntu
-                from:
+                fromImage:
                     path: alpine
                 "#;
 
@@ -587,10 +710,11 @@ mod test {
                 assert!(stage.is_err());
             }
 
+            #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn duplicate_from_and_alias() {
                 let data = r#"
-                from:
+                fromImage:
                   path: ubuntu
                 image:
                   path: alpine
@@ -639,10 +763,8 @@ mod test {
         "group": "root"
     },
     "chmod": "755",
-    "exclude": ["file3.txt"],
     "link": true,
-    "parents": true,
-    "image": {"path": "my-image"}
+    "fromImage": {"path": "my-image"}
 }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
@@ -661,12 +783,40 @@ mod test {
                             chmod: Some("755".into()),
                             link: Some(true),
                         },
-                        exclude: vec!["file3.txt".into()].into(),
-                        parents: Some(true),
-                        from: Some(FromContext::Image(ImageName {
+                        from: FromContext::FromImage(ImageName {
                             path: "my-image".into(),
                             ..Default::default()
-                        }))
+                        })
+                    })
+                );
+            }
+
+            // #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
+            #[test]
+            fn copy_simple() {
+                let json_data = r#"{
+    "paths": ["file1.txt"]
+}"#;
+
+                let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResourcePatch::Copy(CopyPatch {
+                        paths: Some(vec!["file1.txt".into()].into_patch()),
+                        options: Some(CopyOptionsPatch::default()),
+                        ..Default::default()
+                    })
+                );
+
+                let copy_resource: CopyResource = copy_resource.into();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResource::Copy(Copy {
+                        paths: vec!["file1.txt".into()].into(),
+                        options: CopyOptions::default(),
+                        ..Default::default()
                     })
                 );
             }
@@ -776,7 +926,7 @@ mod test {
             #[test]
             fn with_bind() {
                 let json_data = r#"
-from:
+fromImage:
   path: clux/muslrust:stable
 workdir: /app
 bind:
@@ -790,14 +940,13 @@ run:
                     .unwrap()
                     .into();
 
-                assert_eq!(
+                assert_eq_sorted!(
                     builder,
                     Stage {
-                        from: ImageName {
+                        from: FromContext::FromImage(ImageName {
                             path: "clux/muslrust:stable".into(),
                             ..Default::default()
-                        }
-                        .into(),
+                        }),
                         workdir: Some("/app".into()),
                         run: Run {
                             bind: vec![Bind {

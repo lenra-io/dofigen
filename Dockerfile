@@ -3,15 +3,15 @@
 
 # syntax=docker/dockerfile:1.7
 
-# builder
-FROM clux/muslrust@sha256:a0ce98126e110dbba1e58e1ec75c3d3edcb7fd913517bd22e819cb91d01e8c68 AS builder
+# muslrust
+FROM clux/muslrust@sha256:24eae8a7f139ec53da9d73bcd9acf32196d08510de750b10c47aa89316b7ae5e AS muslrust
 WORKDIR /app
 RUN \
     --mount=type=bind,target=Cargo.toml,source=Cargo.toml \
     --mount=type=bind,target=Cargo.lock,source=Cargo.lock \
     --mount=type=bind,target=src/,source=src/ \
-    --mount=type=cache,target=/home/rust/.cargo,sharing=locked \
-    --mount=type=cache,target=/app/target,sharing=locked \
+    --mount=type=cache,target=/home/rust/.cargo \
+    --mount=type=cache,target=/app/target \
     <<EOF
 cargo build --release -F cli -F permissive
 mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
@@ -21,7 +21,7 @@ EOF
 FROM scratch AS runtime
 WORKDIR /app
 COPY \
-    --from=builder \
+    --from=muslrust \
     --chown=1000:1000 \
     --link \
     "/tmp/dofigen" "/bin/"
