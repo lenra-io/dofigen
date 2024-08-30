@@ -1,4 +1,4 @@
-use dofigen_lib::{lock::LockFile, DofigenContext, Image, Resource, Result};
+use dofigen_lib::{lock::LockFile, Dofigen, DofigenContext, Resource, Result};
 use std::path::PathBuf;
 
 pub mod effective;
@@ -29,7 +29,7 @@ pub(crate) fn get_lockfile_path(path: String) -> Option<PathBuf> {
     }
 }
 
-pub(crate) fn get_image_from_path(path: String, context: &mut DofigenContext) -> Result<Image> {
+pub(crate) fn get_image_from_path(path: String, context: &mut DofigenContext) -> Result<Dofigen> {
     if path == "-" {
         context.parse_from_reader(std::io::stdin())
     } else {

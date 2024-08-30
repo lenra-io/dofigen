@@ -37,7 +37,7 @@ impl ImageName {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct LockFile {
     /// The effective Dofigen configuration
-    pub image: String,
+    pub effective: String,
 
     /// The digests of the images used in the Dofigen file
     /// The first level key is the host
@@ -94,7 +94,7 @@ impl LockFile {
         DofigenContext::from(self.resources(), self.images())
     }
 
-    pub fn from_context(effective_image: &Image, context: &DofigenContext) -> Result<LockFile> {
+    pub fn from_context(effective: &Dofigen, context: &DofigenContext) -> Result<LockFile> {
         let mut images = HashMap::new();
         for (image, docker_tag) in context.used_image_tags() {
             let host = format!("{}:{}", image.host.unwrap(), image.port.unwrap());
@@ -127,7 +127,7 @@ impl LockFile {
             .collect();
 
         Ok(LockFile {
-            image: serde_yaml::to_string(effective_image).map_err(Error::from)?,
+            effective: serde_yaml::to_string(effective).map_err(Error::from)?,
             images,
             resources: files,
         })
@@ -159,7 +159,23 @@ where
     }
 }
 
-impl Lock for Image {
+impl<K, V> Lock for HashMap<K, V>
+where
+    K: Eq + std::hash::Hash + Clone,
+    V: Lock,
+{
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        self.iter()
+            .map(|(key, value)| {
+                value
+                    .lock(context)
+                    .map(|locked_value| (key.clone(), locked_value))
+            })
+            .collect()
+    }
+}
+
+impl Lock for Dofigen {
     fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
         Ok(Self {
             builders: self.builders.lock(context)?,
@@ -175,6 +191,15 @@ impl Lock for Stage {
             from: self.from.lock(context)?,
             ..self.clone()
         })
+    }
+}
+
+impl Lock for FromContext {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        match self {
+            Self::FromImage(image_name) => Ok(Self::FromImage(image_name.lock(context)?)),
+            other => Ok(other.clone()),
+        }
     }
 }
 

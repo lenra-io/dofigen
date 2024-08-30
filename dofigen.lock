@@ -1,36 +1,31 @@
-image: |
+effective: |
   context:
   - /src
   - /Cargo.*
   builders:
-  - name: builder
-    from:
-      path: clux/muslrust
-      digest: sha256:a0ce98126e110dbba1e58e1ec75c3d3edcb7fd913517bd22e819cb91d01e8c68
-    workdir: /app
-    run:
-    - cargo build --release -F cli -F permissive
-    - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
-    cache:
-    - /home/rust/.cargo
-    - /app/target
-    bind:
-    - target: Cargo.toml
-      from: null
-      source: Cargo.toml
-      readwrite: false
-    - target: Cargo.lock
-      from: null
-      source: Cargo.lock
-      readwrite: false
-    - target: src/
-      from: null
-      source: src/
-      readwrite: false
+    muslrust:
+      fromImage:
+        path: clux/muslrust
+        digest: sha256:24eae8a7f139ec53da9d73bcd9acf32196d08510de750b10c47aa89316b7ae5e
+      workdir: /app
+      run:
+      - cargo build --release -F cli -F permissive
+      - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
+      cache:
+      - target: /home/rust/.cargo
+      - target: /app/target
+      bind:
+      - target: Cargo.toml
+        source: Cargo.toml
+      - target: Cargo.lock
+        source: Cargo.lock
+      - target: src/
+        source: src/
   workdir: /app
-  artifacts:
-  - builder: builder
-    source: /tmp/dofigen
+  copy:
+  - fromBuilder: muslrust
+    paths:
+    - /tmp/dofigen
     target: /bin/
   entrypoint:
   - dofigen
@@ -41,16 +36,15 @@ images:
     clux:
       muslrust:
         stable:
-          tag_last_pushed: 2024-08-20T13:37:06.688864Z
-          digest: sha256:a0ce98126e110dbba1e58e1ec75c3d3edcb7fd913517bd22e819cb91d01e8c68
+          tag_last_pushed: 2024-08-28T13:39:05.659637Z
+          digest: sha256:24eae8a7f139ec53da9d73bcd9acf32196d08510de750b10c47aa89316b7ae5e
 resources:
   dofigen.yml:
-    hash: 2b908587c60779bc12f3e4d402e258ad8700ca11661ab262a4c0f8ea4c868424
+    hash: 78895c87dab3b4280d175b048442302af4d1f1e38369f615f5719de9c9cf4b86
     content: |
-      ---
       builders:
-        - name: builder
-          from: clux/muslrust:stable
+        muslrust:
+          fromImage: clux/muslrust:stable
           workdir: /app
           bind:
             - Cargo.toml
@@ -69,9 +63,9 @@ resources:
 
       # Runtime
       workdir: /app
-      artifacts:
-        - builder: builder
-          source: "/tmp/dofigen"
+      copy:
+        - fromBuilder: muslrust
+          paths: "/tmp/dofigen"
           target: "/bin/"
       entrypoint: dofigen
       cmd: --help

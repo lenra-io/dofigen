@@ -35,19 +35,19 @@ fn test_cases() {
 
         println!("Processing {}", basename);
 
-        let image: Image = DofigenContext::new()
+        let dofigen: Dofigen = DofigenContext::new()
             .parse_from_resource(Resource::File(path.clone()))
             .unwrap();
 
         if let Some(content) = yaml_results.get(basename.as_str()) {
             println!("Compare with YAML result");
-            let yaml = generate_effective_content(&image).unwrap();
+            let yaml = generate_effective_content(&dofigen).unwrap();
             assert_eq_sorted!(&yaml, content);
         }
 
         if let Some(content) = dockerfile_results.get(basename.as_str()) {
             println!("Compare with Dockerfile result");
-            let dockerfile = generate_dockerfile(&image).unwrap();
+            let dockerfile = generate_dockerfile(&dofigen).unwrap();
             assert_eq_sorted!(&dockerfile, content);
         }
     }
@@ -97,18 +97,18 @@ fn test_load_url() {
     let url = url.to_string();
     let url: Url = url.parse().unwrap();
 
-    let image: Image = DofigenContext::new()
+    let dofigen: Dofigen = DofigenContext::new()
         .parse_from_resource(Resource::Url(url))
         .unwrap();
 
-    let yaml = generate_effective_content(&image).unwrap();
+    let yaml = generate_effective_content(&dofigen).unwrap();
     assert_eq_sorted!(
         yaml,
         std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.yml"))
             .unwrap()
     );
 
-    let dockerfile = generate_dockerfile(&image).unwrap();
+    let dockerfile = generate_dockerfile(&dofigen).unwrap();
     assert_eq_sorted!(
         dockerfile,
         std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.Dockerfile"))

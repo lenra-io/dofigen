@@ -5,12 +5,12 @@ use std::path::PathBuf;
 #[test]
 fn test_self_loop() {
     let path = PathBuf::from("tests/infinite_loop/self.yml");
-    let image: Result<Image> =
+    let dofigen: Result<Dofigen> =
         DofigenContext::new().parse_from_resource(Resource::File(path.clone()));
 
-    assert!(image.is_err());
+    assert!(dofigen.is_err());
 
-    let error = image.unwrap_err();
+    let error = dofigen.unwrap_err();
 
     assert_eq_sorted!(
         error.to_string(),
@@ -21,12 +21,12 @@ fn test_self_loop() {
 #[test]
 fn test_self_relative_loop() {
     let path = PathBuf::from("tests/infinite_loop/self_relative.yml");
-    let image: Result<Image> =
+    let dofigen: Result<Dofigen> =
         DofigenContext::new().parse_from_resource(Resource::File(path.clone()));
 
-    assert!(image.is_err());
+    assert!(dofigen.is_err());
 
-    let error = image.unwrap_err();
+    let error = dofigen.unwrap_err();
 
     assert_eq_sorted!(
         error.to_string(),
@@ -37,12 +37,12 @@ fn test_self_relative_loop() {
 #[test]
 fn test_self_relative_from_parent_loop() {
     let path = PathBuf::from("tests/infinite_loop/self_relative_from_parent.yml");
-    let image: Result<Image> =
+    let dofigen: Result<Dofigen> =
         DofigenContext::new().parse_from_resource(Resource::File(path.clone()));
 
-    assert!(image.is_err());
+    assert!(dofigen.is_err());
 
-    let error = image.unwrap_err();
+    let error = dofigen.unwrap_err();
 
     assert_eq_sorted!(
         error.to_string(),
@@ -53,12 +53,12 @@ fn test_self_relative_from_parent_loop() {
 #[test]
 fn test_a_b_loop() {
     let path = PathBuf::from("tests/infinite_loop/a.yml");
-    let image: Result<Image> =
+    let dofigen: Result<Dofigen> =
         DofigenContext::new().parse_from_resource(Resource::File(path.clone()));
 
-    assert!(image.is_err());
+    assert!(dofigen.is_err());
 
-    let error = image.unwrap_err();
+    let error = dofigen.unwrap_err();
 
     let a_path = path.to_str().unwrap();
     let b_path = PathBuf::from("tests/infinite_loop/b.yml");
@@ -73,12 +73,12 @@ fn test_a_b_loop() {
 #[test]
 fn test_stack_size() {
     let path = PathBuf::from("tests/infinite_loop/stack_size.yml");
-    let image: Result<Image> =
+    let dofigen: Result<Dofigen> =
         DofigenContext::new().parse_from_resource(Resource::File(path.clone()));
 
-    assert!(image.is_err());
+    assert!(dofigen.is_err());
 
-    let error = image.unwrap_err();
+    let error = dofigen.unwrap_err();
 
     let base_path = path.to_str().unwrap();
 

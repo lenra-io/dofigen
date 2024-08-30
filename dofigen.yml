@@ -1,7 +1,6 @@
----
 builders:
-  - name: builder
-    from: clux/muslrust:stable
+  muslrust:
+    fromImage: clux/muslrust:stable
     workdir: /app
     bind:
       - Cargo.toml
@@ -20,9 +19,9 @@ builders:
 
 # Runtime
 workdir: /app
-artifacts:
-  - builder: builder
-    source: "/tmp/dofigen"
+copy:
+  - fromBuilder: muslrust
+    paths: "/tmp/dofigen"
     target: "/bin/"
 entrypoint: dofigen
 cmd: --help
