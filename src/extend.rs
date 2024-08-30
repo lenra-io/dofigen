@@ -204,7 +204,7 @@ mod test {
             }
         }
 
-        mod extend_image {
+        mod extend_dofigen {
             use super::*;
             use crate::{DofigenPatch, ImageNamePatch, RunPatch, StagePatch};
 
