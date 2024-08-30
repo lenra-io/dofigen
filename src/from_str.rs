@@ -100,9 +100,7 @@ impl_parsable_patch!(Copy, CopyPatch, s, {
             chown: Some(None),
             link: Some(None),
         }),
-        from: Some(None),
-        exclude: Some(vec![].into_patch()),
-        parents: Some(None),
+        from: Some(FromContextPatch::default()),
     })
 });
 
@@ -194,11 +192,11 @@ impl_parsable_patch!(Bind, BindPatch, s, {
                 .or(target.clone()),
         ),
         target,
-        from: Some(
-            captures
-                .name("from")
-                .map(|m| FromContextPatch::Context(m.as_str().into())),
-        ),
+        from: captures
+            .name("from")
+            // TODO: manage parsing FromContextPatch
+            .map(|m| FromContextPatch::FromContext(Some(m.as_str().into()))),
+
         readwrite: Some(None),
     })
 });
@@ -306,9 +304,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into_patch()),
-                    parents: Some(None),
-                    from: Some(None),
+                    from: Some(FromContextPatch::default()),
                 }
             );
         }
@@ -326,9 +322,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into_patch()),
-                    parents: Some(None),
-                    from: Some(None),
+                    from: Some(FromContextPatch::default()),
                 }
             );
         }
@@ -346,9 +340,7 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into_patch()),
-                    parents: Some(None),
-                    from: Some(None),
+                    from: Some(FromContextPatch::default()),
                 }
             );
         }

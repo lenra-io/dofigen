@@ -24,7 +24,7 @@ pub struct Generate {
     #[clap(short, long, default_value = DEFAULT_DOCKERFILE)]
     output: String,
 
-    /// Locked version of the image
+    /// Locked version of the dofigen definition
     #[clap(short, long, action)]
     locked: bool,
 }
@@ -56,22 +56,22 @@ impl CliCommand for Generate {
             .map(|l| l.to_context())
             .unwrap_or(DofigenContext::new());
 
-        let image = if self.locked {
+        let dofigen = if self.locked {
             if path == "-" {
                 return Err(Error::Custom(
                     "The '--locked' option can't be used with stdin".into(),
                 ));
             }
             let lockfile = lockfile.ok_or(Error::Custom("No lock file found".into()))?;
-            context.parse_from_string(lockfile.image.as_str())?
+            context.parse_from_string(lockfile.effective.as_str())?
         } else {
             context.offline = self.options.offline;
             context.update_file_resources = true;
 
-            let image = get_image_from_path(path, &mut context)?;
+            let dofigen = get_image_from_path(path, &mut context)?;
 
             // Replace images tags with the digest
-            let locked_image = image.lock(&mut context)?;
+            let locked_image = dofigen.lock(&mut context)?;
             context.clean_unused();
             let new_lockfile = LockFile::from_context(&locked_image, &mut context)?;
 
@@ -88,14 +88,14 @@ impl CliCommand for Generate {
             locked_image
         };
 
-        let dockerfile_content = generate_dockerfile(&image)?;
+        let dockerfile_content = generate_dockerfile(&dofigen)?;
 
         if self.output == "-" {
             print!("{}", dockerfile_content);
         } else {
             self.write_dockerfile(
                 dockerfile_content.as_str(),
-                generate_dockerignore(&image).as_str(),
+                generate_dockerignore(&dofigen).as_str(),
             )?;
         };
         Ok(())
