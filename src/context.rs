@@ -1,7 +1,7 @@
 use colored::{Color, Colorize};
 
 use crate::{
-    lock::{DockerTag, ResourceVersion, DEFAULT_NAMESPACE},
+    lock::{DockerTag, ResourceVersion, DEFAULT_NAMESPACE, DOCKER_HUB_HOST},
     Dofigen, DofigenPatch, Error, Extend, ImageName, ImageVersion, Resource, Result,
 };
 use std::{
@@ -219,28 +219,57 @@ impl DofigenContext {
             }
         };
 
-        let mut repo = image.path.clone();
-        let namespace = if repo.contains("/") {
-            let mut parts = image.path.split("/");
-            let ret = parts.next().unwrap();
-            repo = parts.collect::<Vec<&str>>().join("/");
-            ret
-        } else {
-            DEFAULT_NAMESPACE
-        };
-        let request_url = format!(
-            "https://{host}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
-            host = image
-                .host
-                .clone()
-                .ok_or(Error::Custom("No host found for image".into()))?,
-            namespace = namespace,
-            repo = repo,
-            tag = tag
-        );
-        let response = reqwest::blocking::get(&request_url).map_err(Error::from)?;
+        let host = image
+            .host
+            .clone()
+            .ok_or(Error::Custom("No host found for image".into()))?;
 
-        Ok(response.json().map_err(Error::from)?)
+        let client = reqwest::blocking::Client::new();
+
+        let docker_tag = if self.load_from_api(host.as_str()) {
+            let mut repo = image.path.clone();
+            let namespace = if repo.contains("/") {
+                let mut parts = image.path.split("/");
+                let ret = parts.next().unwrap();
+                repo = parts.collect::<Vec<&str>>().join("/");
+                ret
+            } else {
+                DEFAULT_NAMESPACE
+            };
+            let request_url = format!(
+                "https://{host}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
+                namespace = namespace,
+                repo = repo,
+                tag = tag
+            );
+            let response = client.get(&request_url).send().map_err(Error::from)?;
+            
+            response.json().map_err(Error::from)?
+        } else {
+            let request_url = format!(
+                "https://{host}/v2/{path}/manifests/{tag}",
+                path = image.path,
+                tag = tag
+            );
+            let response = client.head(&request_url).send().map_err(Error::from)?;
+
+            let digest = response
+                .headers()
+                .get("Docker-Content-Digest")
+                .ok_or(Error::Custom("No digest found in response".to_string()))?;
+            let digest = digest
+                .to_str()
+                .map_err(|err| Error::display(err))?
+                .to_string();
+
+            DockerTag { digest }
+        };
+
+        Ok(docker_tag)
+    }
+
+    fn load_from_api(&self, host: &str) -> bool {
+        host == DOCKER_HUB_HOST || host == "docker.io"
     }
 
     fn clean_unused_images(&mut self) {
