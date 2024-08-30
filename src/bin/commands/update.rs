@@ -42,10 +42,10 @@ impl CliCommand for Update {
         context.update_file_resources = true;
         context.update_url_resources = !self.options.offline;
 
-        let image = get_image_from_path(path, &mut context)?;
+        let dofigen = get_image_from_path(path, &mut context)?;
 
         // Replace images tags with the digest
-        let locked_image = image.lock(&mut context)?;
+        let locked_image = dofigen.lock(&mut context)?;
         context.clean_unused();
         let new_lockfile = LockFile::from_context(&locked_image, &context)?;
 

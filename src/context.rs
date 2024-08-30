@@ -2,7 +2,7 @@ use colored::{Color, Colorize};
 
 use crate::{
     lock::{DockerTag, ResourceVersion, DEFAULT_NAMESPACE},
-    Error, Extend, Image, ImageName, ImagePatch, ImageVersion, Resource, Result,
+    Dofigen, DofigenPatch, Error, Extend, ImageName, ImageVersion, Resource, Result,
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -339,31 +339,31 @@ impl DofigenContext {
         updates
     }
 
-    //////////  Image parsing  //////////
+    //////////  Dofigen parsing  //////////
 
-    /// Parse an Image from a string.
+    /// Parse an Dofigen from a string.
     ///
     /// # Examples
     ///
-    /// Basic image
+    /// Basic struct
     ///
     /// ```
     /// use dofigen_lib::*;
     /// use pretty_assertions_sorted::assert_eq_sorted;
     ///
     /// let yaml = "
-    /// from:
+    /// fromImage:
     ///   path: ubuntu
     /// ";
-    /// let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
+    /// let image: Dofigen = DofigenContext::new().parse_from_string(yaml).unwrap();
     /// assert_eq_sorted!(
     ///     image,
-    ///     Image {
+    ///     Dofigen {
     ///       stage: Stage {
-    ///         from: Some(ImageName {
+    ///         from: ImageName {
     ///             path: String::from("ubuntu"),
     ///             ..Default::default()
-    ///         }.into()),
+    ///         }.into(),
     ///         ..Default::default()
     ///       },
     ///      ..Default::default()
@@ -376,45 +376,47 @@ impl DofigenContext {
     /// ```
     /// use dofigen_lib::*;
     /// use pretty_assertions_sorted::assert_eq_sorted;
+    /// use std::collections::HashMap;
     ///
     /// let yaml = r#"
     /// builders:
-    ///   - name: builder
-    ///     from:
+    ///   builder:
+    ///     fromImage:
     ///       path: ekidd/rust-musl-builder
-    ///     add:
+    ///     copy:
     ///       - paths: ["*"]
     ///     run:
     ///       - cargo build --release
-    /// from:
-    ///   path: ubuntu
-    /// artifacts:
-    ///   - builder: builder
-    ///     source:
+    /// fromImage:
+    ///     path: ubuntu
+    /// copy:
+    ///   - fromBuilder: builder
+    ///     paths:
     ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
-    /// let image: Image = DofigenContext::new().parse_from_string(yaml).unwrap();
+    /// let image: Dofigen = DofigenContext::new().parse_from_string(yaml).unwrap();
     /// assert_eq_sorted!(
     ///     image,
-    ///     Image {
-    ///         builders: vec![Stage {
-    ///             name: Some(String::from("builder")),
-    ///             from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
-    ///             copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
-    ///             run: Run {
-    ///                 run: vec!["cargo build --release".parse().unwrap()].into(),
+    ///     Dofigen {
+    ///         builders: HashMap::from([
+    ///             ("builder".to_string(), Stage {
+    ///                 from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
+    ///                 copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
+    ///                 run: Run {
+    ///                     run: vec!["cargo build --release".parse().unwrap()].into(),
+    ///                     ..Default::default()
+    ///                 },
     ///                 ..Default::default()
-    ///             },
-    ///             ..Default::default()
-    ///         }].into(),
+    ///             }),
+    ///         ]),
     ///         stage: Stage {
-    ///             from: Some(ImageName {
+    ///             from: ImageName {
     ///                 path: "ubuntu".into(),
     ///                 ..Default::default()
-    ///             }.into()),
+    ///             }.into(),
     ///             copy: vec![CopyResource::Copy(Copy{
-    ///                 from: Some(FromContext::Builder(String::from("builder"))),
+    ///                 from: FromContext::FromBuilder(String::from("builder")),
     ///                 paths: vec![String::from(
     ///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
     ///                 )],
@@ -430,36 +432,36 @@ impl DofigenContext {
     ///     }
     /// );
     /// ```
-    pub fn parse_from_string(&mut self, input: &str) -> Result<Image> {
+    pub fn parse_from_string(&mut self, input: &str) -> Result<Dofigen> {
         self.merge_extended_image(
             serde_yaml::from_str(input).map_err(|err| Error::Deserialize(err))?,
         )
     }
 
-    /// Parse an Image from an IO stream.
+    /// Parse an Dofigen from an IO stream.
     ///
     /// # Examples
     ///
-    /// Basic image
+    /// Basic struct
     ///
     /// ```
     /// use dofigen_lib::*;
     /// use pretty_assertions_sorted::assert_eq_sorted;
     ///
     /// let yaml = "
-    /// from:
+    /// fromImage:
     ///   path: ubuntu
     /// ";
     ///
-    /// let image: Image = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
+    /// let image: Dofigen = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
     /// assert_eq_sorted!(
     ///     image,
-    ///     Image {
+    ///     Dofigen {
     ///         stage: Stage {
-    ///             from: Some(ImageName {
+    ///             from: ImageName {
     ///                 path: String::from("ubuntu"),
     ///                 ..Default::default()
-    ///             }.into()),
+    ///             }.into(),
     ///             ..Default::default()
     ///         },
     ///         ..Default::default()
@@ -472,45 +474,47 @@ impl DofigenContext {
     /// ```
     /// use dofigen_lib::*;
     /// use pretty_assertions_sorted::assert_eq_sorted;
+    /// use std::collections::HashMap;
     ///
     /// let yaml = r#"
     /// builders:
-    ///   - name: builder
-    ///     from:
+    ///   builder:
+    ///     fromImage:
     ///       path: ekidd/rust-musl-builder
-    ///     add:
+    ///     copy:
     ///       - paths: ["*"]
     ///     run:
     ///       - cargo build --release
-    /// from:
+    /// fromImage:
     ///     path: ubuntu
-    /// artifacts:
-    ///   - builder: builder
-    ///     source:
+    /// copy:
+    ///   - fromBuilder: builder
+    ///     paths:
     ///       - /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
     ///     target: /app
     /// "#;
-    /// let image: Image = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
+    /// let image: Dofigen = DofigenContext::new().parse_from_reader(yaml.as_bytes()).unwrap();
     /// assert_eq_sorted!(
     ///     image,
-    ///     Image {
-    ///         builders: vec![Stage {
-    ///             name: Some(String::from("builder")),
-    ///             from: ImageName{path: "ekidd/rust-musl-builder".into(), ..Default::default()}.into(),
-    ///             copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
-    ///             run: Run {
-    ///                 run: vec!["cargo build --release".parse().unwrap()].into(),
+    ///     Dofigen {
+    ///         builders: HashMap::from([
+    ///             ("builder".to_string(), Stage {
+    ///                 from: ImageName { path: "ekidd/rust-musl-builder".into(), ..Default::default() }.into(),
+    ///                 copy: vec![CopyResource::Copy(Copy{paths: vec!["*".into()].into(), ..Default::default()}).into()].into(),
+    ///                 run: Run {
+    ///                     run: vec!["cargo build --release".parse().unwrap()].into(),
+    ///                     ..Default::default()
+    ///                 },
     ///                 ..Default::default()
-    ///             },
-    ///             ..Default::default()
-    ///         }].into(),
+    ///             }),
+    ///         ]),
     ///         stage: Stage {
-    ///             from: Some(ImageName {
+    ///             from: ImageName {
     ///                 path: String::from("ubuntu"),
     ///                 ..Default::default()
-    ///             }.into()),
+    ///             }.into(),
     ///             copy: vec![CopyResource::Copy(Copy {
-    ///                 from: Some(FromContext::Builder(String::from("builder"))),
+    ///                 from: FromContext::FromBuilder(String::from("builder")),
     ///                 paths: vec![String::from(
     ///                     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust"
     ///                 )],
@@ -526,13 +530,13 @@ impl DofigenContext {
     ///     }
     /// );
     /// ```
-    pub fn parse_from_reader<R: Read>(&mut self, reader: R) -> Result<Image> {
+    pub fn parse_from_reader<R: Read>(&mut self, reader: R) -> Result<Dofigen> {
         self.merge_extended_image(
             serde_yaml::from_reader(reader).map_err(|err| Error::Deserialize(err))?,
         )
     }
 
-    /// Parse an Image from a Resource (File or Url)
+    /// Parse an Dofigen from a Resource (File or Url)
     ///
     /// # Example
     ///
@@ -541,28 +545,28 @@ impl DofigenContext {
     /// use pretty_assertions_sorted::assert_eq_sorted;
     /// use std::path::PathBuf;
     ///
-    /// let image: Image = DofigenContext::new().parse_from_resource(Resource::File(PathBuf::from("tests/cases/simple.yml"))).unwrap();
+    /// let dofigen: Dofigen = DofigenContext::new().parse_from_resource(Resource::File(PathBuf::from("tests/cases/simple.yml"))).unwrap();
     /// assert_eq_sorted!(
-    ///     image,
-    ///     Image {
+    ///     dofigen,
+    ///     Dofigen {
     ///         stage: Stage {
-    ///             from: Some(ImageName {
+    ///             from: ImageName {
     ///                 path: String::from("alpine"),
     ///                 ..Default::default()
-    ///             }.into()),
+    ///             }.into(),
     ///             ..Default::default()
     ///         },
     ///         ..Default::default()
     ///     }
     /// );
     /// ```
-    pub fn parse_from_resource(&mut self, resource: Resource) -> Result<Image> {
-        let image = resource.load(self)?;
-        self.merge_extended_image(image)
+    pub fn parse_from_resource(&mut self, resource: Resource) -> Result<Dofigen> {
+        let dofigen = resource.load(self)?;
+        self.merge_extended_image(dofigen)
     }
 
-    fn merge_extended_image(&mut self, image: Extend<ImagePatch>) -> Result<Image> {
-        Ok(image.merge(self)?.into())
+    fn merge_extended_image(&mut self, dofigen: Extend<DofigenPatch>) -> Result<Dofigen> {
+        Ok(dofigen.merge(self)?.into())
     }
 
     pub fn clean_unused(&mut self) {
