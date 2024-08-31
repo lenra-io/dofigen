@@ -2,15 +2,13 @@ use crate::{dofigen_struct::*, DofigenContext, Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-const DOCKER_HUB_HOST: &str = "registry.hub.docker.com";
+pub(crate) const DOCKER_HUB_HOST: &str = "registry.hub.docker.com";
 pub(crate) const DEFAULT_NAMESPACE: &str = "library";
 const DEFAULT_TAG: &str = "latest";
 const DEFAULT_PORT: u16 = 443;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, PartialOrd, Eq)]
 pub struct DockerTag {
-    // TODO: replace with a date type
-    pub tag_last_pushed: String,
     pub digest: String,
 }
 
@@ -65,12 +63,17 @@ impl LockFile {
             };
             for (namespace, repositories) in namespaces {
                 for (repository, tags) in repositories {
+                    let path = if host == DOCKER_HUB_HOST {
+                        repository.clone()
+                    } else {
+                        format!("{}/{}", namespace, repository)
+                    };
                     for (tag, digest) in tags {
                         images.insert(
                             ImageName {
                                 host: Some(host.clone()),
                                 port,
-                                path: format!("{}/{}", namespace, repository),
+                                path: path.clone(),
                                 version: Some(ImageVersion::Tag(tag)),
                             },
                             digest,
@@ -218,8 +221,8 @@ impl Lock for ImageName {
 }
 
 impl Ord for DockerTag {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.tag_last_pushed.cmp(&other.tag_last_pushed)
+    fn cmp(&self, _other: &Self) -> std::cmp::Ordering {
+        panic!("DockerTag cannot be ordered")
     }
 }
 
