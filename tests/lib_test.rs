@@ -553,3 +553,18 @@ CMD ["--help"]
 "#
     );
 }
+
+#[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
+#[test]
+#[cfg(feature = "permissive")]
+fn malformed_user_must_fail() {
+    let yaml = r#"
+user: wrong.user
+"#;
+
+    let result = DofigenContext::new().parse_from_string(yaml);
+    assert!(
+        result.is_err(),
+        "The parsing must fail since user name is malformed",
+    );
+}
