@@ -118,7 +118,6 @@ impl_parsable_patch!(AddGitRepo, AddGitRepoPatch, s, {
             chown: Some(None),
             link: Some(None),
         }),
-        exclude: Some(vec![].into_patch()),
         keep_git_dir: Some(None),
     })
 });
@@ -152,7 +151,7 @@ impl_parsable_patch!(Add, AddPatch, s, {
 });
 
 impl_parsable_patch!(User, UserPatch, s, {
-    let regex = Regex::new(r"^(?<user>[a-zA-Z0-9_]+)(?::(?<group>[a-zA-Z0-9_]+))?$").unwrap();
+    let regex = Regex::new(r"^(?<user>[a-zA-Z0-9_-]+)(?::(?<group>[a-zA-Z0-9_-]+))?$").unwrap();
     let Some(captures) = regex.captures(s) else {
         return Err(Error::custom("Not matching chown pattern"));
     };
@@ -178,7 +177,7 @@ impl_parsable_patch!(Port, PortPatch, s, {
 });
 
 impl_parsable_patch!(Bind, BindPatch, s, {
-    let regex = Regex::new(r"^(?:(?:(?P<from>[^:]+):)?(?P<source>\S+) )?(?P<target>\S+)$").unwrap();
+    let regex = Regex::new(r"^(?:(?:(?P<fromType>image|builder|context)\((?P<from>[^:]+)\):)?(?P<source>\S+) )?(?P<target>\S+)$").unwrap();
     let Some(captures) = regex.captures(s) else {
         return Err(Error::custom("Not matching bind pattern"));
     };
@@ -192,10 +191,18 @@ impl_parsable_patch!(Bind, BindPatch, s, {
                 .or(target.clone()),
         ),
         target,
-        from: captures
-            .name("from")
-            // TODO: manage parsing FromContextPatch
-            .map(|m| FromContextPatch::FromContext(Some(m.as_str().into()))),
+        from: captures.name("from").map(|m| {
+            let from_type = captures.name("fromType").map(|m| m.as_str()).unwrap();
+            let from = m.as_str();
+            match from_type {
+                "image" => {
+                    FromContextPatch::FromImage(ImageNamePatch::from_str(from).unwrap().into())
+                }
+                "builder" => FromContextPatch::FromBuilder(from.into()),
+                "context" => FromContextPatch::FromContext(Some(from.into())),
+                _ => unreachable!(),
+            }
+        }),
 
         readwrite: Some(None),
     })
@@ -363,7 +370,6 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into_patch()),
                     keep_git_dir: Some(None),
                 }
             );
@@ -383,7 +389,6 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into_patch()),
                     keep_git_dir: Some(None),
                 }
             );
@@ -403,7 +408,6 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into_patch()),
                     keep_git_dir: Some(None),
                 }
             );
@@ -423,7 +427,6 @@ mod test_from_str {
                         chmod: Some(None),
                         link: Some(None),
                     }),
-                    exclude: Some(vec![].into_patch()),
                     keep_git_dir: Some(None),
                 }
             );
@@ -599,7 +602,14 @@ mod test_from_str {
         }
 
         #[test]
-        fn invalid() {
+        fn invalid_username() {
+            let result = UserPatch::from_str("user*name");
+
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn invalid_extra() {
             let result = UserPatch::from_str("user:group:extra");
 
             assert!(result.is_err());
