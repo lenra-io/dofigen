@@ -151,7 +151,7 @@ impl_parsable_patch!(Add, AddPatch, s, {
 });
 
 impl_parsable_patch!(User, UserPatch, s, {
-    let regex = Regex::new(r"^(?<user>[a-z0-9_-]+)(?::(?<group>[a-z0-9_-]+))?$").unwrap();
+    let regex = Regex::new(r"^(?<user>[a-zA-Z0-9_-]+)(?::(?<group>[a-zA-Z0-9_-]+))?$").unwrap();
     let Some(captures) = regex.captures(s) else {
         return Err(Error::custom("Not matching chown pattern"));
     };
