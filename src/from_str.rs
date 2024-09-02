@@ -603,7 +603,7 @@ mod test_from_str {
 
         #[test]
         fn invalid_username() {
-            let result = UserPatch::from_str("userName");
+            let result = UserPatch::from_str("user*name");
 
             assert!(result.is_err());
         }
