@@ -8,9 +8,13 @@ effective: |
         path: clux/muslrust
         digest: sha256:30d96e0daad305d68fe1798398d5ad92b92e4c4800e42b087d51a34adc340ca2
       workdir: /app
+      env:
+        CARGO_TARGET: x86_64-unknown-linux-musl
+        APP_NAME: dofigen
+        BUILD_ARGS: -F cli
       run:
-      - cargo build --release -F cli -F permissive
-      - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
+      - cargo build --release ${BUILD_ARGS}
+      - mv target/${CARGO_TARGET}/release/${APP_NAME} /tmp/
       cache:
       - target: /home/rust/.cargo
       - target: /app/target
@@ -21,7 +25,6 @@ effective: |
         source: Cargo.lock
       - target: src/
         source: src/
-  workdir: /app
   copy:
   - fromBuilder: muslrust
     paths:
@@ -39,35 +42,8 @@ images:
           digest: sha256:30d96e0daad305d68fe1798398d5ad92b92e4c4800e42b087d51a34adc340ca2
 resources:
   dofigen.yml:
-    hash: 78895c87dab3b4280d175b048442302af4d1f1e38369f615f5719de9c9cf4b86
-    content: |
-      builders:
-        muslrust:
-          fromImage: clux/muslrust:stable
-          workdir: /app
-          bind:
-            - Cargo.toml
-            - Cargo.lock
-            - src/
-          run:
-            # Build with musl to work with scratch
-            - cargo build --release -F cli -F permissive
-            # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
-            - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
-          cache:
-            # Cargo cache
-            - /home/rust/.cargo
-            # build cache
-            - /app/target
-
-      # Runtime
-      workdir: /app
-      copy:
-        - fromBuilder: muslrust
-          paths: "/tmp/dofigen"
-          target: "/bin/"
-      entrypoint: dofigen
-      cmd: --help
-      context:
-        - "/src"
-        - "/Cargo.*"
+    hash: cc0ff896afbfb5e7c0d6c40eb6b282546cd7ff263c9beffff40fa4eec9756e9b
+    content: "extend:\n  - https://raw.githubusercontent.com/lenra-io/dofigen-hub/muslrust/rust/muslrust.builder.yml\n\nbuilders:\n  muslrust:\n    # REPLACE those with args when it's available\n    env: \n      APP_NAME: dofigen\n      BUILD_ARGS: -F cli\n\n# Runtime\ncopy:\n  - fromBuilder: muslrust\n    paths: \"/tmp/dofigen\"\n    target: \"/bin/\"\nentrypoint: dofigen\ncmd: --help\n"
+  https://raw.githubusercontent.com/lenra-io/dofigen-hub/muslrust/rust/muslrust.builder.yml:
+    hash: e2d9f8fd2cd03c9f427c0eb49f91b6449b01eb35686a6acd9fedd3effc49b077
+    content: "context:\n  - \"/src\"\n  - \"/Cargo.*\"\nbuilders:\n  muslrust:\n    fromImage: clux/muslrust:stable\n    env: \n      CARGO_TARGET: x86_64-unknown-linux-musl\n    workdir: /app\n    bind:\n      - Cargo.toml\n      - Cargo.lock\n      - src/\n    run:\n      # Build with musl to work with scratch\n      - cargo build --release ${BUILD_ARGS}\n      # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume\n      - mv target/${CARGO_TARGET}/release/${APP_NAME} /tmp/\n    cache:\n      # Cargo cache\n      - /home/rust/.cargo\n      # build cache\n      - /app/target\n"

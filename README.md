@@ -105,6 +105,9 @@ To look further use the help command:
 dofigen --help
 ```
 
+### Dofigen Hub
+
+[Dofigen Hub](https://github.com/lenra-io/dofigen-hub) is a repository of Dofigen files that you can use to generate Dockerfiles.
 
 ### Dofigen descriptor
 
