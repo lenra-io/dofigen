@@ -3,7 +3,6 @@ description: Send a bug report
 title: "[Bug]: "
 labels: ["bug", "triage"]
 assignees:
-  - Nesqwik
   - taorepoara
 body:
   - type: markdown
@@ -32,11 +31,3 @@ body:
       label: Relevant log output
       description: Please copy and paste any relevant log output. This will be automatically formatted into code, so no need for backticks.
       render: Shell
-  # - type: checkboxes
-  #   id: terms
-  #   attributes:
-  #     label: Code of Conduct
-  #     description: By submitting this issue, you agree to follow our [Code of Conduct](https://example.com)
-  #     options:
-  #       - label: I agree to follow this project's Code of Conduct
-  #         required: true
