@@ -63,7 +63,7 @@ impl LockFile {
             };
             for (namespace, repositories) in namespaces {
                 for (repository, tags) in repositories {
-                    let path = if host == DOCKER_HUB_HOST {
+                    let path = if namespace == DEFAULT_NAMESPACE {
                         repository.clone()
                     } else {
                         format!("{}/{}", namespace, repository)

@@ -609,6 +609,9 @@ fn string_vec_into(string_vec: Vec<String>) -> String {
 impl Stage {
     pub(crate) fn get_dependencies(&self) -> Vec<String> {
         let mut dependencies = vec![];
+        if let FromContext::FromBuilder(builder) = &self.from {
+            dependencies.push(builder.clone());
+        }
         for copy in self.copy.iter() {
             dependencies.append(&mut copy.get_dependencies());
         }
@@ -651,7 +654,7 @@ impl StagesDependencyResolver {
             if b_deps.contains(a_stage) {
                 return std::cmp::Ordering::Less;
             }
-            std::cmp::Ordering::Equal
+            a_stage.cmp(b_stage)
         });
 
         Ok(stages.into_iter().map(|(stage, _)| stage).collect())
@@ -955,7 +958,7 @@ mod test {
         use super::*;
 
         #[test]
-        fn resolve_dependencies() {
+        fn resolve_builders_dependencies() {
             let dofigen = Dofigen {
                 builders: HashMap::from([
                     (
@@ -1016,6 +1019,90 @@ mod test {
             builders.sort();
 
             assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
+        }
+
+        #[test]
+        fn resolve_runtime_dependencies() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([
+                    (
+                        "install-deps".to_string(),
+                        Stage {
+                            from: FromContext::FromImage(ImageName {
+                                path: "php".to_string(),
+                                version: Some(ImageVersion::Tag("8.3-fpm-alpine".to_string())),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "install-php-ext".to_string(),
+                        Stage {
+                            from: FromContext::FromBuilder("install-deps".to_string()),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "get-composer".to_string(),
+                        Stage {
+                            from: FromContext::FromImage(ImageName {
+                                path: "composer".to_string(),
+                                version: Some(ImageVersion::Tag("latest".to_string())),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        },
+                    ),
+                ]),
+                stage: Stage {
+                    from: FromContext::FromBuilder("install-php-ext".to_string()),
+                    copy: vec![CopyResource::Copy(Copy {
+                        from: FromContext::FromBuilder("get-composer".to_string()),
+                        paths: vec!["/usr/bin/composer".to_string()],
+                        options: CopyOptions {
+                            target: Some("/bin/".to_string()),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })],
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let mut resolver = StagesDependencyResolver::new(&dofigen);
+
+            let mut dependencies = resolver
+                .resolve_dependencies("install-deps".into())
+                .unwrap();
+            dependencies.sort();
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
+
+            dependencies = resolver
+                .resolve_dependencies("install-php-ext".into())
+                .unwrap();
+            assert_eq_sorted!(dependencies, vec!["install-deps"]);
+
+            dependencies = resolver
+                .resolve_dependencies("get-composer".into())
+                .unwrap();
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
+
+            dependencies = resolver.resolve_dependencies("runtime".into()).unwrap();
+            dependencies.sort();
+            assert_eq_sorted!(
+                dependencies,
+                vec!["get-composer", "install-deps", "install-php-ext"]
+            );
+
+            let mut builders = resolver.get_sorted_builders().unwrap();
+            builders.sort();
+
+            assert_eq_sorted!(
+                builders,
+                vec!["get-composer", "install-deps", "install-php-ext"]
+            );
         }
     }
 }

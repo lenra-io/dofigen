@@ -9,6 +9,8 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Error {
     #[error("Error while deserializing the document{}: {0}", location_into(.0.location()))]
     Deserialize(#[from] serde_yaml::Error),
+    #[error("Error while parsing: {0}")]
+    ParseFromStr(#[from] serde::de::value::Error),
     #[error("{0}")]
     Format(#[from] std::fmt::Error),
     #[error("{0}")]

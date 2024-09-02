@@ -821,7 +821,7 @@ where
 #[cfg(feature = "permissive")]
 impl<'de, T> Deserialize<'de> for ParsableStruct<T>
 where
-    T: FromStr + Sized + Deserialize<'de>,
+    T: FromStr<Err = serde::de::value::Error> + Sized + Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<ParsableStruct<T>, D::Error>
     where
@@ -831,7 +831,7 @@ where
 
         impl<'de, T> de::Visitor<'de> for PermissiveStructVisitor<T>
         where
-            T: Deserialize<'de> + FromStr,
+            T: Deserialize<'de> + FromStr<Err = serde::de::value::Error>,
         {
             type Value = T;
 
@@ -913,9 +913,9 @@ where
             where
                 E: de::Error,
             {
-                // TODO: improve error management
-                v.parse()
-                    .map_err(|_| E::custom("Error while parsing a permissive struct"))
+                v.parse().map_err(|err| {
+                    E::custom(format!("Error while parsing a permissive struct: {}", err))
+                })
             }
 
             fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
@@ -1539,6 +1539,61 @@ where
 mod test {
     use super::*;
     use pretty_assertions_sorted::assert_eq_sorted;
+
+    #[cfg(feature = "permissive")]
+    mod parsable_struct {
+        use super::*;
+
+        #[test]
+        fn deserialize_basic_user() {
+            let user: ParsableStruct<UserPatch> = serde_yaml::from_str("user").unwrap();
+
+            assert_eq_sorted!(
+                user,
+                ParsableStruct(UserPatch {
+                    user: Some("user".into()),
+                    group: Some(None),
+                })
+            );
+        }
+
+        #[test]
+        fn deserialize_user_error_wrong_username() {
+            let res = serde_yaml::from_str::<ParsableStruct<UserPatch>>("user*name");
+
+            assert!(res.is_err());
+
+            assert_eq_sorted!(
+                res.unwrap_err().to_string(),
+                "Error while parsing a permissive struct: Not matching chown pattern"
+            );
+        }
+
+        #[test]
+        fn deserialize_stage_with_invalid_user() {
+            let res = serde_yaml::from_str::<StagePatch>("user: user*name");
+
+            assert!(res.is_err());
+
+            assert_eq_sorted!(
+                res.unwrap_err().to_string(),
+                "user: Error while parsing a permissive struct: Not matching chown pattern at line 1 column 7"
+            );
+        }
+
+        #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
+        #[test]
+        fn deserialize_dofigen_with_invalid_user() {
+            let res = serde_yaml::from_str::<DofigenPatch>("user: user*name");
+
+            assert!(res.is_err());
+
+            assert_eq_sorted!(
+                res.unwrap_err().to_string(),
+                "user: Error while parsing a permissive struct: Not matching chown pattern at line 1 column 7"
+            );
+        }
+    }
 
     mod vec_patch {
         use super::*;

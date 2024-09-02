@@ -6,7 +6,7 @@ effective: |
     muslrust:
       fromImage:
         path: clux/muslrust
-        digest: sha256:24eae8a7f139ec53da9d73bcd9acf32196d08510de750b10c47aa89316b7ae5e
+        digest: sha256:30d96e0daad305d68fe1798398d5ad92b92e4c4800e42b087d51a34adc340ca2
       workdir: /app
       run:
       - cargo build --release -F cli -F permissive
@@ -36,8 +36,7 @@ images:
     clux:
       muslrust:
         stable:
-          tag_last_pushed: 2024-08-28T13:39:05.659637Z
-          digest: sha256:24eae8a7f139ec53da9d73bcd9acf32196d08510de750b10c47aa89316b7ae5e
+          digest: sha256:30d96e0daad305d68fe1798398d5ad92b92e4c4800e42b087d51a34adc340ca2
 resources:
   dofigen.yml:
     hash: 78895c87dab3b4280d175b048442302af4d1f1e38369f615f5719de9c9cf4b86

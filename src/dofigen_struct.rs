@@ -367,11 +367,11 @@ pub struct AddGitRepo {
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
 
-    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    #[patch(name = "VecPatch<String>")]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub exclude: Vec<String>,
-
+    // excludes are not supported yet: minimal version 1.7-labs
+    // /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    // #[patch(name = "VecPatch<String>")]
+    // #[serde(skip_serializing_if = "Vec::is_empty")]
+    // pub exclude: Vec<String>,
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_git_dir: Option<bool>,
@@ -853,7 +853,6 @@ mod test {
                 "group": "root"
             },
             "chmod": "755",
-            "exclude": ["file3.txt"],
             "link": true,
             "keepGitDir": true
         }"#;
@@ -874,7 +873,6 @@ mod test {
                             chmod: Some("755".into()),
                             link: Some(true),
                         },
-                        exclude: vec!["file3.txt".into()].into(),
                         keep_git_dir: Some(true)
                     })
                 );

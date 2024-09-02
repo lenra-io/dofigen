@@ -1,4 +1,5 @@
 use colored::{Color, Colorize};
+use serde::Deserialize;
 
 use crate::{
     lock::{DockerTag, ResourceVersion, DEFAULT_NAMESPACE, DOCKER_HUB_HOST},
@@ -244,7 +245,13 @@ impl DofigenContext {
             );
             let response = client.get(&request_url).send().map_err(Error::from)?;
 
-            response.json().map_err(Error::from)?
+            let response: DockerHubTagResponse = response.json().map_err(Error::from)?;
+            DockerTag {
+                digest: response
+                    .digest
+                    .or(response.images.get(0).map(|img| img.digest.clone()))
+                    .ok_or(Error::Custom("No digest found in response".to_string()))?,
+            }
         } else {
             let request_url = format!(
                 "https://{host}/v2/{path}/manifests/{tag}",
@@ -637,6 +644,12 @@ impl DofigenContext {
             used_images: HashSet::new(),
         }
     }
+}
+
+#[derive(Debug, Deserialize, Clone, PartialEq, PartialOrd, Eq)]
+pub struct DockerHubTagResponse {
+    pub digest: Option<String>,
+    images: Vec<DockerTag>,
 }
 
 #[derive(PartialEq, PartialOrd, Eq)]
