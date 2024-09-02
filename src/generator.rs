@@ -1073,24 +1073,36 @@ mod test {
 
             let mut resolver = StagesDependencyResolver::new(&dofigen);
 
-            let mut dependencies = resolver.resolve_dependencies("install-deps".into()).unwrap();
+            let mut dependencies = resolver
+                .resolve_dependencies("install-deps".into())
+                .unwrap();
             dependencies.sort();
             assert_eq_sorted!(dependencies, Vec::<String>::new());
 
-            dependencies = resolver.resolve_dependencies("install-php-ext".into()).unwrap();
+            dependencies = resolver
+                .resolve_dependencies("install-php-ext".into())
+                .unwrap();
             assert_eq_sorted!(dependencies, vec!["install-deps"]);
 
-            dependencies = resolver.resolve_dependencies("get-composer".into()).unwrap();
+            dependencies = resolver
+                .resolve_dependencies("get-composer".into())
+                .unwrap();
             assert_eq_sorted!(dependencies, Vec::<String>::new());
 
             dependencies = resolver.resolve_dependencies("runtime".into()).unwrap();
             dependencies.sort();
-            assert_eq_sorted!(dependencies, vec!["get-composer", "install-deps", "install-php-ext"]);
+            assert_eq_sorted!(
+                dependencies,
+                vec!["get-composer", "install-deps", "install-php-ext"]
+            );
 
             let mut builders = resolver.get_sorted_builders().unwrap();
             builders.sort();
 
-            assert_eq_sorted!(builders, vec!["get-composer", "install-deps", "install-php-ext"]);
+            assert_eq_sorted!(
+                builders,
+                vec!["get-composer", "install-deps", "install-php-ext"]
+            );
         }
     }
 }

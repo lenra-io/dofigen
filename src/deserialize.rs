@@ -1561,9 +1561,7 @@ mod test {
         fn deserialize_user_error_wrong_username() {
             let res = serde_yaml::from_str::<ParsableStruct<UserPatch>>("user*name");
 
-            assert!(
-                res.is_err()
-            );
+            assert!(res.is_err());
 
             assert_eq_sorted!(
                 res.unwrap_err().to_string(),
@@ -1575,9 +1573,7 @@ mod test {
         fn deserialize_stage_with_invalid_user() {
             let res = serde_yaml::from_str::<StagePatch>("user: user*name");
 
-            assert!(
-                res.is_err()
-            );
+            assert!(res.is_err());
 
             assert_eq_sorted!(
                 res.unwrap_err().to_string(),
@@ -1590,9 +1586,7 @@ mod test {
         fn deserialize_dofigen_with_invalid_user() {
             let res = serde_yaml::from_str::<DofigenPatch>("user: user*name");
 
-            assert!(
-                res.is_err()
-            );
+            assert!(res.is_err());
 
             assert_eq_sorted!(
                 res.unwrap_err().to_string(),
