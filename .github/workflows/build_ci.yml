@@ -232,8 +232,8 @@ jobs:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
         path: dofigen-${{ matrix.os }}-${{ matrix.arch }}.*
 
-  publish:
-    name: publish
+  release:
+    name: Release
     needs: [build, get-next-version]
     if: github.ref_name == 'main' || github.ref_name == 'rc' || github.ref_name == 'beta'
     uses: lenra-io/github-actions/.github/workflows/release.yml@main
@@ -242,7 +242,7 @@ jobs:
       assets: artifacts/
 
   publish-cargo:
-    name: publish-cargo
+    name: Publish Cargo
     needs: [build, get-next-version, publish]
     if: github.ref_name == 'main' || github.ref_name == 'rc' || github.ref_name == 'beta'
     runs-on: ubuntu-latest
@@ -277,3 +277,42 @@ jobs:
       if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: cargo publish -p dofigen --allow-dirty --token "${{ secrets.CARGO_TOKEN }}"
+
+  publish-docker:
+    name: Publish Docker
+    needs: [build, get-next-version, publish]
+    if: github.ref_name == 'main' || github.ref_name == 'rc' || github.ref_name == 'beta'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.get-next-version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Docker Login
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/cache
+          key: ${{ runner.os }}-${{ hashFiles('./Dockerfile') }}
+      - name: Build Docker images
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PERSONNAL_TOKEN }}
+          DOCKER_IMAGE: lenra/dofigen
+          VERSION: ${{ env.VERSION }}
+        run: |
+          sudo chown $USER:$USER .github/release.sh
+          sudo chmod +x .github/release.sh
+          .github/release.sh ${VERSION}
