@@ -47,15 +47,12 @@ impl CliCommand for Update {
         // Replace images tags with the digest
         let locked_image = dofigen.lock(&mut context)?;
         context.clean_unused();
-        let new_lockfile = LockFile::from_context(&locked_image, &context)?;
 
         if self.dry_run {
-            println!(
-                "{}",
-                serde_yaml::to_string(&new_lockfile).map_err(Error::from)?
-            );
             return Ok(());
         }
+
+        let new_lockfile = LockFile::from_context(&locked_image, &context)?;
 
         serde_yaml::to_writer(
             std::fs::File::create(lockfile_path)
