@@ -62,3 +62,4 @@ docker buildx build \
   ${tag} \
   --cache-from type=local,src=~/cache/${DOCKER_IMAGE}-buildcache \
   --cache-to type=local,dest=~/cache/${DOCKER_IMAGE}-buildcache,mode=max \
+  .
