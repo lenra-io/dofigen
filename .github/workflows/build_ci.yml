@@ -217,20 +217,16 @@ jobs:
         command: build
         args: --release -F cli -F permissive --target ${{ matrix.target }}
 
-    - name: Zip
-      if: ${{ matrix.os == 'windows' }}
-      shell: pwsh
-      run: Compress-Archive "target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }}" "dofigen-${{ matrix.os }}-${{ matrix.arch }}.zip"
-    - name: Zip
-      if: ${{ matrix.os != 'windows' }}
-      shell: bash
-      run: tar -C "target/${{ matrix.target }}/release" -czf "dofigen-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" "dofigen${{ matrix.file_extension }}"
+    - name: Rename artifact to platform specific name
+      run: |
+        mv target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }} ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
 
     - name: Upload
       uses: actions/upload-artifact@v3
       with:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
-        path: dofigen-${{ matrix.os }}-${{ matrix.arch }}.*
+        path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
+
 
   release:
     name: Release
