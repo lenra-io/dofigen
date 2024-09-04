@@ -149,7 +149,9 @@ context:
 
 ### Extending external files
 
-You can extend the Dofigen file with external files using the `extend` attribute:
+You can extend the Dofigen file with external files using the `extend` attribute.
+You can find some Dofigen templates on the [Dofigen Hub repository](https://github.com/lenra-io/dofigen-hub).
+Here is an example of extending a Dofigen file:
 
 ```yaml
 extend:
