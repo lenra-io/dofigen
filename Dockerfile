@@ -3,17 +3,17 @@
 # See https://github.com/lenra-io/dofigen
 
 # muslrust
-FROM clux/muslrust@sha256:30d96e0daad305d68fe1798398d5ad92b92e4c4800e42b087d51a34adc340ca2 AS muslrust
+FROM clux/muslrust@sha256:0f8cb0b597e8985ed840aaa09b726cb596036edc26235fabc8064966866b15fd AS muslrust
 WORKDIR /app
 RUN \
     --mount=type=bind,target=Cargo.toml,source=Cargo.toml \
     --mount=type=bind,target=Cargo.lock,source=Cargo.lock \
     --mount=type=bind,target=src/,source=src/ \
-    --mount=type=cache,target=/home/rust/.cargo \
-    --mount=type=cache,target=/app/target \
+    --mount=type=cache,target=/home/rust/.cargo,sharing=locked \
+    --mount=type=cache,target=/app/target,sharing=locked \
     <<EOF
 cargo build --release -F cli -F permissive
-mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
+mv target/*-unknown-linux-musl/release/dofigen /tmp/
 EOF
 
 # runtime
