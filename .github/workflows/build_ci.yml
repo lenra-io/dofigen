@@ -295,7 +295,7 @@ jobs:
       #     password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: download-artifacts
-        if: ${{ needs.get-next-version.outputs.will-release }}
+      #  if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/download-artifact@v4
         with:
           path: artifacts/
