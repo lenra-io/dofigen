@@ -300,9 +300,9 @@ jobs:
         with:
           path: artifacts/
 
-      - name: move artifacts/
+      - name: move artifacts
         run: |
-          ls -al artifacts/
+          ls -al
           mkdir -p builds/linux/amd64
           mkdir -p builds/linux/arm64
           mv artifacts/dofigen-linux-x86_64 ./builds/linux/amd64/dofigen
