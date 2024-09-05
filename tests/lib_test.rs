@@ -83,7 +83,7 @@ COPY \
     "." "./"
 USER rust
 RUN \
-    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     <<EOF
 ls -al
 cargo build --release
@@ -419,7 +419,7 @@ COPY \
     "." "./"
 USER rust
 RUN \
-    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/registry,sharing=locked \
     cargo build --release
 
 # runtime
@@ -431,7 +431,7 @@ COPY \
     "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust" "/app"
 USER 1001
 RUN \
-    --mount=type=cache,target=/tmp,uid=1001 \
+    --mount=type=cache,target=/tmp,uid=1001,sharing=locked \
     echo "coucou"
 "#
     );
@@ -527,8 +527,8 @@ RUN \
     --mount=type=bind,target=Cargo.toml,source=Cargo.toml \
     --mount=type=bind,target=Cargo.lock,source=Cargo.lock \
     --mount=type=bind,target=src/,source=src/ \
-    --mount=type=cache,target=/home/rust/.cargo \
-    --mount=type=cache,target=/app/target \
+    --mount=type=cache,target=/home/rust/.cargo,sharing=locked \
+    --mount=type=cache,target=/app/target,sharing=locked \
     <<EOF
 cargo build --release -F cli -F permissive
 mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/

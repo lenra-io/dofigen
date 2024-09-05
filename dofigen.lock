@@ -6,11 +6,11 @@ effective: |
     muslrust:
       fromImage:
         path: clux/muslrust
-        digest: sha256:30d96e0daad305d68fe1798398d5ad92b92e4c4800e42b087d51a34adc340ca2
+        digest: sha256:0f8cb0b597e8985ed840aaa09b726cb596036edc26235fabc8064966866b15fd
       workdir: /app
       run:
       - cargo build --release -F cli -F permissive
-      - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
+      - mv target/*-unknown-linux-musl/release/dofigen /tmp/
       cache:
       - target: /home/rust/.cargo
       - target: /app/target
@@ -36,10 +36,10 @@ images:
     clux:
       muslrust:
         stable:
-          digest: sha256:30d96e0daad305d68fe1798398d5ad92b92e4c4800e42b087d51a34adc340ca2
+          digest: sha256:0f8cb0b597e8985ed840aaa09b726cb596036edc26235fabc8064966866b15fd
 resources:
   dofigen.yml:
-    hash: 78895c87dab3b4280d175b048442302af4d1f1e38369f615f5719de9c9cf4b86
+    hash: 4c4b7523ecd3a7f25d924f4176264f9fedf91b291d1ca0087339015125874acd
     content: |
       builders:
         muslrust:
@@ -53,7 +53,7 @@ resources:
             # Build with musl to work with scratch
             - cargo build --release -F cli -F permissive
             # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
-            - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
+            - mv target/*-unknown-linux-musl/release/dofigen /tmp/
           cache:
             # Cargo cache
             - /home/rust/.cargo
