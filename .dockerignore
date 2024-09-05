@@ -2,5 +2,4 @@
 # See https://github.com/lenra-io/dofigen
 
 **
-!/src
-!/Cargo.*
+!/builds
