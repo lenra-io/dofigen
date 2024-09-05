@@ -302,10 +302,11 @@ jobs:
 
       - name: move artifacts/
         run: |
+          ls -al artifacts/
           mkdir -p builds/linux/amd64
           mkdir -p builds/linux/arm64
-          mv artifacts/dofigen-x86_64-unknown-linux-musl ./builds/linux/amd64/dofigen
-          mv artifacts/dofigen-aarch64-unknown-linux-musl ./builds/linux/arm64/dofigen
+          mv artifacts/dofigen-linux-x86_64 ./builds/linux/amd64/dofigen
+          mv artifacts/dofigen-linux-aarch64 ./builds/linux/arm64/dofigen
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
