@@ -215,7 +215,7 @@ jobs:
       with:
         use-cross: true
         command: build
-        args: --release -F cli -F permissive --target ${{ matrix.target }}
+        args: --release --target ${{ matrix.target }}
 
     - name: Rename artifact to platform specific name
       run: |
@@ -285,6 +285,7 @@ jobs:
     #   VERSION: ${{ needs.get-next-version.outputs.version }}
     steps:
       - name: Checkout
+        # if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/checkout@v3
         with:
           submodules: true
@@ -294,32 +295,45 @@ jobs:
       #     username: ${{ secrets.DOCKER_USERNAME }}
       #     password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: download-artifacts
+      - name: download-artifact-linux-x86_64
       #  if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/download-artifact@v4
         with:
-          path: artifacts/
+          name: dofigen-linux-x86_64
+          path: ./builds/linux/amd64/dofigen
+
+      - name: download-artifact-linux-aarch64
+      #  if: ${{ needs.get-next-version.outputs.will-release }}
+        uses: actions/download-artifact@v4
+        with:
+          name: dofigen-linux-aarch64
+          path: ./builds/linux/arm64/dofigen
 
       - name: move artifacts
+        # if: ${{ needs.get-next-version.outputs.will-release }}
         run: |
           ls -al
-          mkdir -p builds/linux/amd64
-          mkdir -p builds/linux/arm64
-          mv artifacts/dofigen-linux-x86_64 ./builds/linux/amd64/dofigen
-          mv artifacts/dofigen-linux-aarch64 ./builds/linux/arm64/dofigen
+          ls -al ./builds/
+          ls -al ./builds/linux/
+          ls -al ./builds/linux/amd64/
+          ls -al ./builds/linux/arm64/
 
       - name: Set up QEMU
+        # if: ${{ needs.get-next-version.outputs.will-release }}
         uses: docker/setup-qemu-action@v1
       - name: Set up Docker Buildx
+        # if: ${{ needs.get-next-version.outputs.will-release }}
         id: buildx
         uses: docker/setup-buildx-action@v1
       - name: Cache
+        # if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/cache@v3
         with:
           path: |
             ~/cache
           key: ${{ runner.os }}-${{ hashFiles('./Dockerfile') }}
       - name: Build Docker images
+        # if: ${{ needs.get-next-version.outputs.will-release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PERSONNAL_TOKEN }}
           DOCKER_IMAGE: lenra/dofigen

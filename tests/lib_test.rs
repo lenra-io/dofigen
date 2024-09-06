@@ -456,7 +456,7 @@ builders:
         target: src/
     run:
       # Build with musl to work with scratch
-      - cargo build --release -F cli -F permissive
+      - cargo build --release
       # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
       - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
     cache:
@@ -491,7 +491,7 @@ builders:
       - src/ src/
     run:
       # Build with musl to work with scratch
-      - cargo build --release -F cli -F permissive
+      - cargo build --release
       # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
       - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
     cache:
@@ -530,7 +530,7 @@ RUN \
     --mount=type=cache,target=/home/rust/.cargo,sharing=locked \
     --mount=type=cache,target=/app/target,sharing=locked \
     <<EOF
-cargo build --release -F cli -F permissive
+cargo build --release
 mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
 EOF
 
