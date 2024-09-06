@@ -300,23 +300,20 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dofigen-linux-x86_64
-          path: ./builds/linux/amd64/dofigen
 
       - name: download-artifact-linux-aarch64
       #  if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/download-artifact@v4
         with:
           name: dofigen-linux-aarch64
-          path: ./builds/linux/arm64/dofigen
 
       - name: move artifacts
         # if: ${{ needs.get-next-version.outputs.will-release }}
         run: |
-          ls -al
-          ls -al ./builds/
-          ls -al ./builds/linux/
-          ls -al ./builds/linux/amd64/
-          ls -al ./builds/linux/arm64/
+          mkdir -p ./builds/linux/amd64/
+          mkdir -p ./builds/linux/arm64/
+          mv ./dofigen-linux-x86_64 ./builds/linux/amd64/dofigen
+          mv ./dofigen-linux-aarch64 ./builds/linux/arm64/dofigen
 
       - name: Set up QEMU
         # if: ${{ needs.get-next-version.outputs.will-release }}
