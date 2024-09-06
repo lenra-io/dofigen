@@ -564,9 +564,10 @@ impl DockerfileGenerator for Run {
             if let Some(chmod) = cache.chmod.as_ref() {
                 cache_options.push(InstructionOptionOption::new("chmod", chmod.clone()));
             }
-            if let Some(sharing) = cache.sharing.as_ref() {
-                cache_options.push(InstructionOptionOption::new("sharing", sharing.to_string()));
-            }
+            cache_options.push(InstructionOptionOption::new(
+                "sharing",
+                cache.sharing.clone().unwrap_or_default().to_string(),
+            ));
             if cache.readonly.unwrap_or(false) {
                 cache_options.push(InstructionOptionOption::new_flag("readonly"));
             }
@@ -884,6 +885,7 @@ mod test {
                         vec![
                             InstructionOptionOption::new("type", "cache".into()),
                             InstructionOptionOption::new("target", "/path/to/cache".into()),
+                            InstructionOptionOption::new("sharing", "locked".into()),
                         ],
                     )],
                 })]
@@ -916,6 +918,7 @@ mod test {
                             InstructionOptionOption::new("target", "/path/to/cache".into()),
                             InstructionOptionOption::new("uid", "1000".into()),
                             InstructionOptionOption::new("gid", "1000".into()),
+                            InstructionOptionOption::new("sharing", "locked".into()),
                         ],
                     )],
                 })]
@@ -947,6 +950,7 @@ mod test {
                             InstructionOptionOption::new("type", "cache".into()),
                             InstructionOptionOption::new("target", "/path/to/cache".into()),
                             InstructionOptionOption::new("uid", "1000".into()),
+                            InstructionOptionOption::new("sharing", "locked".into()),
                         ],
                     )],
                 })]
