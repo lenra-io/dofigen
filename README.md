@@ -58,7 +58,7 @@ First install Cargo, the Rust package manager: https://doc.rust-lang.org/cargo/g
 Then use the following command to install dofigen:
 
 ```bash
-cargo install dofigen -F cli
+cargo install dofigen
 ```
 
 #### Download the binary
@@ -125,7 +125,7 @@ builders:
       - src/
     run:
       # Build with musl to work with scratch
-      - cargo build --release -F cli -F permissive
+      - cargo build --release
       # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
       - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
     cache:
@@ -196,7 +196,7 @@ cargo test --all-features
 To generate the JSON schema of the Dofigen file structure, use the following command:
 
 ```bash
-cargo run -F cli -F json_schema -- schema
+cargo run -F json_schema -- schema
 ```
 
 <p align="right">(<a href="#top">back to top</a>)</p>

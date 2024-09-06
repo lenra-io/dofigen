@@ -930,7 +930,7 @@ workdir: /app
 bind:
   - target: /app
 run:
-  - cargo build --release -F cli -F permissive
+  - cargo build --release
   - mv target/x86_64-unknown-linux-musl/release/dofigen /app/
 "#;
 
@@ -952,7 +952,7 @@ run:
                                 ..Default::default()
                             }],
                             run: vec![
-                                "cargo build --release -F cli -F permissive".into(),
+                                "cargo build --release".into(),
                                 "mv target/x86_64-unknown-linux-musl/release/dofigen /app/".into()
                             ],
                             ..Default::default()
