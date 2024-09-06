@@ -20,140 +20,139 @@ jobs:
     name: Get next version
     uses: lenra-io/github-actions/.github/workflows/get-version.yml@main
 
-  # style:
-  #   name: Check Style
-  #   runs-on: ubuntu-20.04
-  #   timeout-minutes: 2
-  #   steps:
-  #   - name: Checkout
-  #     uses: actions/checkout@v3
+  style:
+    name: Check Style
+    runs-on: ubuntu-20.04
+    timeout-minutes: 2
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
 
-  #   - name: Install rust
-  #     uses: actions-rs/toolchain@v1
-  #     with:
-  #       toolchain: stable
-  #       components: rustfmt
-  #       profile: minimal
-  #       override: true
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        components: rustfmt
+        profile: minimal
+        override: true
 
-  #   - name: cargo fmt -- --check
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: fmt
-  #       args: --all -- --check
+    - name: cargo fmt -- --check
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
 
-  # test-base:
-  #   name: Test base
-  #   needs: [style]
-  #   runs-on: ubuntu-20.04
-  #   timeout-minutes: 5
-  #   steps:
-  #   - name: Checkout
-  #     uses: actions/checkout@v1
+  test-base:
+    name: Test base
+    needs: [style]
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
 
-  #   - name: Install rust
-  #     uses: actions-rs/toolchain@v1
-  #     with:
-  #       toolchain: stable
-  #       profile: minimal
-  #       override: true
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
 
-  #   - name: "No features"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features
+    - name: "No features"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features
 
-  #   - name: "-F cli"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features -F cli
+    - name: "-F cli"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F cli
 
-  #   - name: "-F json_schema"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features -F json_schema
+    - name: "-F json_schema"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F json_schema
 
-  #   - name: "-F json_schema -F cli"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features -F json_schema -F cli
+    - name: "-F json_schema -F cli"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F json_schema -F cli
 
-  # test-permissive:
-  #   name: Test permissive
-  #   needs: [style]
-  #   runs-on: ubuntu-20.04
-  #   timeout-minutes: 5
-  #   steps:
-  #   - name: Checkout
-  #     uses: actions/checkout@v1
+  test-permissive:
+    name: Test permissive
+    needs: [style]
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
 
-  #   - name: Install rust
-  #     uses: actions-rs/toolchain@v1
-  #     with:
-  #       toolchain: stable
-  #       profile: minimal
-  #       override: true
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
 
-  #   - name: "-F permissive"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features -F permissive
+    - name: "-F permissive"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F permissive
 
-  #   - name: "-F permissive -F json_schema"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features -F permissive -F json_schema
+    - name: "-F permissive -F json_schema"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F permissive -F json_schema
 
-  #   - name: "-F permissive -F json_schema -F cli"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features -F permissive -F json_schema -F cli
+    - name: "-F permissive -F json_schema -F cli"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F permissive -F json_schema -F cli
 
-  # test-strict:
-  #   name: Test strict
-  #   needs: [style]
-  #   runs-on: ubuntu-20.04
-  #   timeout-minutes: 5
-  #   steps:
-  #   - name: Checkout
-  #     uses: actions/checkout@v1
+  test-strict:
+    name: Test strict
+    needs: [style]
+    runs-on: ubuntu-20.04
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
 
-  #   - name: Install rust
-  #     uses: actions-rs/toolchain@v1
-  #     with:
-  #       toolchain: stable
-  #       profile: minimal
-  #       override: true
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
 
-  #   - name: "-F strict"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features -F strict
+    - name: "-F strict"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F strict
 
-  #   - name: "-F strict -F json_schema"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features -F strict -F json_schema
+    - name: "-F strict -F json_schema"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F strict -F json_schema
 
-  #   - name: "-F strict -F json_schema -F cli"
-  #     uses: actions-rs/cargo@v1
-  #     with:
-  #       command: test
-  #       args: --no-default-features -F strict -F json_schema -F cli
+    - name: "-F strict -F json_schema -F cli"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F strict -F json_schema -F cli
 
   build:
     name: Build ${{ matrix.os }} ${{ matrix.arch }}
-    needs: [get-next-version]
-    #needs: [test-base, test-permissive, test-strict, get-next-version]
+    needs: [test-base, test-permissive, test-strict, get-next-version]
     runs-on: "${{ matrix.runner }}"
     env:
       VERSION: ${{ needs.get-next-version.outputs.version }}
@@ -169,24 +168,24 @@ jobs:
           os: linux
           arch: x86_64
           runner: ubuntu-20.04
-        # - target: x86_64-pc-windows-msvc
-        #   os: windows
-        #   arch: x86_64
-        #   runner: windows-2022
-        #   file_extension: '.exe'
-        # - target: aarch64-pc-windows-msvc
-        #   os: windows
-        #   arch: aarch64
-        #   runner: windows-2022
-        #   file_extension: '.exe'
-        # - target: x86_64-apple-darwin
-        #   os: macos
-        #   arch: x86_64
-        #   runner: macos-latest
-        # - target: aarch64-apple-darwin
-        #   os: macos
-        #   arch: aarch64
-        #   runner: macos-latest
+        - target: x86_64-pc-windows-msvc
+          os: windows
+          arch: x86_64
+          runner: windows-2022
+          file_extension: '.exe'
+        - target: aarch64-pc-windows-msvc
+          os: windows
+          arch: aarch64
+          runner: windows-2022
+          file_extension: '.exe'
+        - target: x86_64-apple-darwin
+          os: macos
+          arch: x86_64
+          runner: macos-latest
+        - target: aarch64-apple-darwin
+          os: macos
+          arch: aarch64
+          runner: macos-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -277,39 +276,38 @@ jobs:
 
   publish-docker:
     name: Publish Docker
-    # needs: [build, get-next-version, release]
-    needs: [build]
-    # if: github.ref_name == 'main' || github.ref_name == 'rc' || github.ref_name == 'beta'
+    needs: [build, get-next-version, release]
+    if: github.ref_name == 'main' || github.ref_name == 'rc' || github.ref_name == 'beta'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    # env:
-    #   VERSION: ${{ needs.get-next-version.outputs.version }}
+    env:
+      VERSION: ${{ needs.get-next-version.outputs.version }}
     steps:
       - name: Checkout
-        # if: ${{ needs.get-next-version.outputs.will-release }}
+        if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/checkout@v3
         with:
           submodules: true
-      # - name: Docker Login
-      #   uses: docker/login-action@v1
-      #   with:
-      #     username: ${{ secrets.DOCKER_USERNAME }}
-      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Docker Login
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: download-artifact-linux-x86_64
-      #  if: ${{ needs.get-next-version.outputs.will-release }}
+        if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/download-artifact@v4
         with:
           name: dofigen-linux-x86_64
 
       - name: download-artifact-linux-aarch64
-      #  if: ${{ needs.get-next-version.outputs.will-release }}
+        if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/download-artifact@v4
         with:
           name: dofigen-linux-aarch64
 
       - name: move artifacts
-        # if: ${{ needs.get-next-version.outputs.will-release }}
+        if: ${{ needs.get-next-version.outputs.will-release }}
         run: |
           mkdir -p ./builds/linux/amd64/
           mkdir -p ./builds/linux/arm64/
@@ -317,16 +315,16 @@ jobs:
           mv ./dofigen-linux-aarch64 ./builds/linux/arm64/dofigen
 
       - name: Set up QEMU
-        # if: ${{ needs.get-next-version.outputs.will-release }}
+        if: ${{ needs.get-next-version.outputs.will-release }}
         uses: docker/setup-qemu-action@v1
 
       - name: Set up Docker Buildx
-        # if: ${{ needs.get-next-version.outputs.will-release }}
+        if: ${{ needs.get-next-version.outputs.will-release }}
         id: buildx
         uses: docker/setup-buildx-action@v1
 
       - name: Cache
-        # if: ${{ needs.get-next-version.outputs.will-release }}
+        if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/cache@v3
         with:
           path: |
@@ -334,12 +332,11 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('./Dockerfile') }}
 
       - name: Build Docker images
-        # if: ${{ needs.get-next-version.outputs.will-release }}
+        if: ${{ needs.get-next-version.outputs.will-release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PERSONNAL_TOKEN }}
           DOCKER_IMAGE: lenra/dofigen
-          # VERSION: ${{ env.VERSION }}
-          VERSION: 2.0.0-test.1
+          VERSION: ${{ env.VERSION }}
         run: |
           sudo chown $USER:$USER .github/release.sh
           sudo chmod +x .github/release.sh
