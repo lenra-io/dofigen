@@ -168,24 +168,24 @@ jobs:
           os: linux
           arch: x86_64
           runner: ubuntu-20.04
-        - target: x86_64-pc-windows-msvc
-          os: windows
-          arch: x86_64
-          runner: windows-2022
-          file_extension: '.exe'
-        - target: aarch64-pc-windows-msvc
-          os: windows
-          arch: aarch64
-          runner: windows-2022
-          file_extension: '.exe'
-        - target: x86_64-apple-darwin
-          os: macos
-          arch: x86_64
-          runner: macos-latest
-        - target: aarch64-apple-darwin
-          os: macos
-          arch: aarch64
-          runner: macos-latest
+        # - target: x86_64-pc-windows-msvc
+        #   os: windows
+        #   arch: x86_64
+        #   runner: windows-2022
+        #   file_extension: '.exe'
+        # - target: aarch64-pc-windows-msvc
+        #   os: windows
+        #   arch: aarch64
+        #   runner: windows-2022
+        #   file_extension: '.exe'
+        # - target: x86_64-apple-darwin
+        #   os: macos
+        #   arch: x86_64
+        #   runner: macos-latest
+        # - target: aarch64-apple-darwin
+        #   os: macos
+        #   arch: aarch64
+        #   runner: macos-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -222,7 +222,7 @@ jobs:
         mv target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }} ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
 
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
         path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
