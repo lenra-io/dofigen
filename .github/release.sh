@@ -58,7 +58,7 @@ mkdir -p "~/cache/${DOCKER_IMAGE}-buildcache"
 ## Platform argument for arm image : --platform "linux/amd64,linux/arm64,linux/arm" \
 docker buildx build \
   --output type=image,push=true \
-  --platform "linux/amd64" \
+  --platform "linux/amd64,linux/arm64" \
   ${tag} \
   --cache-from type=local,src=~/cache/${DOCKER_IMAGE}-buildcache \
   --cache-to type=local,dest=~/cache/${DOCKER_IMAGE}-buildcache,mode=max \

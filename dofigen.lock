@@ -1,73 +1,26 @@
 effective: |
   context:
-  - /src
-  - /Cargo.*
-  builders:
-    muslrust:
-      fromImage:
-        path: clux/muslrust
-        digest: sha256:30d96e0daad305d68fe1798398d5ad92b92e4c4800e42b087d51a34adc340ca2
-      workdir: /app
-      run:
-      - cargo build --release -F cli -F permissive
-      - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
-      cache:
-      - target: /home/rust/.cargo
-      - target: /app/target
-      bind:
-      - target: Cargo.toml
-        source: Cargo.toml
-      - target: Cargo.lock
-        source: Cargo.lock
-      - target: src/
-        source: src/
+  - /builds
   workdir: /app
   copy:
-  - fromBuilder: muslrust
-    paths:
-    - /tmp/dofigen
+  - paths:
+    - builds/${TARGETPLATFORM}/dofigen
     target: /bin/
   entrypoint:
   - dofigen
   cmd:
   - --help
-images:
-  registry.hub.docker.com:443:
-    clux:
-      muslrust:
-        stable:
-          digest: sha256:30d96e0daad305d68fe1798398d5ad92b92e4c4800e42b087d51a34adc340ca2
+images: {}
 resources:
   dofigen.yml:
-    hash: 78895c87dab3b4280d175b048442302af4d1f1e38369f615f5719de9c9cf4b86
+    hash: f71f101575b39dec6c2b8d21a2a695173eabd8f5be3d02456b6b6b928677fa59
     content: |
-      builders:
-        muslrust:
-          fromImage: clux/muslrust:stable
-          workdir: /app
-          bind:
-            - Cargo.toml
-            - Cargo.lock
-            - src/
-          run:
-            # Build with musl to work with scratch
-            - cargo build --release -F cli -F permissive
-            # copy the generated binary outside of the target directory. If not the other stages won't be able to find it since it's in a cache volume
-            - mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
-          cache:
-            # Cargo cache
-            - /home/rust/.cargo
-            # build cache
-            - /app/target
-
       # Runtime
       workdir: /app
       copy:
-        - fromBuilder: muslrust
-          paths: "/tmp/dofigen"
-          target: "/bin/"
+        - paths: builds/${TARGETPLATFORM}/dofigen
+          target: /bin/
       entrypoint: dofigen
       cmd: --help
       context:
-        - "/src"
-        - "/Cargo.*"
+        - "/builds"

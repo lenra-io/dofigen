@@ -243,6 +243,12 @@ impl Default for CopyResourcePatch {
     }
 }
 
+impl Default for CacheSharing {
+    fn default() -> Self {
+        CacheSharing::Locked
+    }
+}
+
 impl From<CopyResourcePatch> for CopyResource {
     fn from(patch: CopyResourcePatch) -> Self {
         match patch {
