@@ -1794,11 +1794,7 @@ mod test {
                 TestStruct {
                     name: "patch1".into(),
                     sub: Some(SubTestStruct {
-                        list: vec![
-                            "item1".into(),
-                            "item2".into(),
-                            "item3".into()
-                        ],
+                        list: vec!["item1".into(), "item2".into(), "item3".into()],
                         num: Some(42)
                     })
                 }
