@@ -982,6 +982,16 @@ where
 {
     struct VecDeepPatchCommandsVisitor<T, P>(PhantomData<fn() -> BTreeMap<T, P>>);
 
+    #[cfg(feature = "permissive")]
+    fn map_vec<T, P>(patch: OneOrMany<P>) -> Vec<T>
+    where
+        T: Clone + From<P>,
+        P: Clone,
+    {
+        patch.iter().map(|p| p.clone().into()).collect()
+    }
+
+    #[cfg(not(feature = "permissive"))]
     fn map_vec<T, P>(patch: Vec<P>) -> Vec<T>
     where
         T: Clone + From<P>,
@@ -1712,7 +1722,7 @@ mod test {
         }
 
         #[test]
-        fn test_vec_append_patch() {
+        fn test_vec_append_list_patch() {
             let base = r#"
                 name: patch1
                 sub:
@@ -1747,6 +1757,47 @@ mod test {
                             "item2".into(),
                             "item3".into(),
                             "item4".into()
+                        ],
+                        num: Some(42)
+                    })
+                }
+            );
+        }
+
+        #[cfg(feature = "permissive")]
+        #[test]
+        fn test_vec_append_one_patch() {
+            let base = r#"
+                name: patch1
+                sub:
+                  list:
+                    - item1
+                    - item2
+                  num: 42
+            "#;
+
+            let patch = r#"
+                sub:
+                    list:
+                        +: item3
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    sub: Some(SubTestStruct {
+                        list: vec![
+                            "item1".into(),
+                            "item2".into(),
+                            "item3".into()
                         ],
                         num: Some(42)
                     })
@@ -1912,7 +1963,7 @@ mod test {
         }
 
         #[test]
-        fn test_vec_append_patch() {
+        fn test_vec_append_list_patch() {
             let base = r#"
                 name: patch1
                 subs:
@@ -1958,6 +2009,54 @@ mod test {
                         SubTestStruct {
                             name: "sub4".into(),
                             num: 4
+                        }
+                    ]
+                }
+            );
+        }
+
+        #[cfg(feature = "permissive")]
+        #[test]
+        fn test_vec_append_one_patch() {
+            let base = r#"
+                name: patch1
+                subs:
+                  - name: sub1
+                    num: 1
+                  - name: sub2
+                    num: 2
+            "#;
+
+            let patch = r#"
+                subs:
+                  +:
+                    name: sub3
+                    num: 3
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    subs: vec![
+                        SubTestStruct {
+                            name: "sub1".into(),
+                            num: 1
+                        },
+                        SubTestStruct {
+                            name: "sub2".into(),
+                            num: 2
+                        },
+                        SubTestStruct {
+                            name: "sub3".into(),
+                            num: 3
                         }
                     ]
                 }
