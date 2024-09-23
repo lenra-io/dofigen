@@ -415,6 +415,24 @@ impl DockerfileGenerator for Stage {
             }),
         ];
 
+        // Arg
+        if !self.arg.is_empty() {
+            let mut keys = self.arg.keys().collect::<Vec<&String>>();
+            keys.sort();
+            keys.iter().for_each(|key| {
+                let value = self.arg.get(*key).unwrap();
+                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "ARG".into(),
+                    content: if value.is_empty() {
+                        key.to_string()
+                    } else {
+                        format!("{}={}", key, value)
+                    },
+                    options: vec![],
+                }));
+            });
+        }
+
         // Env
         if !self.env.is_empty() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
@@ -730,16 +748,16 @@ mod test {
     use super::*;
     use pretty_assertions_sorted::assert_eq_sorted;
 
-    mod builder {
+    mod stage {
         use super::*;
 
         #[test]
         fn user_with_user() {
-            let builder = Stage {
+            let stage = Stage {
                 user: Some(User::new_without_group("my-user").into()),
                 ..Default::default()
             };
-            let user = builder.user(&GenerationContext::default());
+            let user = stage.user(&GenerationContext::default());
             assert_eq_sorted!(
                 user,
                 Some(User {
@@ -751,9 +769,44 @@ mod test {
 
         #[test]
         fn user_without_user() {
-            let builder = Stage::default();
-            let user = builder.user(&GenerationContext::default());
+            let stage = Stage::default();
+            let user = stage.user(&GenerationContext::default());
             assert_eq_sorted!(user, None);
+        }
+
+        #[test]
+        fn stage_args() {
+            let stage = Stage {
+                arg: HashMap::from([("arg2".into(), "".into()), ("arg1".into(), "value1".into())]),
+                ..Default::default()
+            };
+
+            let lines = stage.generate_dockerfile_lines(&GenerationContext {
+                stage_name: "test".into(),
+                ..Default::default()
+            });
+
+            assert_eq_sorted!(
+                lines.unwrap(),
+                vec![
+                    DockerfileLine::Comment("test".into()),
+                    DockerfileLine::Instruction(DockerfileInsctruction {
+                        command: "FROM".into(),
+                        content: "scratch AS test".into(),
+                        options: vec![],
+                    }),
+                    DockerfileLine::Instruction(DockerfileInsctruction {
+                        command: "ARG".into(),
+                        content: "arg1=value1".into(),
+                        options: vec![],
+                    }),
+                    DockerfileLine::Instruction(DockerfileInsctruction {
+                        command: "ARG".into(),
+                        content: "arg2".into(),
+                        options: vec![],
+                    }),
+                ]
+            );
         }
     }
 

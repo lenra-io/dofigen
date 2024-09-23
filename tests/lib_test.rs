@@ -44,11 +44,14 @@ builders:
     - ls -al
     - cargo build --release
     cache: /usr/local/cargo/registry
+arg:
+  TARGETPLATFORM: ""
+  APP_NAME: template-rust
 env:
   fprocess: /app
 artifacts:
   - fromBuilder: builder
-    source: /home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust
+    source: /home/rust/src/target/x86_64-unknown-linux-musl/release/${APP_NAME}
     target: /app
   - fromImage: ghcr.io/openfaas/of-watchdog:0.9.6
     source: /fwatchdog
@@ -91,12 +94,14 @@ EOF
 
 # runtime
 FROM scratch AS runtime
+ARG APP_NAME=template-rust
+ARG TARGETPLATFORM
 ENV fprocess="/app"
 COPY \
     --from=builder \
     --chown=1000:1000 \
     --link \
-    "/home/rust/src/target/x86_64-unknown-linux-musl/release/template-rust" "/app"
+    "/home/rust/src/target/x86_64-unknown-linux-musl/release/${APP_NAME}" "/app"
 COPY \
     --from=ghcr.io/openfaas/of-watchdog:0.9.6 \
     --chown=1000:1000 \

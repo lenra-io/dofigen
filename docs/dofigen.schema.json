@@ -45,6 +45,17 @@
     }
   ],
   "properties": {
+    "arg": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/HashMapPatch<String, String>"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "nullable": true
+    },
     "bind": {
       "anyOf": [
         {
@@ -329,17 +340,6 @@
                 }
               ],
               "nullable": true
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "nullable": true
-        },
-        "exclude": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/VecPatch<String>"
             },
             {
               "type": "null"
@@ -1033,6 +1033,17 @@
         }
       ],
       "properties": {
+        "arg": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HashMapPatch<String, String>"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "nullable": true
+        },
         "bind": {
           "anyOf": [
             {
