@@ -1,5 +1,7 @@
 # Runtime
 workdir: /app
+arg:
+  TARGETPLATFORM: ""
 copy:
   - paths: builds/${TARGETPLATFORM}/dofigen
     target: /bin/
