@@ -2,6 +2,8 @@ effective: |
   context:
   - /builds
   workdir: /app
+  arg:
+    TARGETPLATFORM: ''
   copy:
   - paths:
     - builds/${TARGETPLATFORM}/dofigen
@@ -13,10 +15,12 @@ effective: |
 images: {}
 resources:
   dofigen.yml:
-    hash: f71f101575b39dec6c2b8d21a2a695173eabd8f5be3d02456b6b6b928677fa59
+    hash: 160f8547a6b42e0996778ad72c6a73328f8460e826475def77213acb69f45284
     content: |
       # Runtime
       workdir: /app
+      arg:
+        TARGETPLATFORM: ""
       copy:
         - paths: builds/${TARGETPLATFORM}/dofigen
           target: /bin/

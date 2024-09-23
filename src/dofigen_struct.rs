@@ -98,6 +98,11 @@ pub struct Stage {
     pub workdir: Option<String>,
 
     #[patch(name = "HashMapPatch<String, String>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "args"))))]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub arg: HashMap<String, String>,
+
+    #[patch(name = "HashMapPatch<String, String>")]
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "envs"))))]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>,
