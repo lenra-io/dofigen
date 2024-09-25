@@ -192,6 +192,9 @@ impl Lock for Stage {
     fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
         Ok(Self {
             from: self.from.lock(context)?,
+            copy: self.copy.lock(context)?,
+            run: self.run.lock(context)?,
+            root: self.root.as_ref().map(|root|root.lock(context)).transpose()?,
             ..self.clone()
         })
     }
@@ -217,6 +220,52 @@ impl Lock for ImageName {
                 ..self.clone()
             }),
         }
+    }
+}
+
+impl Lock for CopyResource {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        match self {
+            Self::Copy(resource) => Ok(Self::Copy(resource.lock(context)?)),
+            other => Ok(other.clone()),
+        }
+    }
+}
+
+impl Lock for Copy {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        Ok(Self {
+            from: self.from.lock(context)?,
+            ..self.clone()
+        })
+    }
+}
+
+impl Lock for Run {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        Ok(Self {
+            bind: self.bind.lock(context)?,
+            cache: self.cache.lock(context)?,
+            ..self.clone()
+        })
+    }
+}
+
+impl Lock for Bind {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        Ok(Self {
+            from: self.from.lock(context)?,
+            ..self.clone()
+        })
+    }
+}
+
+impl Lock for Cache {
+    fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        Ok(Self {
+            from: self.from.lock(context)?,
+            ..self.clone()
+        })
     }
 }
 
