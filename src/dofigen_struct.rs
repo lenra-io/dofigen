@@ -22,31 +22,43 @@ use url::Url;
     )
 )]
 pub struct Dofigen {
+    /// The context of the Docker build
+    /// This is used to generate a .dockerignore file
     #[patch(name = "VecPatch<String>")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub context: Vec<String>,
 
+    /// The elements to ignore from the build context
+    /// This is used to generate a .dockerignore file
     #[patch(name = "VecPatch<String>")]
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "ignores"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
 
+    /// The builder stages of the Dockerfile
     #[patch(name = "HashMapDeepPatch<String, StagePatch>")]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub builders: HashMap<String, Stage>,
 
+    /// The runtime stage of the Dockerfile
     #[patch(name = "StagePatch", attribute(serde(flatten)))]
     #[serde(flatten)]
     pub stage: Stage,
 
+    /// The entrypoint of the Dockerfile
+    /// See https://docs.docker.com/reference/dockerfile/#entrypoint
     #[patch(name = "VecPatch<String>")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entrypoint: Vec<String>,
 
+    /// The default command of the Dockerfile
+    /// See https://docs.docker.com/reference/dockerfile/#cmd
     #[patch(name = "VecPatch<String>")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cmd: Vec<String>,
 
+    /// The ports exposed by the Dockerfile
+    /// See https://docs.docker.com/reference/dockerfile/#expose
     #[cfg_attr(
         feature = "permissive",
         patch(name = "VecDeepPatch<Port, ParsableStruct<PortPatch>>")
@@ -62,6 +74,8 @@ pub struct Dofigen {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub expose: Vec<Port>,
 
+    /// The healthcheck of the Dockerfile
+    /// See https://docs.docker.com/reference/dockerfile/#healthcheck
     #[patch(name = "Option<HealthcheckPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub healthcheck: Option<Healthcheck>,
@@ -82,10 +96,14 @@ pub struct Dofigen {
     )
 )]
 pub struct Stage {
+    /// The base of the stage
+    /// See https://docs.docker.com/reference/dockerfile/#from
     #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
     #[patch(name = "FromContextPatch", attribute(serde(flatten, default)))]
     pub from: FromContext,
 
+    /// The user and group of the stage
+    /// See https://docs.docker.com/reference/dockerfile/#user
     #[cfg_attr(
         feature = "permissive",
         patch(name = "Option<ParsableStruct<UserPatch>>")
@@ -94,19 +112,27 @@ pub struct Stage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user: Option<User>,
 
+    /// The working directory of the stage
+    /// See https://docs.docker.com/reference/dockerfile/#workdir
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workdir: Option<String>,
 
+    /// The build args that can be used in the stage
+    /// See https://docs.docker.com/reference/dockerfile/#arg
     #[patch(name = "HashMapPatch<String, String>")]
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "args"))))]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub arg: HashMap<String, String>,
 
+    /// The environment variables of the stage
+    /// See https://docs.docker.com/reference/dockerfile/#env
     #[patch(name = "HashMapPatch<String, String>")]
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "envs"))))]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     pub env: HashMap<String, String>,
 
+    /// The copy instructions of the stage
+    /// See https://docs.docker.com/reference/dockerfile/#copy and https://docs.docker.com/reference/dockerfile/#add
     #[cfg_attr(
         not(feature = "strict"),
         patch(attribute(serde(
@@ -127,16 +153,19 @@ pub struct Stage {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub copy: Vec<CopyResource>,
 
+    /// The run instructions of the stage as root user
     #[patch(name = "Option<RunPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub root: Option<Run>,
 
+    /// The run instructions of the stage
+    /// See https://docs.docker.com/reference/dockerfile/#run
     #[patch(name = "RunPatch", attribute(serde(flatten)))]
     #[serde(flatten)]
     pub run: Run,
 }
 
-/// Represents a run executed as root
+/// Represents a run command
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
@@ -151,11 +180,14 @@ pub struct Stage {
     )
 )]
 pub struct Run {
+    /// The commands to run
     #[patch(name = "VecPatch<String>")]
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "script"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub run: Vec<String>,
 
+    /// The cache definitions during the run
+    /// See https://docs.docker.com/reference/dockerfile/#run---mounttypecache
     #[cfg_attr(
         feature = "permissive",
         patch(name = "VecDeepPatch<Cache, ParsableStruct<CachePatch>>")
@@ -168,6 +200,9 @@ pub struct Run {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<Cache>,
 
+    /// The file system bindings during the run
+    /// This is used to mount a file or directory from the host into the container only during the run and it's faster than a copy
+    /// See https://docs.docker.com/reference/dockerfile/#run---mounttypebind
     #[cfg_attr(
         feature = "permissive",
         patch(name = "VecDeepPatch<Bind, ParsableStruct<BindPatch>>")
@@ -196,28 +231,37 @@ pub struct Run {
     )
 )]
 pub struct Cache {
+    /// The id of the cache
+    /// This is used to share the cache between different stages
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 
+    /// The target path of the cache
     pub target: String,
 
+    /// Defines if the cache is readonly
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "ro"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readonly: Option<bool>,
 
+    /// The sharing strategy of the cache
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sharing: Option<CacheSharing>,
 
-    ///
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub from: Option<String>,
+    /// The base of the cache mount
+    #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
+    #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
+    pub from: FromContext,
 
+    /// Subpath in the from to mount
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 
+    /// The permissions of the cache
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chmod: Option<String>,
 
+    /// The user and group that own the cache
     #[patch(name = "Option<UserPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chown: Option<User>,
@@ -238,21 +282,26 @@ pub struct Cache {
     )
 )]
 pub struct Bind {
+    /// The target path of the bind
     pub target: String,
 
+    /// The base of the bind
     #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
     #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
     pub from: FromContext,
 
+    /// Subpath in the from to mount
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 
+    /// Defines if the bind is read and write
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "rw"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readwrite: Option<bool>,
 }
 
 /// Represents the Dockerfile healthcheck instruction
+/// See https://docs.docker.com/reference/dockerfile/#healthcheck
 #[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
@@ -266,17 +315,22 @@ pub struct Bind {
     )
 )]
 pub struct Healthcheck {
+    /// The test to run
     pub cmd: String,
 
+    /// The interval between two tests
     #[serde(skip_serializing_if = "Option::is_none")]
     pub interval: Option<String>,
 
+    /// The timeout of the test
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timeout: Option<String>,
 
+    /// The start period of the test
     #[serde(skip_serializing_if = "Option::is_none")]
     pub start: Option<String>,
 
+    /// The number of retries
     #[serde(skip_serializing_if = "Option::is_none")]
     pub retries: Option<u16>,
 }
@@ -295,14 +349,18 @@ pub struct Healthcheck {
     )
 )]
 pub struct ImageName {
+    /// The host of the image registry
     #[serde(skip_serializing_if = "Option::is_none")]
     pub host: Option<String>,
 
+    /// The port of the image registry
     #[serde(skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
 
+    /// The path of the image repository
     pub path: String,
 
+    /// The version of the image
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     #[patch(attribute(serde(flatten)))]
     pub version: Option<ImageVersion>,
@@ -323,11 +381,13 @@ pub struct ImageName {
     )
 )]
 pub struct Copy {
+    /// The origin of the copy
     /// See https://docs.docker.com/reference/dockerfile/#copy---from
     #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
     #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
     pub from: FromContext,
 
+    /// The paths to copy
     #[patch(name = "VecPatch<String>")]
     #[cfg_attr(
         not(feature = "strict"),
@@ -336,9 +396,11 @@ pub struct Copy {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub paths: Vec<String>,
 
+    /// The options of the copy
     #[serde(flatten)]
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
+
     // excludes are not supported yet: minimal version 1.7-labs
     // /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
     // #[patch(name = "VecPatch<String>")]
@@ -366,8 +428,10 @@ pub struct Copy {
     )
 )]
 pub struct AddGitRepo {
+    /// The URL of the Git repository
     pub repo: String,
 
+    /// The options of the copy
     #[serde(flatten)]
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
@@ -377,6 +441,8 @@ pub struct AddGitRepo {
     // #[patch(name = "VecPatch<String>")]
     // #[serde(skip_serializing_if = "Vec::is_empty")]
     // pub exclude: Vec<String>,
+
+    /// Keep the git directory
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_git_dir: Option<bool>,
@@ -396,21 +462,24 @@ pub struct AddGitRepo {
     )
 )]
 pub struct Add {
+    /// The files to add
     #[patch(name = "VecPatch<Resource>")]
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "file"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files: Vec<Resource>,
 
+    /// The options of the copy
     #[serde(flatten)]
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
 
+    /// The checksum of the files
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
 }
 
-/// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
+/// Represents the options of a COPY/ADD instructions
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
@@ -424,6 +493,7 @@ pub struct Add {
     )
 )]
 pub struct CopyOptions {
+    /// The target path of the copied files
     #[cfg_attr(
         not(feature = "strict"),
         patch(attribute(serde(alias = "destination")))
@@ -431,15 +501,18 @@ pub struct CopyOptions {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target: Option<String>,
 
+    /// The user and group that own the copied files
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     #[patch(name = "Option<UserPatch>")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chown: Option<User>,
 
+    /// The permissions of the copied files
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chmod: Option<String>,
 
+    /// Use of the link flag
     /// See https://docs.docker.com/reference/dockerfile/#copy---link
     #[serde(skip_serializing_if = "Option::is_none")]
     pub link: Option<bool>,
@@ -459,8 +532,12 @@ pub struct CopyOptions {
     )
 )]
 pub struct User {
+    /// The user name or ID
+    /// The ID is preferred
     pub user: String,
 
+    /// The group name or ID
+    /// The ID is preferred
     #[serde(skip_serializing_if = "Option::is_none")]
     pub group: Option<String>,
 }
@@ -479,8 +556,10 @@ pub struct User {
     )
 )]
 pub struct Port {
+    /// The port number
     pub port: u16,
 
+    /// The protocol of the port
     #[serde(skip_serializing_if = "Option::is_none")]
     pub protocol: Option<PortProtocol>,
 }

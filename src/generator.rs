@@ -565,8 +565,13 @@ impl DockerfileGenerator for Run {
             if let Some(id) = cache.id.as_ref() {
                 cache_options.push(InstructionOptionOption::new("id", id.clone()));
             }
-            if let Some(from) = cache.from.as_ref() {
-                cache_options.push(InstructionOptionOption::new("from", from.clone()));
+            let from = match &cache.from {
+                FromContext::FromImage(image) => Some(image.to_string()),
+                FromContext::FromBuilder(builder) => Some(builder.clone()),
+                FromContext::FromContext(context) => context.clone(),
+            };
+            if let Some(from) = from {
+                cache_options.push(InstructionOptionOption::new("from", from));
                 if let Some(source) = cache.source.as_ref() {
                     cache_options.push(InstructionOptionOption::new("source", source.clone()));
                 }
