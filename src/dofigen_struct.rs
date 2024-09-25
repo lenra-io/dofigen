@@ -400,7 +400,6 @@ pub struct Copy {
     #[serde(flatten)]
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
-
     // excludes are not supported yet: minimal version 1.7-labs
     // /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
     // #[patch(name = "VecPatch<String>")]
@@ -441,7 +440,6 @@ pub struct AddGitRepo {
     // #[patch(name = "VecPatch<String>")]
     // #[serde(skip_serializing_if = "Vec::is_empty")]
     // pub exclude: Vec<String>,
-
     /// Keep the git directory
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
     #[serde(skip_serializing_if = "Option::is_none")]
