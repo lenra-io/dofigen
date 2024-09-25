@@ -194,7 +194,11 @@ impl Lock for Stage {
             from: self.from.lock(context)?,
             copy: self.copy.lock(context)?,
             run: self.run.lock(context)?,
-            root: self.root.as_ref().map(|root|root.lock(context)).transpose()?,
+            root: self
+                .root
+                .as_ref()
+                .map(|root| root.lock(context))
+                .transpose()?,
             ..self.clone()
         })
     }
