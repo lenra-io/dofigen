@@ -209,7 +209,7 @@ impl_parsable_patch!(Bind, BindPatch, s, {
 });
 
 impl_parsable_patch!(Cache, CachePatch, s, {
-    let regex = Regex::new(r"^(?:(?P<from>[^:]+)(?::(?P<source>\S+))? )?(?P<target>\S+)$").unwrap();
+    let regex = Regex::new(r"^(?:(?:(?P<fromType>image|builder|context)\((?P<from>[^:]+)\):)?(?P<source>\S+) )?(?P<target>\S+)$").unwrap();
     let Some(captures) = regex.captures(s) else {
         return Err(Error::custom("Not matching bind pattern"));
     };
@@ -218,7 +218,18 @@ impl_parsable_patch!(Cache, CachePatch, s, {
     Ok(Self {
         source: Some(captures.name("source").map(|m| m.as_str().into())),
         target,
-        from: Some(captures.name("from").map(|m| m.as_str().into())),
+        from: captures.name("from").map(|m| {
+            let from_type = captures.name("fromType").map(|m| m.as_str()).unwrap();
+            let from = m.as_str();
+            match from_type {
+                "image" => {
+                    FromContextPatch::FromImage(ImageNamePatch::from_str(from).unwrap().into())
+                }
+                "builder" => FromContextPatch::FromBuilder(from.into()),
+                "context" => FromContextPatch::FromContext(Some(from.into())),
+                _ => unreachable!(),
+            }
+        }),
         chmod: Some(None),
         chown: Some(None),
         id: Some(None),
