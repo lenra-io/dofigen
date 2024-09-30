@@ -36,7 +36,7 @@ serde_json = { version = "1.0.120", optional = true }
 thiserror = "1.0.64"
 clap = { version = "4.5", features = ["derive"], optional = true }
 schemars = { version = "0.8.21", optional = true, features = ["url"] }
-regex = "1.10.5"
+regex = "1.11.0"
 url = { version = "2.5.2", features = ["serde"] }
 concat-idents = "1.1.5"
 struct-patch = { version = "0.8.3", default-features = false, features = ["option", "merge"] }
