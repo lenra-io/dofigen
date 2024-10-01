@@ -1069,6 +1069,21 @@ where
     deserializer.deserialize_any(visitor)
 }
 
+#[cfg(feature = "permissive")]
+pub(crate) fn deserialize_from_optional_string_or_number<'de, D>(
+    deserializer: D,
+) -> Result<Option<Option<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let val: Option<StringOrNumber> = Deserialize::deserialize(deserializer)?;
+
+    Ok(Some(val.map(|val| match val {
+        StringOrNumber::String(s) => s,
+        StringOrNumber::Number(n) => n.to_string(),
+    })))
+}
+
 fn sort_commands<T, P>(a: &VecDeepPatchCommand<T, P>, b: &VecDeepPatchCommand<T, P>) -> Ordering
 where
     T: Clone + From<P>,
@@ -2378,6 +2393,54 @@ mod test {
                         one_or_many: None
                     }
                 )
+            }
+        }
+
+        #[cfg(feature = "permissive")]
+        mod from_optional_string_or_number {
+            use super::*;
+
+            #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+            struct TestStruct {
+                #[serde(
+                    deserialize_with = "deserialize_from_optional_string_or_number",
+                    default
+                )]
+                pub test: Option<Option<String>>,
+            }
+
+            #[test]
+            fn string() {
+                let ret: TestStruct = serde_yaml::from_str("test: \"123\"").unwrap();
+                assert_eq_sorted!(
+                    ret,
+                    TestStruct {
+                        test: Some(Some("123".into()))
+                    }
+                )
+            }
+
+            #[test]
+            fn number() {
+                let ret: TestStruct = serde_yaml::from_str("test: 123").unwrap();
+                assert_eq_sorted!(
+                    ret,
+                    TestStruct {
+                        test: Some(Some("123".into()))
+                    }
+                )
+            }
+
+            #[test]
+            fn null() {
+                let ret: TestStruct = serde_yaml::from_str("test: null").unwrap();
+                assert_eq_sorted!(ret, TestStruct { test: Some(None) })
+            }
+
+            #[test]
+            fn absent() {
+                let ret: TestStruct = serde_yaml::from_str("").unwrap();
+                assert_eq_sorted!(ret, TestStruct { test: None })
             }
         }
     }
