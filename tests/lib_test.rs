@@ -49,13 +49,15 @@ arg:
   APP_NAME: template-rust
 env:
   fprocess: /app
-artifacts:
+copy:
   - fromBuilder: builder
-    source: /home/rust/src/target/x86_64-unknown-linux-musl/release/${APP_NAME}
+    paths: /home/rust/src/target/x86_64-unknown-linux-musl/release/${APP_NAME}
     target: /app
+    chmod: "555"
   - fromImage: ghcr.io/openfaas/of-watchdog:0.9.6
-    source: /fwatchdog
+    paths: /fwatchdog
     target: /fwatchdog
+    chmod: 555
 expose: 8080
 healthcheck:
   interval: 3s
@@ -100,11 +102,13 @@ ENV fprocess="/app"
 COPY \
     --from=builder \
     --chown=1000:1000 \
+    --chmod=555 \
     --link \
     "/home/rust/src/target/x86_64-unknown-linux-musl/release/${APP_NAME}" "/app"
 COPY \
     --from=ghcr.io/openfaas/of-watchdog:0.9.6 \
     --chown=1000:1000 \
+    --chmod=555 \
     --link \
     "/fwatchdog" "/fwatchdog"
 USER 1000:1000

@@ -258,6 +258,13 @@ pub struct Cache {
     pub source: Option<String>,
 
     /// The permissions of the cache
+    #[cfg_attr(
+        feature = "permissive",
+        patch(attribute(serde(
+            deserialize_with = "deserialize_from_optional_string_or_number",
+            default
+        )))
+    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chmod: Option<String>,
 
@@ -507,6 +514,13 @@ pub struct CopyOptions {
 
     /// The permissions of the copied files
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
+    #[cfg_attr(
+        feature = "permissive",
+        patch(attribute(serde(
+            deserialize_with = "deserialize_from_optional_string_or_number",
+            default
+        )))
+    )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chmod: Option<String>,
 
@@ -873,7 +887,6 @@ mod test {
                 );
             }
 
-            // #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             #[test]
             fn copy_simple() {
                 let json_data = r#"{
@@ -900,6 +913,29 @@ mod test {
                         options: CopyOptions::default(),
                         ..Default::default()
                     })
+                );
+            }
+
+            #[cfg(feature = "permissive")]
+            #[test]
+            fn copy_chmod_int() {
+                let json_data = r#"{
+    "paths": ["file1.txt"],
+    "chmod": 755
+}"#;
+
+                let copy_resource: CopyPatch = serde_yaml::from_str(json_data).unwrap();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyPatch {
+                        paths: Some(vec!["file1.txt".into()].into_patch()),
+                        options: Some(CopyOptionsPatch {
+                            chmod: Some(Some("755".into())),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    }
                 );
             }
 

@@ -1,7 +1,9 @@
-use std::collections::HashMap;
-
+#[cfg(feature = "permissive")]
 use dofigen_lib::*;
+#[cfg(feature = "permissive")]
 use pretty_assertions_sorted::assert_eq_sorted;
+#[cfg(feature = "permissive")]
+use std::collections::HashMap;
 
 #[cfg(feature = "permissive")]
 #[test]

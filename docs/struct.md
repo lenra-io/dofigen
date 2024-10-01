@@ -120,7 +120,7 @@ It can be parsed from string.
 | `sharing` | "shared" or "private" or "locked" | The sharing strategy of the cache. |
 | `from...` | [FromContext](#fromcontext) | The base of the cache mount. |
 | `source` | string | Subpath in the from to mount. |
-| `chmod` | string | The permissions of the cache. |
+| `chmod` | string or integer | The permissions of the cache. |
 | `chown` | [User](#user) | The user and group that own the cache. |
 
 ## Bind
@@ -213,7 +213,7 @@ This represents the options of a COPY/ADD instructions.
 | --- | --- | --- |
 | `target` | string | The target path of the copied files. |
 | `chown` | [User](#user) | The user and group that own the copied files. See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod |
-| `chmod` | string | The permissions of the copied files. See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod |
+| `chmod` | string or integer | The permissions of the copied files. See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod |
 | `link` | boolean | Use of the link flag. See https://docs.docker.com/reference/dockerfile/#copy---link |
 
 ## Port

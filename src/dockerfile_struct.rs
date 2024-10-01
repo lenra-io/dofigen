@@ -22,7 +22,7 @@ pub struct DockerfileInsctruction {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum InstructionOption {
-    NameOnly(String),
+    Flag(String),
     WithValue(String, String),
     WithOptions(String, Vec<InstructionOptionOption>),
 }
@@ -82,7 +82,7 @@ impl DockerfileContent for DockerfileInsctruction {
 impl DockerfileContent for InstructionOption {
     fn generate_content(&self) -> String {
         match self {
-            InstructionOption::NameOnly(name) => format!("--{}", name),
+            InstructionOption::Flag(name) => format!("--{}", name),
             InstructionOption::WithValue(name, value) => format!("--{}={}", name, value),
             InstructionOption::WithOptions(name, options) => format!(
                 "--{}={}",
@@ -123,7 +123,7 @@ mod test {
             command: "RUN".into(),
             content: "echo 'Hello, World!'".into(),
             options: vec![
-                InstructionOption::NameOnly("arg1".into()),
+                InstructionOption::Flag("arg1".into()),
                 InstructionOption::WithValue("arg2".into(), "value2".into()),
             ],
         };
@@ -147,7 +147,7 @@ mod test {
 
     #[test]
     fn test_generate_content_name_only_option() {
-        let option = InstructionOption::NameOnly("arg1".into());
+        let option = InstructionOption::Flag("arg1".into());
         assert_eq_sorted!(option.generate_content(), "--arg1");
     }
 
