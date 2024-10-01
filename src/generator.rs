@@ -207,7 +207,7 @@ fn add_copy_options(
         inst_options.push(InstructionOption::WithValue("chmod".into(), chmod.into()));
     }
     if *copy_options.link.as_ref().unwrap_or(&true) {
-        inst_options.push(InstructionOption::NameOnly("link".into()));
+        inst_options.push(InstructionOption::Flag("link".into()));
     }
 }
 
@@ -832,6 +832,39 @@ mod test {
                         options: vec![],
                     }),
                 ]
+            );
+        }
+    }
+
+    mod copy {
+        use super::*;
+
+        #[test]
+        fn with_chmod() {
+            let copy = Copy {
+                paths: vec!["/path/to/file".into()],
+                options: CopyOptions {
+                    target: Some("/app/".into()),
+                    chmod: Some("755".into()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let lines = copy
+                .generate_dockerfile_lines(&GenerationContext::default())
+                .unwrap();
+
+            assert_eq_sorted!(
+                lines,
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "COPY".into(),
+                    content: "\"/path/to/file\" \"/app/\"".into(),
+                    options: vec![
+                        InstructionOption::WithValue("chmod".into(), "755".into()),
+                        InstructionOption::Flag("link".into())
+                    ],
+                })]
             );
         }
     }

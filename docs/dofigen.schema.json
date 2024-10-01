@@ -457,6 +457,48 @@
     "Cache": {
       "title": "Cache",
       "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "fromImage"
+          ],
+          "properties": {
+            "fromImage": {
+              "$ref": "#/definitions/ParsableStruct<ImageName>"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "fromBuilder"
+          ],
+          "properties": {
+            "fromBuilder": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "fromContext"
+          ],
+          "properties": {
+            "fromContext": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "nullable": true
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
       "properties": {
         "chmod": {
           "default": null,
@@ -482,14 +524,6 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
-        },
-        "from": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
           ],
           "nullable": true
         },
