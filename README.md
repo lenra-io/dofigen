@@ -17,6 +17,10 @@
 *** for contributors-url, forks-url, etc. This is an optional, concise syntax you may use.
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
+
+
+<div align="center">
+
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
@@ -24,7 +28,11 @@
 [![MIT License][license-shield]][license-url]
 [![Crates.io][crate-shield]][crate-url]
 
+<img alt="Dofigen logo" src="./logo.svg" width="256" style="margin: 20px 0" /> 
+
 # Dofigen
+
+</div>
 
 Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
 It defines default values and behaviors that simplify the creation of Dockerfiles.
