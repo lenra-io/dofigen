@@ -7,24 +7,27 @@ effective: |
   copy:
   - paths:
     - builds/${TARGETPLATFORM}/dofigen
-    target: /bin/
+    target: /bin/dofigen
+    chmod: '555'
   entrypoint:
-  - dofigen
+  - /bin/dofigen
   cmd:
   - --help
 images: {}
 resources:
   dofigen.yml:
-    hash: 160f8547a6b42e0996778ad72c6a73328f8460e826475def77213acb69f45284
+    hash: 07744cc5d5e65e7ebf07298fca4f239bf7296f9109c0fb60b177236291ccf61c
     content: |
       # Runtime
       workdir: /app
+      # volume: /app
       arg:
         TARGETPLATFORM: ""
       copy:
         - paths: builds/${TARGETPLATFORM}/dofigen
-          target: /bin/
-      entrypoint: dofigen
+          target: /bin/dofigen
+          chmod: "555"
+      entrypoint: /bin/dofigen
       cmd: --help
       context:
         - "/builds"
