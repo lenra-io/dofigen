@@ -1,10 +1,12 @@
 # Runtime
 workdir: /app
+# volume: /app
 arg:
   TARGETPLATFORM: ""
 copy:
   - paths: builds/${TARGETPLATFORM}/dofigen
-    target: /bin/
+    target: /bin/dofigen
+    chmod: "555"
 entrypoint: /bin/dofigen
 cmd: --help
 context:
