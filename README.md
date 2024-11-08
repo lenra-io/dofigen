@@ -37,13 +37,7 @@
 Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
 It defines default values and behaviors that simplify the creation of Dockerfiles.
 
-Dofigen is also made to use the Buildkit optimizations that speed-up the Docker image build by parallelizing the layer builds.
-It uses the [`--link` option](https://docs.docker.com/engine/reference/builder/#benefits-of-using---link) when adding files and the [`--mount=type=cache` option](https://docs.docker.com/engine/reference/builder/#run---mounttypecache) when running scripts (when you define `caches` attribute).
-You can use Buildkit with the [`docker buildx build` subcommand](https://docs.docker.com/engine/reference/commandline/buildx_build/) like this: 
-
-```bash
-docker buildx build --cache-to=type=local,dest=.dockercache --cache-from=type=local,src=.dockercache -t my-app:latest --load .
-```
+Dofigen is also made to use the Buildkit, which is now the default Docker build engine, optimizations that speed-up the Docker image build by parallelizing the layer builds.
 
 A french DevOps said about it:
 > C'est une bouffée, Dofigen, dans ce monde de con...teneurs.
@@ -78,7 +72,7 @@ You can download the Dofigen binary from [the release page](https://github.com/l
 You can run Dofigen directly from its Docker image with the following command:
 
 ```bash
-docker run --rm -it -v $(pwd):/app lenra/dofigen
+docker run --rm -it -v $(pwd):/app lenra/dofigen --help
 ```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
