@@ -94,20 +94,33 @@ impl CliCommand for Generate {
         let dockerfile_content =
             generate_dockerfile_with_context(&dofigen, &mut generation_context)?;
 
-        generation_context
-            .get_lint_messages()
+        let messages = generation_context.get_lint_messages().clone();
+
+        messages.iter().for_each(|message| {
+            eprintln!(
+                "{} [path={}]: {}",
+                match message.level {
+                    MessageLevel::Error => "Error".color(Color::Red).bold(),
+                    MessageLevel::Warn => "Warning".color(Color::Yellow).bold(),
+                },
+                message.path.join("."),
+                message.message
+            );
+        });
+
+        let errors = messages
             .iter()
-            .for_each(|message| {
-                eprintln!(
-                    "{} [path={}]: {}",
-                    match message.level {
-                        MessageLevel::Error => "Error".color(Color::Red).bold(),
-                        MessageLevel::Warn => "Warning".color(Color::Yellow).bold(),
-                    },
-                    message.path.join("."),
-                    message.message
-                );
-            });
+            .filter(|m| m.level == MessageLevel::Error)
+            .count();
+
+        if errors > 0 {
+            return Err(Error::Custom(format!(
+                "{}: could not generate the Dockerfile due to {} previous error{}",
+                "error".color(Color::Red).bold(),
+                errors,
+                if errors > 1 { "s" } else { "" }
+            )));
+        }
 
         if self.output == "-" {
             print!("{}", dockerfile_content);
