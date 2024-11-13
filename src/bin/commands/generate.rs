@@ -5,10 +5,11 @@
 use super::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile};
 use crate::{CliCommand, GlobalOptions};
 use clap::Args;
+use colored::{Color, Colorize};
 use dofigen_lib::{
-    generate_dockerfile, generate_dockerignore,
+    generate_dockerfile_with_context, generate_dockerignore,
     lock::{Lock, LockFile},
-    DofigenContext, Error, Result,
+    DofigenContext, Error, GenerationContext, MessageLevel, Result,
 };
 use std::{fs, path::PathBuf};
 
@@ -88,7 +89,25 @@ impl CliCommand for Generate {
             locked_image
         };
 
-        let dockerfile_content = generate_dockerfile(&dofigen)?;
+        let mut generation_context = GenerationContext::from(&dofigen);
+
+        let dockerfile_content =
+            generate_dockerfile_with_context(&dofigen, &mut generation_context)?;
+
+        generation_context
+            .get_lint_messages()
+            .iter()
+            .for_each(|message| {
+                eprintln!(
+                    "{} [path={}]: {}",
+                    match message.level {
+                        MessageLevel::Error => "Error".color(Color::Red).bold(),
+                        MessageLevel::Warn => "Warning".color(Color::Yellow).bold(),
+                    },
+                    message.path.join("."),
+                    message.message
+                );
+            });
 
         if self.output == "-" {
             print!("{}", dockerfile_content);

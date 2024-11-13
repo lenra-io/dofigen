@@ -26,6 +26,7 @@ pub struct DofigenContext {
     load_resource_stack: Vec<Resource>,
     resources: HashMap<Resource, ResourceVersion>,
     used_resources: HashSet<Resource>,
+    
     // Images tags
     images: HashMap<ImageName, DockerTag>,
     used_images: HashSet<ImageName>,
