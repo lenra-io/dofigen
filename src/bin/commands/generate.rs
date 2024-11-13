@@ -98,12 +98,12 @@ impl CliCommand for Generate {
 
         messages.iter().for_each(|message| {
             eprintln!(
-                "{} [path={}]: {}",
+                "{}[path={}]: {}",
                 match message.level {
-                    MessageLevel::Error => "Error".color(Color::Red).bold(),
-                    MessageLevel::Warn => "Warning".color(Color::Yellow).bold(),
+                    MessageLevel::Error => "error".color(Color::Red).bold(),
+                    MessageLevel::Warn => "warning".color(Color::Yellow).bold(),
                 },
-                message.path.join("."),
+                message.path.join(".").color(Color::Blue).bold(),
                 message.message
             );
         });
