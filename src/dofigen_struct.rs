@@ -237,6 +237,10 @@ pub struct Cache {
     pub id: Option<String>,
 
     /// The target path of the cache
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(alias = "dst", alias = "destination")))
+    )]
     pub target: String,
 
     /// Defines if the cache is readonly
@@ -253,7 +257,7 @@ pub struct Cache {
     #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
     pub from: FromContext,
 
-    /// Subpath in the from to mount
+    /// Subpath in the from to mount. Defaults to the root of the from
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 
@@ -297,7 +301,7 @@ pub struct Bind {
     #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
     pub from: FromContext,
 
-    /// Subpath in the from to mount
+    /// Source path in the from. Defaults to the root of the from
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
 

@@ -29,11 +29,16 @@ mod generator;
 #[cfg(feature = "json_schema")]
 mod json_schema;
 pub mod lock;
-use dockerfile_struct::{DockerfileContent, DockerfileLine};
-use generator::{DockerfileGenerator, GenerationContext};
 #[cfg(feature = "json_schema")]
 use schemars::gen::*;
-pub use {context::*, deserialize::*, dofigen_struct::*, errors::*, extend::*};
+pub use {
+    context::*,
+    deserialize::*,
+    dofigen_struct::*,
+    errors::*,
+    extend::*,
+    generator::{GenerationContext, MessageLevel},
+};
 
 #[cfg(all(feature = "strict", feature = "permissive"))]
 compile_error!("You can't enable both 'strict' and 'permissive' features at the same time.");
@@ -73,22 +78,7 @@ const FILE_HEADER_COMMENTS: [&str; 2] = [
 /// );
 /// ```
 pub fn generate_dockerfile(dofigen: &Dofigen) -> Result<String> {
-    let mut lines = dofigen.generate_dockerfile_lines(&GenerationContext::default())?;
-    let mut line_number = 1;
-
-    for line in FILE_HEADER_COMMENTS {
-        lines.insert(line_number, DockerfileLine::Comment(line.to_string()));
-        line_number += 1;
-    }
-
-    Ok(format!(
-        "{}\n",
-        lines
-            .iter()
-            .map(DockerfileLine::generate_content)
-            .collect::<Vec<String>>()
-            .join("\n")
-    ))
+    GenerationContext::from(dofigen).generate_dockerfile(dofigen)
 }
 
 /// Generates the .dockerignore file content from an Dofigen struct.

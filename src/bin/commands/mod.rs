@@ -1,4 +1,4 @@
-use dofigen_lib::{lock::LockFile, Dofigen, DofigenContext, Resource, Result};
+use dofigen_lib::{lock::LockFile, Dofigen, DofigenContext, Error, Resource, Result};
 use std::path::PathBuf;
 
 pub mod effective;
@@ -7,17 +7,16 @@ pub mod generate;
 pub mod schema;
 pub mod update;
 
-pub(crate) fn get_file_path(path: &Option<String>) -> String {
+pub(crate) fn get_file_path(path: &Option<String>) -> Result<String> {
     if let Some(path) = path {
-        path.clone()
+        Ok(path.clone())
     } else {
         let mut files = vec!["dofigen.yml", "dofigen.yaml", "dofigen.json"];
         files.retain(|f| std::path::Path::new(f).exists());
         if files.is_empty() {
-            eprintln!("No Dofigen file found");
-            std::process::exit(1);
+            return Err(Error::Custom("No Dofigen file found".into()));
         }
-        files[0].into()
+        Ok(files[0].into())
     }
 }
 

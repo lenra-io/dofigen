@@ -16,7 +16,7 @@ effective: |
 images: {}
 resources:
   dofigen.yml:
-    hash: 07744cc5d5e65e7ebf07298fca4f239bf7296f9109c0fb60b177236291ccf61c
+    hash: 95a420edbdb40b289e59dda6f5ff2c0295aacf48a229ce39e86fddaa17eea59c
     content: |
       # Runtime
       workdir: /app
@@ -26,7 +26,7 @@ resources:
       copy:
         - paths: builds/${TARGETPLATFORM}/dofigen
           target: /bin/dofigen
-          chmod: "555"
+          chmod: 555
       entrypoint: /bin/dofigen
       cmd: --help
       context:

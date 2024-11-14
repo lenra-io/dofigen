@@ -537,7 +537,7 @@ RUN \
     --mount=type=bind,target=Cargo.lock,source=Cargo.lock \
     --mount=type=bind,target=src/,source=src/ \
     --mount=type=cache,target=/home/rust/.cargo,sharing=locked \
-    --mount=type=cache,target=/app/target,sharing=locked \
+    --mount=type=cache,target=target,sharing=locked \
     <<EOF
 cargo build --release
 mv target/x86_64-unknown-linux-musl/release/dofigen /tmp/
