@@ -1,4 +1,5 @@
 use clap::{Args, Parser, Subcommand};
+use colored::{Color, Colorize};
 #[cfg(feature = "json_schema")]
 use commands::schema::Schema;
 use commands::{effective::Effective, generate::Generate, update::Update};
@@ -65,7 +66,7 @@ impl Command {
 
 fn main() {
     Cli::parse().command.run().unwrap_or_else(|e| {
-        eprintln!("{}", e);
+        eprintln!("{}: {}", "error".color(Color::Red).bold(), e);
         std::process::exit(1);
     });
 }

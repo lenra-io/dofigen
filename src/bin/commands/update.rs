@@ -23,7 +23,7 @@ pub struct Update {
 impl CliCommand for Update {
     fn run(self) -> Result<()> {
         // Get lock file from the file
-        let path = get_file_path(&self.options.file);
+        let path = get_file_path(&self.options.file)?;
         if path == "-" {
             return Err(Error::Custom(
                 "Update command can't be used with stdin".into(),

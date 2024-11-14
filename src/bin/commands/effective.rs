@@ -21,7 +21,7 @@ pub struct Effective {
 
 impl CliCommand for Effective {
     fn run(self) -> Result<()> {
-        let path = get_file_path(&self.options.file);
+        let path = get_file_path(&self.options.file)?;
         let lockfile_path = get_lockfile_path(path.clone());
         let lockfile = load_lockfile(lockfile_path.clone());
         let mut context = lockfile

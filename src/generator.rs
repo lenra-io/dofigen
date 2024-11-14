@@ -1,20 +1,98 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{dockerfile_struct::*, dofigen_struct::*, Error, Result, DOCKERFILE_VERSION};
+use crate::{
+    dockerfile_struct::*, dofigen_struct::*, Result, DOCKERFILE_VERSION, FILE_HEADER_COMMENTS,
+};
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
 pub const DEFAULT_FROM: &str = "scratch";
 
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GenerationContext {
-    pub user: Option<User>,
-    pub wokdir: Option<String>,
-    pub stage_name: String,
-    pub default_from: FromContext,
+    pub(crate) user: Option<User>,
+    pub(crate) stage_name: String,
+    pub(crate) default_from: FromContext,
+    state_stack: Vec<GenerationContextState>,
+    pub(crate) lint_session: LintSession,
 }
+
+impl GenerationContext {
+    pub fn get_lint_messages(&self) -> Vec<LintMessage> {
+        self.lint_session.messages.clone()
+    }
+
+    fn push_state(&mut self, state: GenerationContextState) {
+        let mut prev_state = GenerationContextState::default();
+        if let Some(user) = &state.user {
+            prev_state.user = Some(self.user.clone());
+            self.user = user.clone();
+        }
+        if let Some(stage_name) = &state.stage_name {
+            prev_state.stage_name = Some(self.stage_name.clone());
+            self.stage_name = stage_name.clone();
+        }
+        if let Some(default_from) = &state.default_from {
+            prev_state.default_from = Some(self.default_from.clone());
+            self.default_from = default_from.clone();
+        }
+        self.state_stack.push(prev_state);
+    }
+
+    fn pop_state(&mut self) {
+        let prev_state = self.state_stack.pop().expect("The state stack is empty");
+        if let Some(user) = prev_state.user {
+            self.user = user;
+        }
+        if let Some(stage_name) = prev_state.stage_name {
+            self.stage_name = stage_name;
+        }
+        if let Some(default_from) = prev_state.default_from {
+            self.default_from = default_from;
+        }
+    }
+
+    pub fn from(dofigen: &Dofigen) -> Self {
+        Self {
+            user: None,
+            stage_name: String::default(),
+            default_from: FromContext::default(),
+            lint_session: LintSession::analyze(dofigen),
+            state_stack: vec![],
+        }
+    }
+
+    pub fn generate_dockerfile(&mut self, dofigen: &Dofigen) -> Result<String> {
+        let mut lines = dofigen.generate_dockerfile_lines(self)?;
+        let mut line_number = 1;
+
+        for line in FILE_HEADER_COMMENTS {
+            lines.insert(line_number, DockerfileLine::Comment(line.to_string()));
+            line_number += 1;
+        }
+
+        Ok(format!(
+            "{}\n",
+            lines
+                .iter()
+                .map(DockerfileLine::generate_content)
+                .collect::<Vec<String>>()
+                .join("\n")
+        ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct GenerationContextState {
+    user: Option<Option<User>>,
+    stage_name: Option<String>,
+    default_from: Option<FromContext>,
+}
+
 pub trait DockerfileGenerator {
-    fn generate_dockerfile_lines(&self, context: &GenerationContext)
-        -> Result<Vec<DockerfileLine>>;
+    fn generate_dockerfile_lines(
+        &self,
+        context: &mut GenerationContext,
+    ) -> Result<Vec<DockerfileLine>>;
 }
 
 impl Stage {
@@ -183,7 +261,7 @@ impl ToString for FromContext {
 impl DockerfileGenerator for CopyResource {
     fn generate_dockerfile_lines(
         &self,
-        context: &GenerationContext,
+        context: &mut GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         match self {
             CopyResource::Copy(copy) => copy.generate_dockerfile_lines(context),
@@ -214,7 +292,7 @@ fn add_copy_options(
 impl DockerfileGenerator for Copy {
     fn generate_dockerfile_lines(
         &self,
-        context: &GenerationContext,
+        context: &mut GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
 
@@ -248,7 +326,7 @@ impl DockerfileGenerator for Copy {
 impl DockerfileGenerator for Add {
     fn generate_dockerfile_lines(
         &self,
-        context: &GenerationContext,
+        context: &mut GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
         if let Some(checksum) = &self.checksum {
@@ -276,7 +354,7 @@ impl DockerfileGenerator for Add {
 impl DockerfileGenerator for AddGitRepo {
     fn generate_dockerfile_lines(
         &self,
-        context: &GenerationContext,
+        context: &mut GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
         add_copy_options(&mut options, &self.options, context);
@@ -305,34 +383,40 @@ impl DockerfileGenerator for AddGitRepo {
 impl DockerfileGenerator for Dofigen {
     fn generate_dockerfile_lines(
         &self,
-        context: &GenerationContext,
+        context: &mut GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
-        let mut context: GenerationContext = GenerationContext {
-            user: None,
-            wokdir: None,
-            stage_name: String::new(),
-            default_from: self.stage.from(context).clone(),
-        };
+        context.push_state(GenerationContextState {
+            default_from: Some(self.stage.from(context).clone()),
+            ..Default::default()
+        });
         let mut lines = vec![
             DockerfileLine::Comment(format!("syntax=docker/dockerfile:{}", DOCKERFILE_VERSION)),
             DockerfileLine::Empty,
         ];
 
-        let stage_resolver = &mut StagesDependencyResolver::new(self);
-
-        for name in stage_resolver.get_sorted_builders()? {
-            context.stage_name = name.clone();
+        for name in context.lint_session.get_sorted_builders() {
+            context.push_state(GenerationContextState {
+                stage_name: Some(name.clone()),
+                ..Default::default()
+            });
             let builder = self
                 .builders
                 .get(&name)
-                .ok_or(Error::Custom(format!("The builder '{}' not found", name)))?;
-            lines.append(&mut Stage::generate_dockerfile_lines(builder, &context)?);
+                .expect(format!("The builder '{}' not found", name).as_str());
+
+            lines.append(&mut Stage::generate_dockerfile_lines(builder, context)?);
             lines.push(DockerfileLine::Empty);
+            context.pop_state();
         }
-        context.user = Some(User::new("1000"));
-        context.stage_name = "runtime".into();
-        context.default_from = FromContext::default();
-        lines.append(&mut self.stage.generate_dockerfile_lines(&context)?);
+
+        context.push_state(GenerationContextState {
+            user: Some(Some(User::new("1000"))),
+            stage_name: Some("runtime".into()),
+            default_from: Some(FromContext::default()),
+        });
+        lines.append(&mut self.stage.generate_dockerfile_lines(context)?);
+        context.pop_state();
+
         self.expose.iter().for_each(|port| {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "EXPOSE".into(),
@@ -393,13 +477,12 @@ impl DockerfileGenerator for Dofigen {
 impl DockerfileGenerator for Stage {
     fn generate_dockerfile_lines(
         &self,
-        context: &GenerationContext,
+        context: &mut GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
-        let context = GenerationContext {
-            user: self.user(context),
-            wokdir: self.workdir.clone(),
-            ..context.clone()
-        };
+        context.push_state(GenerationContextState {
+            user: Some(self.user(context)),
+            ..Default::default()
+        });
         let stage_name = context.stage_name.clone();
 
         // From
@@ -409,7 +492,7 @@ impl DockerfileGenerator for Stage {
                 command: "FROM".into(),
                 content: format!(
                     "{image_name} AS {stage_name}",
-                    image_name = self.from(&context).to_string()
+                    image_name = self.from(context).to_string()
                 ),
                 options: vec![],
             }),
@@ -458,7 +541,7 @@ impl DockerfileGenerator for Stage {
 
         // Copy resources
         for copy in self.copy.iter() {
-            lines.append(&mut copy.generate_dockerfile_lines(&context)?);
+            lines.append(&mut copy.generate_dockerfile_lines(context)?);
         }
 
         // Root
@@ -472,17 +555,18 @@ impl DockerfileGenerator for Stage {
                     options: vec![],
                 }));
 
-                let root_context = GenerationContext {
-                    user: Some(root_user),
-                    ..context.clone()
-                };
+                context.push_state(GenerationContextState {
+                    user: Some(Some(root_user)),
+                    ..Default::default()
+                });
                 // Run
-                lines.append(&mut root.generate_dockerfile_lines(&root_context)?);
+                lines.append(&mut root.generate_dockerfile_lines(context)?);
+                context.pop_state();
             }
         }
 
         // User
-        if let Some(user) = self.user(&context) {
+        if let Some(user) = self.user(context) {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "USER".into(),
                 content: user.to_string(),
@@ -491,7 +575,9 @@ impl DockerfileGenerator for Stage {
         }
 
         // Run
-        lines.append(&mut self.run.generate_dockerfile_lines(&context)?);
+        lines.append(&mut self.run.generate_dockerfile_lines(context)?);
+
+        context.pop_state();
 
         Ok(lines)
     }
@@ -500,7 +586,7 @@ impl DockerfileGenerator for Stage {
 impl DockerfileGenerator for Run {
     fn generate_dockerfile_lines(
         &self,
-        context: &GenerationContext,
+        context: &mut GenerationContext,
     ) -> Result<Vec<DockerfileLine>> {
         let script = &self.run;
         if script.is_empty() {
@@ -544,19 +630,7 @@ impl DockerfileGenerator for Run {
 
         // Mount caches
         for cache in self.cache.iter() {
-            let mut target = cache.target.clone();
-
-            // Manage relative paths
-            if !target.starts_with("/") {
-                target = format!(
-                    "{}/{}",
-                    context.wokdir.clone().ok_or(Error::Custom(
-                        "The cache target must be absolute or a workdir must be defined"
-                            .to_string()
-                    ))?,
-                    target
-                );
-            }
+            let target = cache.target.clone();
 
             let mut cache_options = vec![
                 InstructionOptionOption::new("type", "cache".into()),
@@ -630,45 +704,80 @@ fn string_vec_into(string_vec: Vec<String>) -> String {
     )
 }
 
-impl Stage {
-    pub(crate) fn get_dependencies(&self) -> Vec<String> {
+#[derive(Debug, Clone, PartialEq)]
+struct StageDependency {
+    stage: String,
+    path: String,
+    origin: Vec<String>,
+}
+
+trait StageDependencyGetter {
+    fn get_dependencies(&self, origin: &Vec<String>) -> Vec<StageDependency>;
+}
+
+impl StageDependencyGetter for Stage {
+    fn get_dependencies(&self, origin: &Vec<String>) -> Vec<StageDependency> {
         let mut dependencies = vec![];
         if let FromContext::FromBuilder(builder) = &self.from {
-            dependencies.push(builder.clone());
+            dependencies.push(StageDependency {
+                stage: builder.clone(),
+                path: "/".into(),
+                origin: [origin.clone(), vec!["from".into()]].concat(),
+            });
         }
-        for copy in self.copy.iter() {
-            dependencies.append(&mut copy.get_dependencies());
+        for (position, copy) in self.copy.iter().enumerate() {
+            dependencies.append(&mut copy.get_dependencies(
+                &[origin.clone(), vec!["copy".into(), position.to_string()]].concat(),
+            ));
         }
-        dependencies.append(&mut self.run.get_dependencies());
+        dependencies.append(&mut self.run.get_dependencies(origin));
         if let Some(root) = &self.root {
-            dependencies.append(&mut root.get_dependencies());
+            dependencies.append(
+                &mut root.get_dependencies(&[origin.clone(), vec!["root".into()]].concat()),
+            );
         }
         dependencies
     }
 }
 
-impl Run {
-    pub(crate) fn get_dependencies(&self) -> Vec<String> {
+impl StageDependencyGetter for Run {
+    fn get_dependencies(&self, origin: &Vec<String>) -> Vec<StageDependency> {
         let mut dependencies = vec![];
-        for cache in self.cache.iter() {
+        for (position, cache) in self.cache.iter().enumerate() {
             if let FromContext::FromBuilder(builder) = &cache.from {
-                dependencies.push(builder.clone());
+                dependencies.push(StageDependency {
+                    stage: builder.clone(),
+                    path: cache.source.clone().unwrap_or("/".into()),
+                    origin: [origin.clone(), vec!["cache".into(), position.to_string()]].concat(),
+                });
             }
         }
-        for bind in self.bind.iter() {
+        for (position, bind) in self.bind.iter().enumerate() {
             if let FromContext::FromBuilder(builder) = &bind.from {
-                dependencies.push(builder.clone());
+                dependencies.push(StageDependency {
+                    stage: builder.clone(),
+                    path: bind.source.clone().unwrap_or("/".into()),
+                    origin: [origin.clone(), vec!["bind".into(), position.to_string()]].concat(),
+                });
             }
         }
         dependencies
     }
 }
 
-impl CopyResource {
-    pub(crate) fn get_dependencies(&self) -> Vec<String> {
+impl StageDependencyGetter for CopyResource {
+    fn get_dependencies(&self, origin: &Vec<String>) -> Vec<StageDependency> {
         match self {
             CopyResource::Copy(copy) => match &copy.from {
-                FromContext::FromBuilder(builder) => vec![builder.clone()],
+                FromContext::FromBuilder(builder) => copy
+                    .paths
+                    .iter()
+                    .map(|path| StageDependency {
+                        stage: builder.clone(),
+                        path: path.clone(),
+                        origin: origin.clone(),
+                    })
+                    .collect(),
                 _ => vec![],
             },
             _ => vec![],
@@ -676,21 +785,26 @@ impl CopyResource {
     }
 }
 
-struct StagesDependencyResolver {
-    dependencies: HashMap<String, Vec<String>>,
-    recursive_dependencies: HashMap<String, Vec<String>>,
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct LintSession {
+    messages: Vec<LintMessage>,
+    stage_infos: HashMap<String, StageLintInfo>,
+    recursive_stage_dependencies: HashMap<String, Vec<String>>,
 }
 
-impl StagesDependencyResolver {
-    pub fn get_sorted_builders(&mut self) -> Result<Vec<String>> {
+impl LintSession {
+    pub fn get_sorted_builders(&mut self) -> Vec<String> {
         let mut stages: Vec<(String, Vec<String>)> = self
-            .dependencies
+            .stage_infos
             .clone()
             .keys()
-            .into_iter()
-            .filter(|stage| **stage != "runtime")
-            .map(|stage| Ok((stage.clone(), self.resolve_dependencies(stage.clone())?)))
-            .collect::<Result<_>>()?;
+            .map(|name| {
+                (
+                    name.clone(),
+                    self.get_stage_recursive_dependencies(name.clone()),
+                )
+            })
+            .collect();
 
         stages.sort_by(|(a_stage, a_deps), (b_stage, b_deps)| {
             if a_deps.contains(b_stage) {
@@ -702,77 +816,218 @@ impl StagesDependencyResolver {
             a_stage.cmp(b_stage)
         });
 
-        Ok(stages.into_iter().map(|(stage, _)| stage).collect())
+        stages
+            .into_iter()
+            .map(|(stage, _)| stage)
+            .filter(|name| *name != "runtime")
+            .collect()
     }
 
-    pub fn resolve_dependencies(&mut self, stage: String) -> Result<Vec<String>> {
-        self.resolve_recursive_dependencies(&mut vec![stage])
+    pub fn get_stage_recursive_dependencies(&mut self, stage: String) -> Vec<String> {
+        self.resolve_stage_recursive_dependencies(&mut vec![stage])
     }
 
-    fn resolve_recursive_dependencies(&mut self, path: &mut Vec<String>) -> Result<Vec<String>> {
-        let stage = path
-            .last()
-            .ok_or(Error::Custom("The path is empty".to_string()))?
-            .clone();
-        if let Some(dependencies) = self.recursive_dependencies.get(&stage) {
-            return Ok(dependencies.clone());
+    fn resolve_stage_recursive_dependencies(&mut self, path: &mut Vec<String>) -> Vec<String> {
+        let stage = &path.last().expect("The path is empty").clone();
+        if let Some(dependencies) = self.recursive_stage_dependencies.get(stage) {
+            return dependencies.clone();
         }
         let mut deps = HashSet::new();
         let dependencies = self
+            .stage_infos
+            .get(stage)
+            .expect(format!("The stage info not found for stage '{}'", stage).as_str())
             .dependencies
-            .get(&stage)
-            .ok_or(Error::Custom(format!(
-                "The stage dependencies {} not found",
-                stage
-            )))?
             .clone();
         for dependency in dependencies {
-            if path.contains(&dependency) {
-                return Err(Error::Custom(format!(
-                    "Circular dependency detected: {} -> {}",
-                    path.join(" -> "),
-                    dependency
-                )));
+            let dep_stage = &dependency.stage;
+            if path.contains(dep_stage) {
+                self.messages.push(LintMessage {
+                    level: MessageLevel::Error,
+                    message: format!(
+                        "Circular dependency detected: {} -> {}",
+                        path.join(" -> "),
+                        dependency.stage
+                    ),
+                    path: dependency.origin.clone(),
+                });
+                continue;
             }
-            deps.insert(dependency.clone());
-            path.push(dependency.clone());
-            deps.extend(self.resolve_recursive_dependencies(path)?);
-            path.pop();
+            deps.insert(dep_stage.clone());
+            if self.stage_infos.contains_key(dep_stage) {
+                path.push(dep_stage.clone());
+                deps.extend(self.resolve_stage_recursive_dependencies(path));
+                path.pop();
+            } // the else is already managed in check_dependencies
         }
         let deps: Vec<String> = deps.into_iter().collect();
-        self.recursive_dependencies
+        self.recursive_stage_dependencies
             .insert(stage.clone(), deps.clone());
-        Ok(deps)
+        deps
     }
 
-    pub fn new(dofigen: &Dofigen) -> Self {
-        let mut dependencies: HashMap<String, Vec<String>> = dofigen
-            .builders
+    /// Checks if dependencies are using path that are in cache
+    fn check_dependencies(&mut self) {
+        let dependencies = self
+            .stage_infos
             .iter()
-            .map(|(name, builder)| {
-                if name == "runtime" {
-                    panic!("The builder name 'runtime' is reserved");
-                }
-                let deps = builder.get_dependencies();
-                if deps.contains(&"runtime".to_string()) {
-                    panic!("The builder '{}' can't depend on the 'runtime'", name);
-                }
-                (name.clone(), deps)
-            })
-            .collect();
+            .flat_map(|(_name, info)| info.dependencies.clone())
+            .collect::<Vec<_>>();
 
-        dependencies.insert("runtime".into(), dofigen.stage.get_dependencies());
-        Self {
-            dependencies,
-            recursive_dependencies: HashMap::new(),
+        let caches = self
+            .stage_infos
+            .iter()
+            .map(|(name, info)| (name, info.cache_paths.clone()))
+            .collect::<HashMap<_, _>>();
+
+        for dependency in dependencies {
+            if let Some(paths) = caches.get(&dependency.stage) {
+                paths
+                    .iter()
+                    .filter(|path| dependency.path.starts_with(*path))
+                    .for_each(|path| {
+                        self.messages.push(LintMessage {
+                            level: MessageLevel::Error,
+                            message: format!(
+                                "Use of the '{}' builder cache path '{}'",
+                                dependency.stage, path
+                            ),
+                            path: dependency.origin.clone(),
+                        });
+                    });
+            } else {
+                self.messages.push(LintMessage {
+                    level: MessageLevel::Error,
+                    message: format!("The builder '{}' not found", dependency.stage),
+                    path: dependency.origin.clone(),
+                });
+            }
         }
     }
+
+    fn analyze_stage(&mut self, path: &Vec<String>, name: &String, stage: &Stage) {
+        let dependencies = stage.get_dependencies(path);
+        self.messages.append(
+            &mut dependencies
+                .iter()
+                .filter(|dep| dep.stage == "runtime")
+                .map(|dep| LintMessage {
+                    level: MessageLevel::Error,
+                    message: format!("The builder '{}' can't depend on the 'runtime'", name,),
+                    path: dep.origin.clone(),
+                })
+                .collect(),
+        );
+        let cache_paths = self.get_stage_cache_paths(stage, path);
+        self.stage_infos.insert(
+            name.clone(),
+            StageLintInfo {
+                dependencies,
+                cache_paths,
+            },
+        );
+    }
+
+    fn get_stage_cache_paths(&mut self, stage: &Stage, path: &Vec<String>) -> Vec<String> {
+        let mut paths = vec![];
+        paths.append(&mut self.get_run_cache_paths(&stage.run, path, &stage.workdir));
+        if let Some(root) = &stage.root {
+            paths.append(&mut self.get_run_cache_paths(
+                root,
+                &[path.clone(), vec!["root".into()]].concat(),
+                &stage.workdir,
+            ));
+        }
+        paths
+    }
+
+    fn get_run_cache_paths(
+        &mut self,
+        run: &Run,
+        path: &Vec<String>,
+        workdir: &Option<String>,
+    ) -> Vec<String> {
+        let mut cache_paths = vec![];
+        for (position, cache) in run.cache.iter().enumerate() {
+            let target = cache.target.clone();
+            cache_paths.push(if target.starts_with("/") {
+                target.clone()
+            } else {
+                if let Some(workdir) = workdir {
+                    format!("{}/{}", workdir, target)
+                }
+                else {
+                    self.messages.push(LintMessage {
+                        level: MessageLevel::Warn,
+                        message: "The cache target should be absolute or a workdir should be defined in the stage".to_string(),
+                        path: [path.clone(), vec!["cache".into(), position.to_string()]].concat(),
+                    });
+                    target.clone()
+                }
+            });
+        }
+        cache_paths
+    }
+
+    ////////// Statics //////////
+
+    /// Analyze the given Dofigen configuration and return a lint session
+    pub fn analyze(dofigen: &Dofigen) -> Self {
+        let mut session = Self::default();
+        for (name, builder) in dofigen.builders.iter() {
+            let base_origin = vec!["builders".into(), name.clone()];
+            if name == "runtime" {
+                session.messages.push(LintMessage {
+                    level: MessageLevel::Error,
+                    message: "The builder name 'runtime' is reserved".into(),
+                    path: base_origin.clone(),
+                });
+            }
+            session.analyze_stage(&base_origin, name, builder);
+        }
+
+        session.analyze_stage(&vec![], &"runtime".into(), &dofigen.stage);
+        session.check_dependencies();
+
+        session
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct StageLintInfo {
+    dependencies: Vec<StageDependency>,
+    cache_paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct LintMessage {
+    pub level: MessageLevel,
+    pub path: Vec<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum MessageLevel {
+    Warn,
+    Error,
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use pretty_assertions_sorted::assert_eq_sorted;
+
+    impl Default for GenerationContext {
+        fn default() -> Self {
+            Self {
+                user: None,
+                stage_name: String::default(),
+                default_from: FromContext::default(),
+                lint_session: LintSession::default(),
+                state_stack: vec![],
+            }
+        }
+    }
 
     mod stage {
         use super::*;
@@ -807,7 +1062,7 @@ mod test {
                 ..Default::default()
             };
 
-            let lines = stage.generate_dockerfile_lines(&GenerationContext {
+            let lines = stage.generate_dockerfile_lines(&mut GenerationContext {
                 stage_name: "test".into(),
                 ..Default::default()
             });
@@ -852,7 +1107,7 @@ mod test {
             };
 
             let lines = copy
-                .generate_dockerfile_lines(&GenerationContext::default())
+                .generate_dockerfile_lines(&mut GenerationContext::default())
                 .unwrap();
 
             assert_eq_sorted!(
@@ -935,7 +1190,7 @@ mod test {
             };
             assert_eq_sorted!(
                 builder
-                    .generate_dockerfile_lines(&GenerationContext::default())
+                    .generate_dockerfile_lines(&mut GenerationContext::default())
                     .unwrap(),
                 vec![DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "RUN".into(),
@@ -952,7 +1207,7 @@ mod test {
             };
             assert_eq_sorted!(
                 builder
-                    .generate_dockerfile_lines(&GenerationContext::default())
+                    .generate_dockerfile_lines(&mut GenerationContext::default())
                     .unwrap(),
                 vec![]
             );
@@ -966,7 +1221,7 @@ mod test {
             };
             assert_eq_sorted!(
                 builder
-                    .generate_dockerfile_lines(&GenerationContext::default())
+                    .generate_dockerfile_lines(&mut GenerationContext::default())
                     .unwrap(),
                 vec![]
             );
@@ -983,12 +1238,12 @@ mod test {
                 .into(),
                 ..Default::default()
             };
-            let context = GenerationContext {
+            let mut context = GenerationContext {
                 user: Some(User::new("test")),
                 ..Default::default()
             };
             assert_eq_sorted!(
-                builder.generate_dockerfile_lines(&context).unwrap(),
+                builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "RUN".into(),
                     content: "echo Hello".into(),
@@ -1014,12 +1269,12 @@ mod test {
                 }],
                 ..Default::default()
             };
-            let context = GenerationContext {
+            let mut context = GenerationContext {
                 user: Some(User::new("1000")),
                 ..Default::default()
             };
             assert_eq_sorted!(
-                builder.generate_dockerfile_lines(&context).unwrap(),
+                builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "RUN".into(),
                     content: "echo Hello".into(),
@@ -1047,12 +1302,12 @@ mod test {
                 }],
                 ..Default::default()
             };
-            let context = GenerationContext {
+            let mut context = GenerationContext {
                 user: Some(User::new_without_group("1000")),
                 ..Default::default()
             };
             assert_eq_sorted!(
-                builder.generate_dockerfile_lines(&context).unwrap(),
+                builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "RUN".into(),
                     content: "echo Hello".into(),
@@ -1070,11 +1325,11 @@ mod test {
         }
     }
 
-    mod stages_dependency_resolver {
+    mod lint_session {
         use super::*;
 
         #[test]
-        fn resolve_builders_dependencies() {
+        fn builders_dependencies() {
             let dofigen = Dofigen {
                 builders: HashMap::from([
                     (
@@ -1115,30 +1370,275 @@ mod test {
                 ..Default::default()
             };
 
-            let mut resolver = StagesDependencyResolver::new(&dofigen);
+            let mut lint_session = LintSession::analyze(&dofigen);
 
-            let mut dependencies = resolver.resolve_dependencies("runtime".into()).unwrap();
+            let mut dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
             dependencies.sort();
             assert_eq_sorted!(dependencies, Vec::<String>::new());
 
-            dependencies = resolver.resolve_dependencies("builder1".into()).unwrap();
+            dependencies = lint_session.get_stage_recursive_dependencies("builder1".into());
             dependencies.sort();
             assert_eq_sorted!(dependencies, vec!["builder2", "builder3"]);
 
-            dependencies = resolver.resolve_dependencies("builder2".into()).unwrap();
+            dependencies = lint_session.get_stage_recursive_dependencies("builder2".into());
             assert_eq_sorted!(dependencies, vec!["builder3"]);
 
-            dependencies = resolver.resolve_dependencies("builder3".into()).unwrap();
+            dependencies = lint_session.get_stage_recursive_dependencies("builder3".into());
             assert_eq_sorted!(dependencies, Vec::<String>::new());
 
-            let mut builders = resolver.get_sorted_builders().unwrap();
+            let mut builders = lint_session.get_sorted_builders();
             builders.sort();
 
             assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
+
+            assert_eq_sorted!(lint_session.messages, vec![]);
         }
 
         #[test]
-        fn resolve_runtime_dependencies() {
+        fn builders_circular_dependencies() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([
+                    (
+                        "builder1".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder2".into()),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "builder2".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder3".into()),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "builder3".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder1".into()),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                ]),
+                ..Default::default()
+            };
+
+            let mut lint_session = LintSession::analyze(&dofigen);
+
+            let mut dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
+            dependencies.sort();
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
+
+            dependencies = lint_session.get_stage_recursive_dependencies("builder1".into());
+            dependencies.sort();
+            assert_eq_sorted!(dependencies, vec!["builder2", "builder3"]);
+
+            dependencies = lint_session.get_stage_recursive_dependencies("builder2".into());
+            assert_eq_sorted!(dependencies, vec!["builder3"]);
+
+            dependencies = lint_session.get_stage_recursive_dependencies("builder3".into());
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
+
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
+
+            assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec![
+                        "builders".into(),
+                        "builder3".into(),
+                        "copy".into(),
+                        "0".into(),
+                    ],
+                    message:
+                        "Circular dependency detected: builder1 -> builder2 -> builder3 -> builder1"
+                            .into(),
+                },]
+            );
+        }
+
+        #[test]
+        fn builder_named_runtime() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([(
+                    "runtime".into(),
+                    Stage {
+                        run: Run {
+                            run: vec!["echo Hello".into()].into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                )]),
+                ..Default::default()
+            };
+
+            let mut lint_session = LintSession::analyze(&dofigen);
+
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
+
+            assert_eq_sorted!(builders, Vec::<String>::new());
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec!["builders".into(), "runtime".into(),],
+                    message: "The builder name 'runtime' is reserved".into(),
+                },]
+            );
+        }
+
+        #[test]
+        fn builder_not_found() {
+            let dofigen = Dofigen {
+                stage: Stage {
+                    from: FromContext::FromBuilder("builder1".into()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let mut lint_session = LintSession::analyze(&dofigen);
+
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
+
+            assert_eq_sorted!(builders, Vec::<String>::new());
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec!["from".into(),],
+                    message: "The builder 'builder1' not found".into(),
+                },]
+            );
+        }
+
+        #[test]
+        fn dependency_to_runtime() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([(
+                    "builder".into(),
+                    Stage {
+                        copy: vec![CopyResource::Copy(Copy {
+                            from: FromContext::FromBuilder("runtime".into()),
+                            paths: vec!["/path/to/copy".into()],
+                            ..Default::default()
+                        })],
+                        ..Default::default()
+                    },
+                )]),
+                stage: Stage {
+                    run: Run {
+                        run: vec!["echo Hello".into()].into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let mut lint_session = LintSession::analyze(&dofigen);
+
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
+
+            assert_eq_sorted!(builders, vec!["builder"]);
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec![
+                        "builders".into(),
+                        "builder".into(),
+                        "copy".into(),
+                        "0".into()
+                    ],
+                    message: "The builder 'builder' can't depend on the 'runtime'".into(),
+                },]
+            );
+        }
+
+        #[test]
+        fn dependency_to_cache_path() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([
+                    (
+                        "builder1".into(),
+                        Stage {
+                            run: Run {
+                                run: vec!["echo Hello".into()].into(),
+                                cache: vec![Cache {
+                                    target: "/path/to/cache".into(),
+                                    ..Default::default()
+                                }],
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "builder2".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder1".into()),
+                                paths: vec!["/path/to/cache/test".into()],
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                ]),
+                ..Default::default()
+            };
+
+            let mut lint_session = LintSession::analyze(&dofigen);
+
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
+
+            assert_eq_sorted!(builders, vec!["builder1", "builder2"]);
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec![
+                        "builders".into(),
+                        "builder2".into(),
+                        "copy".into(),
+                        "0".into()
+                    ],
+                    message: "Use of the 'builder1' builder cache path '/path/to/cache'".into(),
+                },]
+            );
+        }
+
+        #[test]
+        fn runtime_dependencies() {
             let dofigen = Dofigen {
                 builders: HashMap::from([
                     (
@@ -1187,38 +1687,35 @@ mod test {
                 ..Default::default()
             };
 
-            let mut resolver = StagesDependencyResolver::new(&dofigen);
+            let mut lint_session = LintSession::analyze(&dofigen);
 
-            let mut dependencies = resolver
-                .resolve_dependencies("install-deps".into())
-                .unwrap();
+            let mut dependencies =
+                lint_session.get_stage_recursive_dependencies("install-deps".into());
             dependencies.sort();
             assert_eq_sorted!(dependencies, Vec::<String>::new());
 
-            dependencies = resolver
-                .resolve_dependencies("install-php-ext".into())
-                .unwrap();
+            dependencies = lint_session.get_stage_recursive_dependencies("install-php-ext".into());
             assert_eq_sorted!(dependencies, vec!["install-deps"]);
 
-            dependencies = resolver
-                .resolve_dependencies("get-composer".into())
-                .unwrap();
+            dependencies = lint_session.get_stage_recursive_dependencies("get-composer".into());
             assert_eq_sorted!(dependencies, Vec::<String>::new());
 
-            dependencies = resolver.resolve_dependencies("runtime".into()).unwrap();
+            dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
             dependencies.sort();
             assert_eq_sorted!(
                 dependencies,
                 vec!["get-composer", "install-deps", "install-php-ext"]
             );
 
-            let mut builders = resolver.get_sorted_builders().unwrap();
+            let mut builders = lint_session.get_sorted_builders();
             builders.sort();
 
             assert_eq_sorted!(
                 builders,
                 vec!["get-composer", "install-deps", "install-php-ext"]
             );
+
+            assert_eq_sorted!(lint_session.messages, vec![]);
         }
     }
 }

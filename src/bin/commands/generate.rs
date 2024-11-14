@@ -5,10 +5,11 @@
 use super::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile};
 use crate::{CliCommand, GlobalOptions};
 use clap::Args;
+use colored::{Color, Colorize};
 use dofigen_lib::{
-    generate_dockerfile, generate_dockerignore,
+    generate_dockerignore,
     lock::{Lock, LockFile},
-    DofigenContext, Error, Result,
+    DofigenContext, Error, GenerationContext, MessageLevel, Result,
 };
 use std::{fs, path::PathBuf};
 
@@ -48,7 +49,7 @@ impl Generate {
 
 impl CliCommand for Generate {
     fn run(self) -> Result<()> {
-        let path = get_file_path(&self.options.file);
+        let path = get_file_path(&self.options.file)?;
         let lockfile_path = get_lockfile_path(path.clone());
         let lockfile = load_lockfile(lockfile_path.clone());
         let mut context = lockfile
@@ -88,7 +89,36 @@ impl CliCommand for Generate {
             locked_image
         };
 
-        let dockerfile_content = generate_dockerfile(&dofigen)?;
+        let mut generation_context = GenerationContext::from(&dofigen);
+
+        let dockerfile_content = generation_context.generate_dockerfile(&dofigen)?;
+
+        let messages = generation_context.get_lint_messages().clone();
+
+        messages.iter().for_each(|message| {
+            eprintln!(
+                "{}[path={}]: {}",
+                match message.level {
+                    MessageLevel::Error => "error".color(Color::Red).bold(),
+                    MessageLevel::Warn => "warning".color(Color::Yellow).bold(),
+                },
+                message.path.join(".").color(Color::Blue).bold(),
+                message.message
+            );
+        });
+
+        let errors = messages
+            .iter()
+            .filter(|m| m.level == MessageLevel::Error)
+            .count();
+
+        if errors > 0 {
+            return Err(Error::Custom(format!(
+                "Could not generate the Dockerfile due to {} previous error{}",
+                errors,
+                if errors > 1 { "s" } else { "" }
+            )));
+        }
 
         if self.output == "-" {
             print!("{}", dockerfile_content);
