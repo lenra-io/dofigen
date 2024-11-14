@@ -33,7 +33,7 @@ strict = []
 serde = "1.0"
 serde_yaml = "0.9.34"
 serde_json = { version = "1.0.132", optional = true }
-thiserror = "1.0.67"
+thiserror = "2.0"
 clap = { version = "4.5", features = ["derive"], optional = true }
 schemars = { version = "0.8.21", optional = true, features = ["url"] }
 regex = "1.11.1"
