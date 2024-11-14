@@ -115,8 +115,7 @@ impl CliCommand for Generate {
 
         if errors > 0 {
             return Err(Error::Custom(format!(
-                "{}: could not generate the Dockerfile due to {} previous error{}",
-                "error".color(Color::Red).bold(),
+                "Could not generate the Dockerfile due to {} previous error{}",
                 errors,
                 if errors > 1 { "s" } else { "" }
             )));
