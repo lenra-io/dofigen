@@ -237,7 +237,10 @@ pub struct Cache {
     pub id: Option<String>,
 
     /// The target path of the cache
-    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "dst", alias = "destination"))))]
+    #[cfg_attr(
+        not(feature = "strict"),
+        patch(attribute(serde(alias = "dst", alias = "destination")))
+    )]
     pub target: String,
 
     /// Defines if the cache is readonly
