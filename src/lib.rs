@@ -29,8 +29,6 @@ mod generator;
 #[cfg(feature = "json_schema")]
 mod json_schema;
 pub mod lock;
-use dockerfile_struct::{DockerfileContent, DockerfileLine};
-use generator::DockerfileGenerator;
 #[cfg(feature = "json_schema")]
 use schemars::gen::*;
 pub use {
@@ -80,29 +78,7 @@ const FILE_HEADER_COMMENTS: [&str; 2] = [
 /// );
 /// ```
 pub fn generate_dockerfile(dofigen: &Dofigen) -> Result<String> {
-    generate_dockerfile_with_context(dofigen, &mut GenerationContext::from(dofigen))
-}
-
-pub fn generate_dockerfile_with_context(
-    dofigen: &Dofigen,
-    context: &mut GenerationContext,
-) -> Result<String> {
-    let mut lines = dofigen.generate_dockerfile_lines(context)?;
-    let mut line_number = 1;
-
-    for line in FILE_HEADER_COMMENTS {
-        lines.insert(line_number, DockerfileLine::Comment(line.to_string()));
-        line_number += 1;
-    }
-
-    Ok(format!(
-        "{}\n",
-        lines
-            .iter()
-            .map(DockerfileLine::generate_content)
-            .collect::<Vec<String>>()
-            .join("\n")
-    ))
+    GenerationContext::from(dofigen).generate_dockerfile(dofigen)
 }
 
 /// Generates the .dockerignore file content from an Dofigen struct.

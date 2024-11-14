@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::{dockerfile_struct::*, dofigen_struct::*, Result, DOCKERFILE_VERSION};
+use crate::{
+    dockerfile_struct::*, dofigen_struct::*, Result, DOCKERFILE_VERSION, FILE_HEADER_COMMENTS,
+};
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
 pub const DEFAULT_FROM: &str = "scratch";
@@ -19,7 +21,7 @@ impl GenerationContext {
         self.lint_session.messages.clone()
     }
 
-    pub fn push_state(&mut self, state: GenerationContextState) {
+    fn push_state(&mut self, state: GenerationContextState) {
         let mut prev_state = GenerationContextState::default();
         if let Some(user) = &state.user {
             prev_state.user = Some(self.user.clone());
@@ -36,7 +38,7 @@ impl GenerationContext {
         self.state_stack.push(prev_state);
     }
 
-    pub fn pop_state(&mut self) {
+    fn pop_state(&mut self) {
         let prev_state = self.state_stack.pop().expect("The state stack is empty");
         if let Some(user) = prev_state.user {
             self.user = user;
@@ -57,6 +59,25 @@ impl GenerationContext {
             lint_session: LintSession::analyze(dofigen),
             state_stack: vec![],
         }
+    }
+
+    pub fn generate_dockerfile(&mut self, dofigen: &Dofigen) -> Result<String> {
+        let mut lines = dofigen.generate_dockerfile_lines(self)?;
+        let mut line_number = 1;
+
+        for line in FILE_HEADER_COMMENTS {
+            lines.insert(line_number, DockerfileLine::Comment(line.to_string()));
+            line_number += 1;
+        }
+
+        Ok(format!(
+            "{}\n",
+            lines
+                .iter()
+                .map(DockerfileLine::generate_content)
+                .collect::<Vec<String>>()
+                .join("\n")
+        ))
     }
 }
 
@@ -374,7 +395,6 @@ impl DockerfileGenerator for Dofigen {
         ];
 
         for name in context.lint_session.get_sorted_builders() {
-            println!("Generating stage: {}", name);
             context.push_state(GenerationContextState {
                 stage_name: Some(name.clone()),
                 ..Default::default()
@@ -869,7 +889,7 @@ impl LintSession {
                         self.messages.push(LintMessage {
                             level: MessageLevel::Error,
                             message: format!(
-                                "Use of the '{}' builder cache path {}",
+                                "Use of the '{}' builder cache path '{}'",
                                 dependency.stage, path
                             ),
                             path: dependency.origin.clone(),
@@ -1612,7 +1632,7 @@ mod test {
                         "copy".into(),
                         "0".into()
                     ],
-                    message: "Use of the 'builder1' builder cache path /path/to/cache".into(),
+                    message: "Use of the 'builder1' builder cache path '/path/to/cache'".into(),
                 },]
             );
         }

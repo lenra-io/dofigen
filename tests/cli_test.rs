@@ -168,7 +168,7 @@ Usage: dofigen <COMMAND>"#,
 
         assert!(output.stdout.is_empty());
 
-        output_starts_with(&output.stderr, "No Dofigen file found");
+        output_starts_with(&output.stderr, "error: No Dofigen file found");
 
         temp.close().unwrap();
     }
