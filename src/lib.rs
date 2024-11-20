@@ -28,16 +28,13 @@ mod from_str;
 mod generator;
 #[cfg(feature = "json_schema")]
 mod json_schema;
+mod linter;
 pub mod lock;
 #[cfg(feature = "json_schema")]
 use schemars::gen::*;
 pub use {
-    context::*,
-    deserialize::*,
-    dofigen_struct::*,
-    errors::*,
-    extend::*,
-    generator::{GenerationContext, MessageLevel},
+    context::*, deserialize::*, dofigen_struct::*, errors::*, extend::*,
+    generator::GenerationContext, linter::*,
 };
 
 #[cfg(all(feature = "strict", feature = "permissive"))]
