@@ -332,36 +332,162 @@ mod test {
     use super::*;
     use pretty_assertions_sorted::assert_eq_sorted;
 
-    #[test]
-    fn builders_dependencies() {
-        let dofigen = Dofigen {
-            builders: HashMap::from([
-                (
-                    "builder1".into(),
-                    Stage {
-                        copy: vec![CopyResource::Copy(Copy {
-                            from: FromContext::FromBuilder("builder2".into()),
-                            paths: vec!["/path/to/copy".into()],
-                            options: Default::default(),
+    mod stage_dependencies {
+        use super::*;
+
+        #[test]
+        fn builders_dependencies() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([
+                    (
+                        "builder1".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder2".into()),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
                             ..Default::default()
-                        })],
-                        ..Default::default()
-                    },
-                ),
-                (
-                    "builder2".into(),
-                    Stage {
-                        copy: vec![CopyResource::Copy(Copy {
-                            from: FromContext::FromBuilder("builder3".into()),
-                            paths: vec!["/path/to/copy".into()],
-                            options: Default::default(),
+                        },
+                    ),
+                    (
+                        "builder2".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder3".into()),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
                             ..Default::default()
-                        })],
-                        ..Default::default()
-                    },
-                ),
-                (
-                    "builder3".into(),
+                        },
+                    ),
+                    (
+                        "builder3".into(),
+                        Stage {
+                            run: Run {
+                                run: vec!["echo Hello".into()].into(),
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                    ),
+                ]),
+                ..Default::default()
+            };
+
+            let mut lint_session = LintSession::analyze(&dofigen);
+
+            let mut dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
+            dependencies.sort();
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
+
+            dependencies = lint_session.get_stage_recursive_dependencies("builder1".into());
+            dependencies.sort();
+            assert_eq_sorted!(dependencies, vec!["builder2", "builder3"]);
+
+            dependencies = lint_session.get_stage_recursive_dependencies("builder2".into());
+            assert_eq_sorted!(dependencies, vec!["builder3"]);
+
+            dependencies = lint_session.get_stage_recursive_dependencies("builder3".into());
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
+
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
+
+            assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
+
+            assert_eq_sorted!(lint_session.messages, vec![]);
+        }
+
+        #[test]
+        fn builders_circular_dependencies() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([
+                    (
+                        "builder1".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder2".into()),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "builder2".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder3".into()),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "builder3".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder1".into()),
+                                paths: vec!["/path/to/copy".into()],
+                                options: Default::default(),
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                ]),
+                ..Default::default()
+            };
+
+            let mut lint_session = LintSession::analyze(&dofigen);
+
+            let mut dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
+            dependencies.sort();
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
+
+            dependencies = lint_session.get_stage_recursive_dependencies("builder1".into());
+            dependencies.sort();
+            assert_eq_sorted!(dependencies, vec!["builder2", "builder3"]);
+
+            dependencies = lint_session.get_stage_recursive_dependencies("builder2".into());
+            assert_eq_sorted!(dependencies, vec!["builder3"]);
+
+            dependencies = lint_session.get_stage_recursive_dependencies("builder3".into());
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
+
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
+
+            assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec![
+                        "builders".into(),
+                        "builder3".into(),
+                        "copy".into(),
+                        "0".into(),
+                    ],
+                    message:
+                        "Circular dependency detected: builder1 -> builder2 -> builder3 -> builder1"
+                            .into(),
+                },]
+            );
+        }
+
+        #[test]
+        fn builder_named_runtime() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([(
+                    "runtime".into(),
                     Stage {
                         run: Run {
                             run: vec!["echo Hello".into()].into(),
@@ -369,356 +495,235 @@ mod test {
                         },
                         ..Default::default()
                     },
-                ),
-            ]),
-            ..Default::default()
-        };
+                )]),
+                ..Default::default()
+            };
 
-        let mut lint_session = LintSession::analyze(&dofigen);
+            let mut lint_session = LintSession::analyze(&dofigen);
 
-        let mut dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
-        dependencies.sort();
-        assert_eq_sorted!(dependencies, Vec::<String>::new());
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
 
-        dependencies = lint_session.get_stage_recursive_dependencies("builder1".into());
-        dependencies.sort();
-        assert_eq_sorted!(dependencies, vec!["builder2", "builder3"]);
+            assert_eq_sorted!(builders, Vec::<String>::new());
 
-        dependencies = lint_session.get_stage_recursive_dependencies("builder2".into());
-        assert_eq_sorted!(dependencies, vec!["builder3"]);
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec!["builders".into(), "runtime".into(),],
+                    message: "The builder name 'runtime' is reserved".into(),
+                },]
+            );
+        }
 
-        dependencies = lint_session.get_stage_recursive_dependencies("builder3".into());
-        assert_eq_sorted!(dependencies, Vec::<String>::new());
+        #[test]
+        fn builder_not_found() {
+            let dofigen = Dofigen {
+                stage: Stage {
+                    from: FromContext::FromBuilder("builder1".into()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
 
-        let mut builders = lint_session.get_sorted_builders();
-        builders.sort();
+            let mut lint_session = LintSession::analyze(&dofigen);
 
-        assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
 
-        assert_eq_sorted!(lint_session.messages, vec![]);
-    }
+            assert_eq_sorted!(builders, Vec::<String>::new());
 
-    #[test]
-    fn builders_circular_dependencies() {
-        let dofigen = Dofigen {
-            builders: HashMap::from([
-                (
-                    "builder1".into(),
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec!["from".into(),],
+                    message: "The builder 'builder1' not found".into(),
+                },]
+            );
+        }
+
+        #[test]
+        fn dependency_to_runtime() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([(
+                    "builder".into(),
                     Stage {
                         copy: vec![CopyResource::Copy(Copy {
-                            from: FromContext::FromBuilder("builder2".into()),
+                            from: FromContext::FromBuilder("runtime".into()),
                             paths: vec!["/path/to/copy".into()],
-                            options: Default::default(),
                             ..Default::default()
                         })],
                         ..Default::default()
                     },
-                ),
-                (
-                    "builder2".into(),
-                    Stage {
-                        copy: vec![CopyResource::Copy(Copy {
-                            from: FromContext::FromBuilder("builder3".into()),
-                            paths: vec!["/path/to/copy".into()],
-                            options: Default::default(),
-                            ..Default::default()
-                        })],
-                        ..Default::default()
-                    },
-                ),
-                (
-                    "builder3".into(),
-                    Stage {
-                        copy: vec![CopyResource::Copy(Copy {
-                            from: FromContext::FromBuilder("builder1".into()),
-                            paths: vec!["/path/to/copy".into()],
-                            options: Default::default(),
-                            ..Default::default()
-                        })],
-                        ..Default::default()
-                    },
-                ),
-            ]),
-            ..Default::default()
-        };
-
-        let mut lint_session = LintSession::analyze(&dofigen);
-
-        let mut dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
-        dependencies.sort();
-        assert_eq_sorted!(dependencies, Vec::<String>::new());
-
-        dependencies = lint_session.get_stage_recursive_dependencies("builder1".into());
-        dependencies.sort();
-        assert_eq_sorted!(dependencies, vec!["builder2", "builder3"]);
-
-        dependencies = lint_session.get_stage_recursive_dependencies("builder2".into());
-        assert_eq_sorted!(dependencies, vec!["builder3"]);
-
-        dependencies = lint_session.get_stage_recursive_dependencies("builder3".into());
-        assert_eq_sorted!(dependencies, Vec::<String>::new());
-
-        let mut builders = lint_session.get_sorted_builders();
-        builders.sort();
-
-        assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
-
-        assert_eq_sorted!(
-            lint_session.messages,
-            vec![LintMessage {
-                level: MessageLevel::Error,
-                path: vec![
-                    "builders".into(),
-                    "builder3".into(),
-                    "copy".into(),
-                    "0".into(),
-                ],
-                message:
-                    "Circular dependency detected: builder1 -> builder2 -> builder3 -> builder1"
-                        .into(),
-            },]
-        );
-    }
-
-    #[test]
-    fn builder_named_runtime() {
-        let dofigen = Dofigen {
-            builders: HashMap::from([(
-                "runtime".into(),
-                Stage {
+                )]),
+                stage: Stage {
                     run: Run {
                         run: vec!["echo Hello".into()].into(),
                         ..Default::default()
                     },
                     ..Default::default()
                 },
-            )]),
-            ..Default::default()
-        };
-
-        let mut lint_session = LintSession::analyze(&dofigen);
-
-        let mut builders = lint_session.get_sorted_builders();
-        builders.sort();
-
-        assert_eq_sorted!(builders, Vec::<String>::new());
-
-        assert_eq_sorted!(
-            lint_session.messages,
-            vec![LintMessage {
-                level: MessageLevel::Error,
-                path: vec!["builders".into(), "runtime".into(),],
-                message: "The builder name 'runtime' is reserved".into(),
-            },]
-        );
-    }
-
-    #[test]
-    fn builder_not_found() {
-        let dofigen = Dofigen {
-            stage: Stage {
-                from: FromContext::FromBuilder("builder1".into()),
                 ..Default::default()
-            },
-            ..Default::default()
-        };
+            };
 
-        let mut lint_session = LintSession::analyze(&dofigen);
+            let mut lint_session = LintSession::analyze(&dofigen);
 
-        let mut builders = lint_session.get_sorted_builders();
-        builders.sort();
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
 
-        assert_eq_sorted!(builders, Vec::<String>::new());
+            assert_eq_sorted!(builders, vec!["builder"]);
 
-        assert_eq_sorted!(
-            lint_session.messages,
-            vec![LintMessage {
-                level: MessageLevel::Error,
-                path: vec!["from".into(),],
-                message: "The builder 'builder1' not found".into(),
-            },]
-        );
-    }
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec![
+                        "builders".into(),
+                        "builder".into(),
+                        "copy".into(),
+                        "0".into()
+                    ],
+                    message: "The builder 'builder' can't depend on the 'runtime'".into(),
+                },]
+            );
+        }
 
-    #[test]
-    fn dependency_to_runtime() {
-        let dofigen = Dofigen {
-            builders: HashMap::from([(
-                "builder".into(),
-                Stage {
+        #[test]
+        fn dependency_to_cache_path() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([
+                    (
+                        "builder1".into(),
+                        Stage {
+                            run: Run {
+                                run: vec!["echo Hello".into()].into(),
+                                cache: vec![Cache {
+                                    target: "/path/to/cache".into(),
+                                    ..Default::default()
+                                }],
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "builder2".into(),
+                        Stage {
+                            copy: vec![CopyResource::Copy(Copy {
+                                from: FromContext::FromBuilder("builder1".into()),
+                                paths: vec!["/path/to/cache/test".into()],
+                                ..Default::default()
+                            })],
+                            ..Default::default()
+                        },
+                    ),
+                ]),
+                ..Default::default()
+            };
+
+            let mut lint_session = LintSession::analyze(&dofigen);
+
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
+
+            assert_eq_sorted!(builders, vec!["builder1", "builder2"]);
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec![
+                        "builders".into(),
+                        "builder2".into(),
+                        "copy".into(),
+                        "0".into()
+                    ],
+                    message: "Use of the 'builder1' builder cache path '/path/to/cache'".into(),
+                },]
+            );
+        }
+
+        #[test]
+        fn runtime_dependencies() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([
+                    (
+                        "install-deps".to_string(),
+                        Stage {
+                            from: FromContext::FromImage(ImageName {
+                                path: "php".to_string(),
+                                version: Some(ImageVersion::Tag("8.3-fpm-alpine".to_string())),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "install-php-ext".to_string(),
+                        Stage {
+                            from: FromContext::FromBuilder("install-deps".to_string()),
+                            ..Default::default()
+                        },
+                    ),
+                    (
+                        "get-composer".to_string(),
+                        Stage {
+                            from: FromContext::FromImage(ImageName {
+                                path: "composer".to_string(),
+                                version: Some(ImageVersion::Tag("latest".to_string())),
+                                ..Default::default()
+                            }),
+                            ..Default::default()
+                        },
+                    ),
+                ]),
+                stage: Stage {
+                    from: FromContext::FromBuilder("install-php-ext".to_string()),
                     copy: vec![CopyResource::Copy(Copy {
-                        from: FromContext::FromBuilder("runtime".into()),
-                        paths: vec!["/path/to/copy".into()],
+                        from: FromContext::FromBuilder("get-composer".to_string()),
+                        paths: vec!["/usr/bin/composer".to_string()],
+                        options: CopyOptions {
+                            target: Some("/bin/".to_string()),
+                            ..Default::default()
+                        },
                         ..Default::default()
                     })],
                     ..Default::default()
                 },
-            )]),
-            stage: Stage {
-                run: Run {
-                    run: vec!["echo Hello".into()].into(),
-                    ..Default::default()
-                },
                 ..Default::default()
-            },
-            ..Default::default()
-        };
+            };
 
-        let mut lint_session = LintSession::analyze(&dofigen);
+            let mut lint_session = LintSession::analyze(&dofigen);
 
-        let mut builders = lint_session.get_sorted_builders();
-        builders.sort();
+            let mut dependencies =
+                lint_session.get_stage_recursive_dependencies("install-deps".into());
+            dependencies.sort();
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
 
-        assert_eq_sorted!(builders, vec!["builder"]);
+            dependencies = lint_session.get_stage_recursive_dependencies("install-php-ext".into());
+            assert_eq_sorted!(dependencies, vec!["install-deps"]);
 
-        assert_eq_sorted!(
-            lint_session.messages,
-            vec![LintMessage {
-                level: MessageLevel::Error,
-                path: vec![
-                    "builders".into(),
-                    "builder".into(),
-                    "copy".into(),
-                    "0".into()
-                ],
-                message: "The builder 'builder' can't depend on the 'runtime'".into(),
-            },]
-        );
-    }
+            dependencies = lint_session.get_stage_recursive_dependencies("get-composer".into());
+            assert_eq_sorted!(dependencies, Vec::<String>::new());
 
-    #[test]
-    fn dependency_to_cache_path() {
-        let dofigen = Dofigen {
-            builders: HashMap::from([
-                (
-                    "builder1".into(),
-                    Stage {
-                        run: Run {
-                            run: vec!["echo Hello".into()].into(),
-                            cache: vec![Cache {
-                                target: "/path/to/cache".into(),
-                                ..Default::default()
-                            }],
-                            ..Default::default()
-                        },
-                        ..Default::default()
-                    },
-                ),
-                (
-                    "builder2".into(),
-                    Stage {
-                        copy: vec![CopyResource::Copy(Copy {
-                            from: FromContext::FromBuilder("builder1".into()),
-                            paths: vec!["/path/to/cache/test".into()],
-                            ..Default::default()
-                        })],
-                        ..Default::default()
-                    },
-                ),
-            ]),
-            ..Default::default()
-        };
+            dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
+            dependencies.sort();
+            assert_eq_sorted!(
+                dependencies,
+                vec!["get-composer", "install-deps", "install-php-ext"]
+            );
 
-        let mut lint_session = LintSession::analyze(&dofigen);
+            let mut builders = lint_session.get_sorted_builders();
+            builders.sort();
 
-        let mut builders = lint_session.get_sorted_builders();
-        builders.sort();
+            assert_eq_sorted!(
+                builders,
+                vec!["get-composer", "install-deps", "install-php-ext"]
+            );
 
-        assert_eq_sorted!(builders, vec!["builder1", "builder2"]);
-
-        assert_eq_sorted!(
-            lint_session.messages,
-            vec![LintMessage {
-                level: MessageLevel::Error,
-                path: vec![
-                    "builders".into(),
-                    "builder2".into(),
-                    "copy".into(),
-                    "0".into()
-                ],
-                message: "Use of the 'builder1' builder cache path '/path/to/cache'".into(),
-            },]
-        );
-    }
-
-    #[test]
-    fn runtime_dependencies() {
-        let dofigen = Dofigen {
-            builders: HashMap::from([
-                (
-                    "install-deps".to_string(),
-                    Stage {
-                        from: FromContext::FromImage(ImageName {
-                            path: "php".to_string(),
-                            version: Some(ImageVersion::Tag("8.3-fpm-alpine".to_string())),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    },
-                ),
-                (
-                    "install-php-ext".to_string(),
-                    Stage {
-                        from: FromContext::FromBuilder("install-deps".to_string()),
-                        ..Default::default()
-                    },
-                ),
-                (
-                    "get-composer".to_string(),
-                    Stage {
-                        from: FromContext::FromImage(ImageName {
-                            path: "composer".to_string(),
-                            version: Some(ImageVersion::Tag("latest".to_string())),
-                            ..Default::default()
-                        }),
-                        ..Default::default()
-                    },
-                ),
-            ]),
-            stage: Stage {
-                from: FromContext::FromBuilder("install-php-ext".to_string()),
-                copy: vec![CopyResource::Copy(Copy {
-                    from: FromContext::FromBuilder("get-composer".to_string()),
-                    paths: vec!["/usr/bin/composer".to_string()],
-                    options: CopyOptions {
-                        target: Some("/bin/".to_string()),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                })],
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        let mut lint_session = LintSession::analyze(&dofigen);
-
-        let mut dependencies = lint_session.get_stage_recursive_dependencies("install-deps".into());
-        dependencies.sort();
-        assert_eq_sorted!(dependencies, Vec::<String>::new());
-
-        dependencies = lint_session.get_stage_recursive_dependencies("install-php-ext".into());
-        assert_eq_sorted!(dependencies, vec!["install-deps"]);
-
-        dependencies = lint_session.get_stage_recursive_dependencies("get-composer".into());
-        assert_eq_sorted!(dependencies, Vec::<String>::new());
-
-        dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
-        dependencies.sort();
-        assert_eq_sorted!(
-            dependencies,
-            vec!["get-composer", "install-deps", "install-php-ext"]
-        );
-
-        let mut builders = lint_session.get_sorted_builders();
-        builders.sort();
-
-        assert_eq_sorted!(
-            builders,
-            vec!["get-composer", "install-deps", "install-php-ext"]
-        );
-
-        assert_eq_sorted!(lint_session.messages, vec![]);
+            assert_eq_sorted!(lint_session.messages, vec![]);
+        }
     }
 
     mod user {
