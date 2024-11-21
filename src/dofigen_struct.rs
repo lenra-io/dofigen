@@ -252,7 +252,7 @@ pub struct Cache {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sharing: Option<CacheSharing>,
 
-    /// The base of the cache mount
+    /// Build stage, context, or image name to use as a base of the cache mount. Defaults to empty directory.
     #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
     #[patch(name = "FromContextPatch", attribute(serde(flatten)))]
     pub from: FromContext,

@@ -190,7 +190,23 @@ Don't forget to give the project a star! Thanks again!
 To run the tests, use the following command:
 
 ```bash
-cargo test --all-features
+cargo test
+```
+
+#### Test coverage
+
+To generate the test coverage, use the following commands:
+
+```bash
+# Generate the coverage report
+RUSTFLAGS="-C instrument-coverage" \
+  RUSTDOCFLAGS="-C instrument-coverage" \
+  LLVM_PROFILE_FILE="target/coverage/profiles/cargo-test-%p-%m.profraw" \
+  cargo test
+# Convert to lcov format
+grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore ../* --ignore /* -o target/coverage/lcov.info
+# Generate the HTML report
+grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html --branch --ignore-not-existing --ignore ../* --ignore /* -o target/coverage/html
 ```
 
 ### Generate the JSON Schema

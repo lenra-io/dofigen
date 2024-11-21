@@ -2,11 +2,236 @@ use std::collections::{HashMap, HashSet};
 
 use crate::dofigen_struct::*;
 
+const WARN_MESSAGE_FROM_CONTEXT: &str =
+    "Prefer to use fromImage and fromBuilder instead of fromContext";
+const WARN_MESSAGE_FROM_CONTEXT_UNLESS: &str =
+    "(unless it's really from a build context: https://docs.docker.com/reference/cli/docker/buildx/build/#build-context)";
+
 #[derive(Debug, Clone, PartialEq)]
 struct StageDependency {
     stage: String,
     path: String,
     origin: Vec<String>,
+}
+
+macro_rules! linter_path {
+    ($session:expr, $part:expr, $block:block) => {
+        $session.push_path_part($part);
+        $block
+        $session.pop_path_part();
+    };
+}
+
+trait Linter {
+    fn analyze(&self, session: &mut LintSession);
+}
+
+impl Linter for Dofigen {
+    fn analyze(&self, session: &mut LintSession) {
+        linter_path!(session, "builders".into(), {
+            for (name, builder) in self.builders.iter() {
+                linter_path!(session, name.clone(), {
+                    if name == "runtime" {
+                        session.add_message(
+                            MessageLevel::Error,
+                            "The builder name 'runtime' is reserved".into(),
+                        );
+                    }
+                    builder.analyze(session);
+                });
+            }
+        });
+
+        self.stage.analyze(session);
+
+        // Check root user in runtime stage
+        if let Some(user) = &self.stage.user {
+            if user.user == "root" || user.uid() == Some(0) {
+                session.messages.push(LintMessage {
+                    level: MessageLevel::Warn,
+                    message: "The runtime user should not be root".into(),
+                    path: vec!["user".into()],
+                });
+            }
+        }
+
+        session.check_dependencies();
+    }
+}
+
+impl Linter for Stage {
+    fn analyze(&self, session: &mut LintSession) {
+        let name = session.current_path.last().cloned();
+
+        // Check empty stage
+        if let Some(name) = name.clone() {
+            if self.copy.is_empty() && self.run.run.is_empty() && self.root.is_none() {
+                session.add_message(
+                    MessageLevel::Warn,
+                    format!("The builder '{}' is empty and should be removed", name),
+                );
+            }
+        }
+
+        let name = name.unwrap_or("runtime".to_string());
+
+        let dependencies = self.get_dependencies(&session.current_path);
+        session.messages.append(
+            &mut dependencies
+                .iter()
+                .filter(|dep| dep.stage == "runtime")
+                .map(|dep| LintMessage {
+                    level: MessageLevel::Error,
+                    message: format!("The stage '{}' can't depend on the 'runtime'", &name,),
+                    path: dep.origin.clone(),
+                })
+                .collect(),
+        );
+        let cache_paths = session.get_stage_cache_paths(self);
+        session.stage_infos.insert(
+            name,
+            StageLintInfo {
+                dependencies,
+                cache_paths,
+            },
+        );
+
+        // Check the use of fromContext
+        if let FromContext::FromContext(Some(_)) = self.from {
+            linter_path!(session, "fromContext".into(), {
+                session.add_message(MessageLevel::Warn, WARN_MESSAGE_FROM_CONTEXT.to_string());
+            });
+        }
+
+        linter_path!(session, "copy".into(), {
+            for (position, copy) in self.copy.iter().enumerate() {
+                linter_path!(session, position.to_string(), {
+                    copy.analyze(session);
+                });
+            }
+        });
+
+        if let Some(root) = &self.root {
+            linter_path!(session, "root".into(), {
+                root.analyze(session);
+            });
+        }
+
+        self.run.analyze(session);
+
+        // Check if the user is using the username instead of the UID
+        if let Some(user) = &self.user {
+            if user.uid().is_none() {
+                linter_path!(session, "user".into(), {
+                    session.add_message(
+                        MessageLevel::Warn,
+                        "UID should be used instead of username".to_string(),
+                    );
+                });
+            }
+        }
+    }
+}
+
+impl Linter for CopyResource {
+    fn analyze(&self, session: &mut LintSession) {
+        match self {
+            CopyResource::Copy(copy) => copy.analyze(session),
+            _ => {}
+        }
+    }
+}
+
+impl Linter for Copy {
+    fn analyze(&self, session: &mut LintSession) {
+        match &self.from {
+            FromContext::FromContext(Some(_)) => {
+                linter_path!(session, "fromContext".into(), {
+                    session.add_message(
+                        MessageLevel::Warn,
+                        format!(
+                            "{} {}",
+                            WARN_MESSAGE_FROM_CONTEXT, WARN_MESSAGE_FROM_CONTEXT_UNLESS
+                        ),
+                    );
+                });
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Linter for Run {
+    fn analyze(&self, session: &mut LintSession) {
+        if self.run.is_empty() {
+            if !self.bind.is_empty() {
+                linter_path!(session, "bind".into(), {
+                    session.add_message(
+                        MessageLevel::Warn,
+                        "The run list is empty but there are bind definitions".to_string(),
+                    );
+                });
+            }
+
+            if !self.cache.is_empty() {
+                linter_path!(session, "cache".into(), {
+                    session.add_message(
+                        MessageLevel::Warn,
+                        "The run list is empty but there are cache definitions".to_string(),
+                    );
+                });
+            }
+        }
+
+        linter_path!(session, "run".into(), {
+            for (position, command) in self.run.iter().enumerate() {
+                linter_path!(session, position.to_string(), {
+                    if command.starts_with("cd ") {
+                        session.add_message(
+                            MessageLevel::Warn,
+                            "Avoid using 'cd' in the run command".to_string(),
+                        );
+                    }
+                });
+            }
+        });
+
+        linter_path!(session, "bind".into(), {
+            for (position, bind) in self.bind.iter().enumerate() {
+                linter_path!(session, position.to_string(), {
+                    if let FromContext::FromContext(Some(_)) = bind.from {
+                        linter_path!(session, "fromContext".into(), {
+                            session.add_message(
+                                MessageLevel::Warn,
+                                format!(
+                                    "{} {}",
+                                    WARN_MESSAGE_FROM_CONTEXT, WARN_MESSAGE_FROM_CONTEXT_UNLESS
+                                ),
+                            );
+                        });
+                    }
+                });
+            }
+        });
+
+        linter_path!(session, "cache".into(), {
+            for (position, cache) in self.cache.iter().enumerate() {
+                linter_path!(session, position.to_string(), {
+                    if let FromContext::FromContext(Some(_)) = cache.from {
+                        linter_path!(session, "fromContext".into(), {
+                            session.add_message(
+                                MessageLevel::Warn,
+                                format!(
+                                    "{} {}",
+                                    WARN_MESSAGE_FROM_CONTEXT, WARN_MESSAGE_FROM_CONTEXT_UNLESS
+                                ),
+                            );
+                        });
+                    }
+                });
+            }
+        });
+    }
 }
 
 trait StageDependencyGetter {
@@ -85,12 +310,29 @@ impl StageDependencyGetter for CopyResource {
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct LintSession {
+    current_path: Vec<String>,
     messages: Vec<LintMessage>,
     stage_infos: HashMap<String, StageLintInfo>,
     recursive_stage_dependencies: HashMap<String, Vec<String>>,
 }
 
 impl LintSession {
+    fn push_path_part(&mut self, part: String) {
+        self.current_path.push(part);
+    }
+
+    fn pop_path_part(&mut self) {
+        self.current_path.pop();
+    }
+
+    fn add_message(&mut self, level: MessageLevel, message: String) {
+        self.messages.push(LintMessage {
+            level,
+            message,
+            path: self.current_path.clone(),
+        });
+    }
+
     pub fn messages(&self) -> Vec<LintMessage> {
         self.messages.clone()
     }
@@ -172,15 +414,43 @@ impl LintSession {
     fn check_dependencies(&mut self) {
         let dependencies = self
             .stage_infos
-            .iter()
-            .flat_map(|(_name, info)| info.dependencies.clone())
+            .values()
+            .flat_map(|info| info.dependencies.clone())
             .collect::<Vec<_>>();
 
         let caches = self
             .stage_infos
             .iter()
-            .map(|(name, info)| (name, info.cache_paths.clone()))
+            .map(|(name, info)| (name.clone(), info.cache_paths.clone()))
             .collect::<HashMap<_, _>>();
+
+        // Check if there is unused builders
+        let used_builders = dependencies
+            .iter()
+            .map(|dep| dep.stage.clone())
+            .collect::<HashSet<_>>();
+
+        let unused_builders = self
+            .stage_infos
+            .keys()
+            .filter(|name| name != &"runtime")
+            .map(|name| name.clone())
+            .filter(|name| !used_builders.contains(name))
+            .collect::<HashSet<_>>();
+
+        linter_path!(self, "builders".into(), {
+            for builder in unused_builders {
+                linter_path!(self, builder.clone(), {
+                    self.add_message(
+                        MessageLevel::Warn,
+                        format!(
+                            "The builder '{}' is not used and should be removed",
+                            builder
+                        ),
+                    );
+                });
+            }
+        });
 
         for dependency in dependencies {
             if let Some(paths) = caches.get(&dependency.stage) {
@@ -207,47 +477,17 @@ impl LintSession {
         }
     }
 
-    fn analyze_stage(&mut self, path: &Vec<String>, name: &String, stage: &Stage) {
-        let dependencies = stage.get_dependencies(path);
-        self.messages.append(
-            &mut dependencies
-                .iter()
-                .filter(|dep| dep.stage == "runtime")
-                .map(|dep| LintMessage {
-                    level: MessageLevel::Error,
-                    message: format!("The builder '{}' can't depend on the 'runtime'", name,),
-                    path: dep.origin.clone(),
-                })
-                .collect(),
-        );
-        let cache_paths = self.get_stage_cache_paths(stage, path);
-        self.stage_infos.insert(
-            name.clone(),
-            StageLintInfo {
-                dependencies,
-                cache_paths,
-            },
-        );
-
-        // Check if the user is using the username instead of the UID
-        if let Some(user) = &stage.user {
-            if user.uid().is_none() {
-                self.messages.push(LintMessage {
-                    level: MessageLevel::Warn,
-                    message: "UID should be used instead of username".to_string(),
-                    path: [path.clone(), vec!["user".into()]].concat(),
-                });
-            }
-        }
-    }
-
-    fn get_stage_cache_paths(&mut self, stage: &Stage, path: &Vec<String>) -> Vec<String> {
+    fn get_stage_cache_paths(&mut self, stage: &Stage) -> Vec<String> {
         let mut paths = vec![];
-        paths.append(&mut self.get_run_cache_paths(&stage.run, path, &stage.workdir));
+        paths.append(&mut self.get_run_cache_paths(
+            &stage.run,
+            &self.current_path.clone(),
+            &stage.workdir,
+        ));
         if let Some(root) = &stage.root {
             paths.append(&mut self.get_run_cache_paths(
                 root,
-                &[path.clone(), vec!["root".into()]].concat(),
+                &[self.current_path.clone(), vec!["root".into()]].concat(),
                 &stage.workdir,
             ));
         }
@@ -287,20 +527,7 @@ impl LintSession {
     /// Analyze the given Dofigen configuration and return a lint session
     pub fn analyze(dofigen: &Dofigen) -> Self {
         let mut session = Self::default();
-        for (name, builder) in dofigen.builders.iter() {
-            let base_origin = vec!["builders".into(), name.clone()];
-            if name == "runtime" {
-                session.messages.push(LintMessage {
-                    level: MessageLevel::Error,
-                    message: "The builder name 'runtime' is reserved".into(),
-                    path: base_origin.clone(),
-                });
-            }
-            session.analyze_stage(&base_origin, name, builder);
-        }
-
-        session.analyze_stage(&vec![], &"runtime".into(), &dofigen.stage);
-        session.check_dependencies();
+        dofigen.analyze(&mut session);
 
         session
     }
@@ -374,6 +601,14 @@ mod test {
                         },
                     ),
                 ]),
+                stage: Stage {
+                    copy: vec![CopyResource::Copy(Copy {
+                        from: FromContext::FromBuilder("builder1".into()),
+                        paths: vec!["/path/to/copy".into()],
+                        ..Default::default()
+                    })],
+                    ..Default::default()
+                },
                 ..Default::default()
             };
 
@@ -381,7 +616,7 @@ mod test {
 
             let mut dependencies = lint_session.get_stage_recursive_dependencies("runtime".into());
             dependencies.sort();
-            assert_eq_sorted!(dependencies, Vec::<String>::new());
+            assert_eq_sorted!(dependencies, vec!["builder1", "builder2", "builder3"]);
 
             dependencies = lint_session.get_stage_recursive_dependencies("builder1".into());
             dependencies.sort();
@@ -576,16 +811,23 @@ mod test {
 
             assert_eq_sorted!(
                 lint_session.messages,
-                vec![LintMessage {
-                    level: MessageLevel::Error,
-                    path: vec![
-                        "builders".into(),
-                        "builder".into(),
-                        "copy".into(),
-                        "0".into()
-                    ],
-                    message: "The builder 'builder' can't depend on the 'runtime'".into(),
-                },]
+                vec![
+                    LintMessage {
+                        level: MessageLevel::Error,
+                        path: vec![
+                            "builders".into(),
+                            "builder".into(),
+                            "copy".into(),
+                            "0".into()
+                        ],
+                        message: "The stage 'builder' can't depend on the 'runtime'".into(),
+                    },
+                    LintMessage {
+                        level: MessageLevel::Warn,
+                        path: vec!["builders".into(), "builder".into(),],
+                        message: "The builder 'builder' is not used and should be removed".into(),
+                    }
+                ]
             );
         }
 
@@ -619,6 +861,10 @@ mod test {
                         },
                     ),
                 ]),
+                stage: Stage {
+                    from: FromContext::FromBuilder("builder2".into()),
+                    ..Default::default()
+                },
                 ..Default::default()
             };
 
@@ -656,6 +902,10 @@ mod test {
                                 version: Some(ImageVersion::Tag("8.3-fpm-alpine".to_string())),
                                 ..Default::default()
                             }),
+                            run: Run {
+                                run: vec!["echo coucou".to_string()],
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
                     ),
@@ -663,6 +913,10 @@ mod test {
                         "install-php-ext".to_string(),
                         Stage {
                             from: FromContext::FromBuilder("install-deps".to_string()),
+                            run: Run {
+                                run: vec!["echo coucou".to_string()],
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
                     ),
@@ -674,6 +928,10 @@ mod test {
                                 version: Some(ImageVersion::Tag("latest".to_string())),
                                 ..Default::default()
                             }),
+                            run: Run {
+                                run: vec!["echo coucou".to_string()],
+                                ..Default::default()
+                            },
                             ..Default::default()
                         },
                     ),
@@ -726,6 +984,73 @@ mod test {
         }
     }
 
+    mod builder {
+        use super::*;
+
+        #[test]
+        fn empty() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([(
+                    "builder".into(),
+                    Stage {
+                        from: FromContext::FromImage(ImageName {
+                            path: "php".into(),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                )]),
+                stage: Stage {
+                    from: FromContext::FromBuilder("builder".into()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let lint_session = LintSession::analyze(&dofigen);
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Warn,
+                    path: vec!["builders".into(), "builder".into()],
+                    message: "The builder 'builder' is empty and should be removed".into(),
+                },]
+            );
+        }
+
+        #[test]
+        fn unused() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([(
+                    "builder".into(),
+                    Stage {
+                        from: FromContext::FromImage(ImageName {
+                            ..Default::default()
+                        }),
+                        run: Run {
+                            run: vec!["echo Hello".into()],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                )]),
+                ..Default::default()
+            };
+
+            let lint_session = LintSession::analyze(&dofigen);
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Warn,
+                    path: vec!["builders".into(), "builder".into()],
+                    message: "The builder 'builder' is not used and should be removed".into(),
+                },]
+            );
+        }
+    }
+
     mod user {
         use super::*;
 
@@ -739,12 +1064,7 @@ mod test {
                 ..Default::default()
             };
 
-            let mut lint_session = LintSession::analyze(&dofigen);
-
-            let mut builders = lint_session.get_sorted_builders();
-            builders.sort();
-
-            assert_eq_sorted!(builders, Vec::<String>::new());
+            let lint_session = LintSession::analyze(&dofigen);
 
             assert_eq_sorted!(lint_session.messages, vec![]);
         }
@@ -759,12 +1079,7 @@ mod test {
                 ..Default::default()
             };
 
-            let mut lint_session = LintSession::analyze(&dofigen);
-
-            let mut builders = lint_session.get_sorted_builders();
-            builders.sort();
-
-            assert_eq_sorted!(builders, Vec::<String>::new());
+            let lint_session = LintSession::analyze(&dofigen);
 
             assert_eq_sorted!(
                 lint_session.messages,
@@ -773,6 +1088,130 @@ mod test {
                     path: vec!["user".into()],
                     message: "UID should be used instead of username".into(),
                 },]
+            );
+        }
+    }
+
+    mod from_context {
+        use super::*;
+
+        #[test]
+        fn stage_and_copy() {
+            let dofigen = Dofigen {
+                stage: Stage {
+                    from: FromContext::FromContext(Some("php:8.3-fpm-alpine".into())),
+                    copy: vec![CopyResource::Copy(Copy {
+                        from: FromContext::FromContext(Some("composer:latest".into())),
+                        paths: vec!["/usr/bin/composer".into()],
+                        ..Default::default()
+                    })],
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let lint_session = LintSession::analyze(&dofigen);
+
+            assert_eq_sorted!(lint_session.messages, vec![
+                LintMessage {
+                    level: MessageLevel::Warn,
+                    path: vec!["fromContext".into()],
+                    message: "Prefer to use fromImage and fromBuilder instead of fromContext".into(),   
+                },
+                LintMessage {
+                    level: MessageLevel::Warn,
+                    path: vec!["copy".into(), "0".into(), "fromContext".into()],
+                    message: "Prefer to use fromImage and fromBuilder instead of fromContext (unless it's really from a build context: https://docs.docker.com/reference/cli/docker/buildx/build/#build-context)".into(),
+                }
+            ]);
+        }
+
+        #[test]
+        fn root_bind() {
+            let dofigen = Dofigen {
+                builders: HashMap::from([(
+                    "builder".into(),
+                    Stage {
+                        root: Some(Run {
+                            bind: vec![Bind {
+                                from: FromContext::FromContext(Some("builder".into())),
+                                source: Some("/path/to/bind".into()),
+                                target: "/path/to/target".into(),
+                                ..Default::default()
+                            }],
+                            run: vec!["echo Hello".into()],
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                )]),
+                stage: Stage {
+                    from: FromContext::FromBuilder("builder".into()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let lint_session = LintSession::analyze(&dofigen);
+
+            assert_eq_sorted!(lint_session.messages, vec![
+                LintMessage {
+                    level: MessageLevel::Warn,
+                    path: vec![
+                        "builders".into(),
+                        "builder".into(),
+                        "root".into(),
+                        "bind".into(),
+                        "0".into(),
+                        "fromContext".into(),
+                    ],
+                    message: "Prefer to use fromImage and fromBuilder instead of fromContext (unless it's really from a build context: https://docs.docker.com/reference/cli/docker/buildx/build/#build-context)".into(),
+                }
+            ]);
+        }
+    }
+
+    mod run {
+        use super::*;
+
+        #[test]
+        fn empty_run() {
+            let dofigen = Dofigen {
+                stage: Stage {
+                    run: Run {
+                        bind: vec![Bind {
+                            source: Some("/path/to/bind".into()),
+                            target: "/path/to/target".into(),
+                            ..Default::default()
+                        }],
+                        cache: vec![Cache {
+                            source: Some("/path/to/cache".into()),
+                            target: "/path/to/target".into(),
+                            ..Default::default()
+                        }],
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let lint_session = LintSession::analyze(&dofigen);
+
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![
+                    LintMessage {
+                        level: MessageLevel::Warn,
+                        message: "The run list is empty but there are bind definitions".into(),
+                        path: vec!["bind".into()],
+                    },
+                    LintMessage {
+                        level: MessageLevel::Warn,
+                        message: "The run list is empty but there are cache definitions".into(),
+                        path: vec!["cache".into()],
+                    },
+                ]
             );
         }
     }

@@ -8,6 +8,7 @@ pub const DEFAULT_FROM: &str = "scratch";
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct GenerationContext {
+    dofigen: Dofigen,
     pub(crate) user: Option<User>,
     pub(crate) stage_name: String,
     pub(crate) default_from: FromContext,
@@ -50,18 +51,20 @@ impl GenerationContext {
         }
     }
 
-    pub fn from(dofigen: &Dofigen) -> Self {
+    pub fn from(dofigen: Dofigen) -> Self {
+        let lint_session = LintSession::analyze(&dofigen);
         Self {
+            dofigen,
             user: None,
             stage_name: String::default(),
             default_from: FromContext::default(),
-            lint_session: LintSession::analyze(dofigen),
+            lint_session,
             state_stack: vec![],
         }
     }
 
-    pub fn generate_dockerfile(&mut self, dofigen: &Dofigen) -> Result<String> {
-        let mut lines = dofigen.generate_dockerfile_lines(self)?;
+    pub fn generate_dockerfile(&mut self) -> Result<String> {
+        let mut lines = self.dofigen.clone().generate_dockerfile_lines(self)?;
         let mut line_number = 1;
 
         for line in FILE_HEADER_COMMENTS {
@@ -77,6 +80,33 @@ impl GenerationContext {
                 .collect::<Vec<String>>()
                 .join("\n")
         ))
+    }
+
+    pub fn generate_dockerignore(&self) -> Result<String> {
+        let mut content = String::new();
+
+        for line in FILE_HEADER_COMMENTS {
+            content.push_str("# ");
+            content.push_str(line);
+            content.push_str("\n");
+        }
+        content.push_str("\n");
+
+        if !self.dofigen.context.is_empty() {
+            content.push_str("**\n");
+            self.dofigen.context.iter().for_each(|path| {
+                content.push_str("!");
+                content.push_str(path);
+                content.push_str("\n");
+            });
+        }
+        if !self.dofigen.ignore.is_empty() {
+            self.dofigen.ignore.iter().for_each(|path| {
+                content.push_str(path);
+                content.push_str("\n");
+            });
+        }
+        Ok(content)
     }
 }
 
@@ -711,6 +741,7 @@ mod test {
     impl Default for GenerationContext {
         fn default() -> Self {
             Self {
+                dofigen: Dofigen::default(),
                 user: None,
                 stage_name: String::default(),
                 default_from: FromContext::default(),
@@ -926,6 +957,7 @@ mod test {
                 run: vec!["echo Hello".into()].into(),
                 cache: vec![Cache {
                     target: "/path/to/cache".into(),
+                    readonly: Some(true),
                     ..Default::default()
                 }]
                 .into(),
@@ -946,6 +978,7 @@ mod test {
                             InstructionOptionOption::new("type", "cache".into()),
                             InstructionOptionOption::new("target", "/path/to/cache".into()),
                             InstructionOptionOption::new("sharing", "locked".into()),
+                            InstructionOptionOption::new_flag("readonly"),
                         ],
                     )],
                 })]
