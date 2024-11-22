@@ -1,0 +1,6 @@
+fromImage: ubuntu
+copy:
+  - paths: target/release/dofigen-frontend
+    target: /usr/local/bin/dofigen-frontend
+    chmod: 555
+entrypoint: ["/usr/local/bin/dofigen-frontend"]

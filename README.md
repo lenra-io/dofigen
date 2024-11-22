@@ -217,6 +217,14 @@ To generate the JSON schema of the Dofigen file structure, use the following com
 cargo run -F json_schema -- schema
 ```
 
+### Buildkit frontend
+
+To generate the Dofigen Buildkit frontend, use the following command:
+
+```bash
+cargo build --release --bin dofigen-frontend --no-default-features -F frontend -F permissive
+```
+
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 
