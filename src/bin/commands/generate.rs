@@ -7,7 +7,6 @@ use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use colored::{Color, Colorize};
 use dofigen_lib::{
-    generate_dockerignore,
     lock::{Lock, LockFile},
     DofigenContext, Error, GenerationContext, MessageLevel, Result,
 };
@@ -89,9 +88,9 @@ impl CliCommand for Generate {
             locked_image
         };
 
-        let mut generation_context = GenerationContext::from(&dofigen);
+        let mut generation_context = GenerationContext::from(dofigen);
 
-        let dockerfile_content = generation_context.generate_dockerfile(&dofigen)?;
+        let dockerfile_content = generation_context.generate_dockerfile()?;
 
         let messages = generation_context.get_lint_messages().clone();
 
@@ -125,7 +124,7 @@ impl CliCommand for Generate {
         } else {
             self.write_dockerfile(
                 dockerfile_content.as_str(),
-                generate_dockerignore(&dofigen).as_str(),
+                generation_context.generate_dockerignore()?.as_str(),
             )?;
         };
         Ok(())

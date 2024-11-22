@@ -152,7 +152,9 @@ run:
       ..Default::default()
     });
 
-    let dockerfile: String = generate_dockerfile(&dofigen).unwrap();
+    let dockerfile: String = GenerationContext::from(dofigen)
+        .generate_dockerfile()
+        .unwrap();
 
     assert_eq_sorted!(
         dockerfile,

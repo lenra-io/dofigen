@@ -47,7 +47,9 @@ fn test_cases() {
 
         if let Some(content) = dockerfile_results.get(basename.as_str()) {
             println!("Compare with Dockerfile result");
-            let dockerfile = generate_dockerfile(&dofigen).unwrap();
+            let dockerfile = GenerationContext::from(dofigen)
+                .generate_dockerfile()
+                .unwrap();
             assert_eq_sorted!(&dockerfile, content);
         }
     }
@@ -108,7 +110,9 @@ fn test_load_url() {
             .unwrap()
     );
 
-    let dockerfile = generate_dockerfile(&dofigen).unwrap();
+    let dockerfile = GenerationContext::from(dofigen)
+        .generate_dockerfile()
+        .unwrap();
     assert_eq_sorted!(
         dockerfile,
         std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.Dockerfile"))
