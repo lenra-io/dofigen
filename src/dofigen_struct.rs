@@ -411,16 +411,15 @@ pub struct Copy {
     #[serde(flatten)]
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
-    // excludes are not supported yet: minimal version 1.7-labs
-    // /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    // #[patch(name = "VecPatch<String>")]
-    // #[serde(skip_serializing_if = "Vec::is_empty")]
-    // pub exclude: Vec<String>,
 
-    // parents are not supported yet: minimal version 1.7-labs
-    // /// See https://docs.docker.com/reference/dockerfile/#copy---parents
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub parents: Option<bool>,
+    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[patch(name = "VecPatch<String>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
+
+    /// See https://docs.docker.com/reference/dockerfile/#copy---parents
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parents: Option<bool>,
 }
 
 /// Represents the COPY instruction in a Dockerfile from file content.
@@ -475,11 +474,11 @@ pub struct AddGitRepo {
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
 
-    // excludes are not supported yet: minimal version 1.7-labs
-    // /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    // #[patch(name = "VecPatch<String>")]
-    // #[serde(skip_serializing_if = "Vec::is_empty")]
-    // pub exclude: Vec<String>,
+    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[patch(name = "VecPatch<String>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
+
     /// Keep the git directory
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -703,8 +702,7 @@ pub enum CopyResourcePatch {
 pub struct UnknownPatch {
     #[serde(flatten)]
     pub options: Option<CopyOptionsPatch>,
-    // exclude are not supported yet: minimal version 1.7-labs
-    // pub exclude: Option<VecPatch<String>>,
+    pub exclude: Option<VecPatch<String>>,
 }
 
 ///////////////// Tests //////////////////
