@@ -591,7 +591,8 @@ mod copy_file_content {
     #[test]
     fn simple() {
         let yaml = r#"
-fromImage: alpine
+fromImage:
+  path: alpine
 arg:
   NAME: World
 copy:
@@ -630,7 +631,8 @@ ENTRYPOINT ["/entrypoint.sh"]
     #[test]
     fn multiline() {
         let yaml = r#"
-fromImage: alpine
+fromImage:
+  path: alpine
 arg:
   NAME: World
 copy:
@@ -675,7 +677,8 @@ ENTRYPOINT ["/entrypoint.sh"]
     #[test]
     fn no_arg_substitution() {
         let yaml = r#"
-fromImage: alpine
+fromImage:
+  path: alpine
 arg:
   NAME: World
 copy:
