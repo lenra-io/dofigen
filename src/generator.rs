@@ -1,3 +1,5 @@
+use crate::errors::Error;
+
 use crate::{
     dockerfile_struct::*, dofigen_struct::*, LintMessage, LintSession, Result, DOCKERFILE_VERSION,
     FILE_HEADER_COMMENTS,
@@ -294,6 +296,7 @@ impl DockerfileGenerator for CopyResource {
     ) -> Result<Vec<DockerfileLine>> {
         match self {
             CopyResource::Copy(copy) => copy.generate_dockerfile_lines(context),
+            CopyResource::Content(content) => content.generate_dockerfile_lines(context),
             CopyResource::Add(add_web_file) => add_web_file.generate_dockerfile_lines(context),
             CopyResource::AddGitRepo(add_git_repo) => {
                 add_git_repo.generate_dockerfile_lines(context)
@@ -347,6 +350,35 @@ impl DockerfileGenerator for Copy {
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "COPY".into(),
             content: copy_paths_into(self.paths.to_vec(), &self.options.target),
+            options,
+        })])
+    }
+}
+
+impl DockerfileGenerator for CopyContent {
+    fn generate_dockerfile_lines(
+        &self,
+        context: &mut GenerationContext,
+    ) -> Result<Vec<DockerfileLine>> {
+        let mut options: Vec<InstructionOption> = vec![];
+
+        add_copy_options(&mut options, &self.options, context);
+
+        let mut start_delimiter = "EOF".to_string();
+        if !self.substitute.clone().unwrap_or(true) {
+            start_delimiter = format!("\"{start_delimiter}\"");
+        }
+        let target = self.options.target.clone().ok_or(Error::Custom(
+            "The target file must be defined when coying content".into(),
+        ))?;
+        let content = format!(
+            "<<{start_delimiter} {target}\n{}\nEOF",
+            self.content.clone()
+        );
+
+        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+            command: "COPY".into(),
+            content,
             options,
         })])
     }
@@ -843,6 +875,31 @@ mod test {
                         InstructionOption::WithValue("chmod".into(), "755".into()),
                         InstructionOption::Flag("link".into())
                     ],
+                })]
+            );
+        }
+
+        #[test]
+        fn from_content() {
+            let copy = CopyContent {
+                content: "echo hello".into(),
+                options: CopyOptions {
+                    target: Some("test.sh".into()),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let lines = copy
+                .generate_dockerfile_lines(&mut GenerationContext::default())
+                .unwrap();
+
+            assert_eq_sorted!(
+                lines,
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "COPY".into(),
+                    content: "<<EOF test.sh\necho hello\nEOF".into(),
+                    options: vec![InstructionOption::Flag("link".into())],
                 })]
             );
         }

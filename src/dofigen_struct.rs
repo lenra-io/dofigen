@@ -423,6 +423,35 @@ pub struct Copy {
     // pub parents: Option<bool>,
 }
 
+/// Represents the COPY instruction in a Dockerfile from file content.
+/// See https://docs.docker.com/reference/dockerfile/#example-creating-inline-files
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "CopyContent", rename = "CopyContent"))
+    )
+)]
+pub struct CopyContent {
+    /// Content of the file to copy
+    pub content: String,
+
+    /// If true, replace variables in the content at build time. Default is true.
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "subst"))))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub substitute: Option<bool>,
+
+    /// The options of the copy
+    #[serde(flatten)]
+    #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
+    pub options: CopyOptions,
+}
+
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
 /// See https://docs.docker.com/reference/dockerfile/#adding-private-git-repositories
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
@@ -604,6 +633,7 @@ pub enum FromContext {
 #[serde(untagged)]
 pub enum CopyResource {
     Copy(Copy),
+    Content(CopyContent),
     AddGitRepo(AddGitRepo),
     Add(Add),
 }
@@ -662,6 +692,7 @@ pub enum FromContextPatch {
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum CopyResourcePatch {
     Copy(CopyPatch),
+    Content(CopyContentPatch),
     AddGitRepo(AddGitRepoPatch),
     Add(AddPatch),
     Unknown(UnknownPatch),
@@ -961,6 +992,41 @@ mod test {
                             ..Default::default()
                         },
                         ..Default::default()
+                    })
+                );
+            }
+
+            #[test]
+            fn copy_content() {
+                let json_data = r#"{
+    "content": "echo coucou",
+    "substitute": false,
+    "target": "test.sh",
+    "chown": {
+        "user": "1001",
+        "group": "1001"
+    },
+    "chmod": "555",
+    "link": true
+}"#;
+
+                let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
+                let copy_resource: CopyResource = copy_resource.into();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResource::Content(CopyContent {
+                        content: "echo coucou".into(),
+                        substitute: Some(false),
+                        options: CopyOptions {
+                            target: Some("test.sh".into()),
+                            chown: Some(User {
+                                user: "1001".into(),
+                                group: Some("1001".into())
+                            }),
+                            chmod: Some("555".into()),
+                            link: Some(true),
+                        }
                     })
                 );
             }

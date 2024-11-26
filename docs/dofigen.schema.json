@@ -693,10 +693,79 @@
       },
       "additionalProperties": false
     },
+    "CopyContent": {
+      "title": "CopyContent",
+      "type": "object",
+      "properties": {
+        "chmod": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ],
+          "nullable": true
+        },
+        "chown": {
+          "anyOf": [
+            {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/User"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "nullable": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "nullable": true
+        },
+        "content": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ],
+          "nullable": true
+        },
+        "link": {
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "nullable": true
+        },
+        "substitute": {
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "nullable": true
+        },
+        "target": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ],
+          "nullable": true
+        }
+      },
+      "additionalProperties": false
+    },
     "CopyResourcePatch": {
       "anyOf": [
         {
           "$ref": "#/definitions/Copy"
+        },
+        {
+          "$ref": "#/definitions/CopyContent"
         },
         {
           "$ref": "#/definitions/AddGitRepo"
