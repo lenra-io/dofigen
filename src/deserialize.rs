@@ -38,6 +38,7 @@ impl_from_patch_and_add!(Port, PortPatch);
 impl_from_patch_and_add!(User, UserPatch);
 impl_from_patch_and_add!(CopyOptions, CopyOptionsPatch);
 impl_from_patch_and_add!(Copy, CopyPatch);
+impl_from_patch_and_add!(CopyContent, CopyContentPatch);
 impl_from_patch_and_add!(Add, AddPatch);
 impl_from_patch_and_add!(AddGitRepo, AddGitRepoPatch);
 
@@ -253,6 +254,7 @@ impl From<CopyResourcePatch> for CopyResource {
     fn from(patch: CopyResourcePatch) -> Self {
         match patch {
             CopyResourcePatch::Copy(p) => CopyResource::Copy(p.into()),
+            CopyResourcePatch::Content(p) => CopyResource::Content(p.into()),
             CopyResourcePatch::Add(p) => CopyResource::Add(p.into()),
             CopyResourcePatch::AddGitRepo(p) => CopyResource::AddGitRepo(p.into()),
             CopyResourcePatch::Unknown(p) => panic!("Unknown patch: {:?}", p),
@@ -400,6 +402,8 @@ impl Patch<CopyResourcePatch> for CopyResource {
         match (self, patch) {
             (Self::Copy(s), CopyResourcePatch::Copy(p)) => s.apply(p),
             (Self::Copy(s), CopyResourcePatch::Unknown(p)) => s.apply(p),
+            (Self::Content(s), CopyResourcePatch::Content(p)) => s.apply(p),
+            (Self::Content(s), CopyResourcePatch::Unknown(p)) => s.apply(p),
             (Self::Add(s), CopyResourcePatch::Add(p)) => s.apply(p),
             (Self::Add(s), CopyResourcePatch::Unknown(p)) => s.apply(p),
             (Self::AddGitRepo(s), CopyResourcePatch::AddGitRepo(p)) => s.apply(p),
@@ -411,6 +415,7 @@ impl Patch<CopyResourcePatch> for CopyResource {
     fn into_patch(self) -> CopyResourcePatch {
         match self {
             CopyResource::Copy(s) => CopyResourcePatch::Copy(s.into_patch()),
+            CopyResource::Content(s) => CopyResourcePatch::Content(s.into_patch()),
             CopyResource::Add(s) => CopyResourcePatch::Add(s.into_patch()),
             CopyResource::AddGitRepo(s) => CopyResourcePatch::AddGitRepo(s.into_patch()),
         }
@@ -437,6 +442,30 @@ impl Patch<CopyResourcePatch> for CopyResource {
 }
 
 impl Patch<UnknownPatch> for Copy {
+    fn apply(&mut self, patch: UnknownPatch) {
+        if let Some(options) = patch.options {
+            self.options.apply(options);
+        }
+    }
+
+    fn into_patch(self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch()),
+        }
+    }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+        }
+    }
+
+    fn new_empty_patch() -> UnknownPatch {
+        UnknownPatch::default()
+    }
+}
+
+impl Patch<UnknownPatch> for CopyContent {
     fn apply(&mut self, patch: UnknownPatch) {
         if let Some(options) = patch.options {
             self.options.apply(options);
