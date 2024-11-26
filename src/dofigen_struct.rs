@@ -442,10 +442,7 @@ pub struct CopyContent {
     pub content: String,
 
     /// If true, replace variables in the content at build time. Default is true.
-    #[cfg_attr(
-        not(feature = "strict"),
-        patch(attribute(serde(alias = "subst")))
-    )]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "subst"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub substitute: Option<bool>,
 

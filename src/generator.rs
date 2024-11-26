@@ -890,8 +890,6 @@ mod test {
                 ..Default::default()
             };
 
-
-
             let lines = copy
                 .generate_dockerfile_lines(&mut GenerationContext::default())
                 .unwrap();
@@ -901,9 +899,7 @@ mod test {
                 vec![DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "COPY".into(),
                     content: "<<EOF test.sh\necho hello\nEOF".into(),
-                    options: vec![
-                        InstructionOption::Flag("link".into())
-                    ],
+                    options: vec![InstructionOption::Flag("link".into())],
                 })]
             );
         }
