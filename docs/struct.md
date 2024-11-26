@@ -20,6 +20,7 @@ For example, some objects can be parsed from string and all arrays can be parsed
 	- [Healthcheck](#healthcheck)
 	- [ImageName](#imagename)
 	- [Copy](#copy)
+	- [CopyContent](#copycontent)
 	- [AddGitRepo](#addgitrepo)
 	- [Add](#add)
 	- [CopyOptions](#copyoptions)
@@ -93,6 +94,7 @@ This represents the COPY/ADD instructions in a Dockerfile.
 It can be one of the following objects:
 
 - [Copy](#copy) : A copy instruction.
+- [CopyContent](#copycontent) : A copy instruction from file content.
 - [Add](#add) : An add instruction.
 - [AddGitRepo](#addgitrepo) : An add instruction from a git repository.
 
@@ -178,6 +180,19 @@ Can be parsed from string.
 | --- | --- | --- |
 | `from...` | [FromContext](#fromcontext) | The origin of the copy. See https://docs.docker.com/reference/dockerfile/#copy---from |
 | `paths` | string[] | The paths to copy. |
+
+## CopyContent
+
+This represents the COPY instruction in a Dockerfile based on file content.
+
+It extends the [CopyOptions](#copyoptions) structure, but the target field is required.
+
+Can be parsed from string.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `content` | string | Content of the file to copy. |
+| `substitute` | boolean | If true, replace variables in the content at build time. Default is true. |
 
 ## AddGitRepo
 
