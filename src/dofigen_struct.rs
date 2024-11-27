@@ -915,7 +915,9 @@ mod test {
                         from: FromContext::FromImage(ImageName {
                             path: "my-image".into(),
                             ..Default::default()
-                        })
+                        }),
+                        exclude: vec![].into(),
+                        parents: None,
                     })
                 );
             }
@@ -1059,7 +1061,8 @@ mod test {
                             chmod: Some("755".into()),
                             link: Some(true),
                         },
-                        keep_git_dir: Some(true)
+                        keep_git_dir: Some(true),
+                        exclude: vec![].into(),
                     })
                 );
             }
