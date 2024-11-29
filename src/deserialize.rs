@@ -451,12 +451,14 @@ impl Patch<UnknownPatch> for Copy {
     fn into_patch(self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch()),
+            exclude: Some(self.exclude.into_patch()),
         }
     }
 
     fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: Some(self.exclude.into_patch_by_diff(previous_struct.exclude)),
         }
     }
 
@@ -475,12 +477,14 @@ impl Patch<UnknownPatch> for CopyContent {
     fn into_patch(self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch()),
+            exclude: None,
         }
     }
 
     fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: None,
         }
     }
 
@@ -499,12 +503,14 @@ impl Patch<UnknownPatch> for Add {
     fn into_patch(self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch()),
+            exclude: None,
         }
     }
 
     fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: None,
         }
     }
 
@@ -523,12 +529,14 @@ impl Patch<UnknownPatch> for AddGitRepo {
     fn into_patch(self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch()),
+            exclude: Some(self.exclude.into_patch()),
         }
     }
 
     fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: Some(self.exclude.into_patch_by_diff(previous_struct.exclude)),
         }
     }
 
@@ -1219,6 +1227,7 @@ impl Merge for UnknownPatch {
     fn merge(self, other: Self) -> Self {
         Self {
             options: merge_option_patch!(self.options, other.options),
+            exclude: merge_option_patch!(self.exclude, other.exclude),
         }
     }
 }
