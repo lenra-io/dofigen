@@ -337,16 +337,15 @@ impl DockerfileGenerator for Copy {
             options.push(InstructionOption::WithValue("from".into(), from));
         }
         add_copy_options(&mut options, &self.options, context);
-        // excludes are not supported yet: minimal version 1.7-labs
-        // if let Patch::Present(exclude) = &self.exclude {
-        //     for path in exclude.clone().to_vec() {
-        //         options.push(InstructionOption::WithValue("exclude".into(), path));
-        //     }
-        // }
-        // parents are not supported yet: minimal version 1.7-labs
-        // if self.parents.unwrap_or(false) {
-        //     options.push(InstructionOption::NameOnly("parents".into()));
-        // }
+
+        for path in self.exclude.iter() {
+            options.push(InstructionOption::WithValue("exclude".into(), path.clone()));
+        }
+
+        if self.parents.unwrap_or(false) {
+            options.push(InstructionOption::Flag("parents".into()));
+        }
+
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
             command: "COPY".into(),
             content: copy_paths_into(self.paths.to_vec(), &self.options.target),
@@ -420,12 +419,9 @@ impl DockerfileGenerator for AddGitRepo {
         let mut options: Vec<InstructionOption> = vec![];
         add_copy_options(&mut options, &self.options, context);
 
-        // excludes are not supported yet: minimal version 1.7-labs
-        // if let Patch::Present(exclude) = &self.exclude {
-        //     for path in exclude.clone().to_vec() {
-        //         options.push(InstructionOption::WithValue("exclude".into(), path));
-        //     }
-        // }
+        for path in self.exclude.iter() {
+            options.push(InstructionOption::WithValue("exclude".into(), path.clone()));
+        }
         if let Some(keep_git_dir) = &self.keep_git_dir {
             options.push(InstructionOption::WithValue(
                 "keep-git-dir".into(),

@@ -101,6 +101,8 @@ impl_parsable_patch!(Copy, CopyPatch, s, {
             link: Some(None),
         }),
         from: Some(FromContextPatch::default()),
+        exclude: Some(VecPatch::default()),
+        parents: Some(None),
     })
 });
 
@@ -119,6 +121,7 @@ impl_parsable_patch!(AddGitRepo, AddGitRepoPatch, s, {
             link: Some(None),
         }),
         keep_git_dir: Some(None),
+        exclude: Some(VecPatch::default()),
     })
 });
 
@@ -323,6 +326,8 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     from: Some(FromContextPatch::default()),
+                    exclude: Some(VecPatch::default()),
+                    parents: Some(None),
                 }
             );
         }
@@ -341,6 +346,8 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     from: Some(FromContextPatch::default()),
+                    exclude: Some(VecPatch::default()),
+                    parents: Some(None),
                 }
             );
         }
@@ -359,6 +366,8 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     from: Some(FromContextPatch::default()),
+                    exclude: Some(VecPatch::default()),
+                    parents: Some(None),
                 }
             );
         }
@@ -382,6 +391,7 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     keep_git_dir: Some(None),
+                    exclude: Some(VecPatch::default()),
                 }
             );
         }
@@ -401,6 +411,7 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     keep_git_dir: Some(None),
+                    exclude: Some(VecPatch::default()),
                 }
             );
         }
@@ -420,6 +431,7 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     keep_git_dir: Some(None),
+                    exclude: Some(VecPatch::default()),
                 }
             );
         }
@@ -439,6 +451,7 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     keep_git_dir: Some(None),
+                    exclude: Some(VecPatch::default()),
                 }
             );
         }
