@@ -1,0 +1,27 @@
+effective: |
+  fromImage:
+    path: ubuntu
+    digest: sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295
+  copy:
+  - paths:
+    - target/release/dofigen-frontend
+    target: /usr/local/bin/dofigen-frontend
+    chmod: '555'
+  entrypoint:
+  - /usr/local/bin/dofigen-frontend
+images:
+  registry.hub.docker.com:443:
+    library:
+      ubuntu:
+        latest:
+          digest: sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295
+resources:
+  frontend.dofigen.yml:
+    hash: 42c5a53e4b928c06160d079ca835226cac68b4d82b9ced7dfc7c55fe23979280
+    content: |-
+      fromImage: ubuntu
+      copy:
+        - paths: target/release/dofigen-frontend
+          target: /usr/local/bin/dofigen-frontend
+          chmod: 555
+      entrypoint: ["/usr/local/bin/dofigen-frontend"]

@@ -219,11 +219,7 @@ cargo run -F json_schema -- schema
 
 ### Buildkit frontend
 
-To generate the Dofigen Buildkit frontend, use the following command:
-
-```bash
-cargo build --release --bin dofigen-frontend --no-default-features -F frontend -F permissive
-```
+See the [Buildkit frontend](./docs/buildkit.md) documentation to understand how to use the Buildkit frontend.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
