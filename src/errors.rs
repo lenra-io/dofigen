@@ -13,7 +13,7 @@ pub enum Error {
     ParseFromStr(#[from] serde::de::value::Error),
     #[error("{0}")]
     Format(#[from] std::fmt::Error),
-    #[error("{0}")]
+    #[error("{e}", e = report(.0))]
     Reqwest(#[from] reqwest::Error),
     #[error("{0}")]
     Custom(String),
@@ -29,4 +29,13 @@ fn location_into(location: Option<Location>) -> String {
     location
         .map(|location| format!(" at line {}, column {}", location.line(), location.column()))
         .unwrap_or_else(|| "".into())
+}
+
+fn report(mut err: &dyn std::error::Error) -> String {
+    let mut s = format!("{}", err);
+    while let Some(src) = err.source() {
+        s.push_str(format!("\n\tCaused by: {}", src).as_str());
+        err = src;
+    }
+    s
 }
