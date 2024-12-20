@@ -1,6 +1,10 @@
 use crate::deserialize::*;
 ///! This module provides a custom implementation of `JsonSchema`.
-use schemars::{schema::*, JsonSchema};
+use schemars::{
+    schema::*,
+    visit::{visit_schema_object, Visitor},
+    JsonSchema,
+};
 #[cfg(feature = "permissive")]
 use std::str::FromStr;
 use struct_patch::Patch;
@@ -53,6 +57,7 @@ where
                 one_of: Some(vec![
                     type_ref.clone(),
                     SchemaObject {
+                        instance_type: Some(InstanceType::Array.into()),
                         array: Some(Box::new(ArrayValidation {
                             items: Some(SingleOrVec::Single(Box::new(type_ref))),
                             ..Default::default()
@@ -80,6 +85,7 @@ where
     fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
         let type_ref: Schema = generator.subschema_for::<T>();
         let array_schema: Schema = SchemaObject {
+            instance_type: Some(InstanceType::Array.into()),
             array: Some(Box::new(ArrayValidation {
                 items: Some(SingleOrVec::Single(Box::new(type_ref.clone()))),
                 ..Default::default()
@@ -99,6 +105,7 @@ where
                     type_ref.clone(),
                     array_schema.clone(),
                     SchemaObject {
+                        instance_type: Some(InstanceType::Object.into()),
                         object: Some(Box::new(ObjectValidation {
                             pattern_properties: vec![
                                 // ReplaceAll
@@ -140,6 +147,7 @@ where
     fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
         let type_schema: Schema = generator.subschema_for::<P>();
         let array_schema: Schema = SchemaObject {
+            instance_type: Some(InstanceType::Array.into()),
             array: Some(Box::new(ArrayValidation {
                 items: Some(SingleOrVec::Single(Box::new(type_schema.clone()))),
                 ..Default::default()
@@ -159,6 +167,7 @@ where
                     type_schema.clone(),
                     array_schema.clone(),
                     SchemaObject {
+                        instance_type: Some(InstanceType::Object.into()),
                         object: Some(Box::new(ObjectValidation {
                             pattern_properties: vec![
                                 // ReplaceAll
@@ -205,6 +214,7 @@ where
                 title: Some(Self::schema_name()),
                 ..Default::default()
             })),
+            instance_type: Some(InstanceType::Object.into()),
             object: Some(Box::new(ObjectValidation {
                 pattern_properties: vec![(
                     String::from(r"^.+$"),
@@ -239,6 +249,7 @@ where
                 title: Some(Self::schema_name()),
                 ..Default::default()
             })),
+            instance_type: Some(InstanceType::Object.into()),
             object: Some(Box::new(ObjectValidation {
                 pattern_properties: vec![(
                     String::from(r"^.+$"),
@@ -251,5 +262,36 @@ where
             ..Default::default()
         }
         .into()
+    }
+}
+
+pub struct U16Visitor;
+
+impl Visitor for U16Visitor {
+    fn visit_schema_object(&mut self, schema: &mut SchemaObject) {
+        if let Some(instance_type) = schema.instance_type.as_ref() {
+            if instance_type.contains(&InstanceType::Integer) {
+                if schema.format.is_some() {
+                    schema.format = None;
+                }
+            }
+        }
+
+        // Then delegate to default implementation to visit any subschemas
+        visit_schema_object(self, schema);
+    }
+}
+
+/// Removes the `additionalProperties` field from all objects to avoid problems with JSON Schema
+pub struct RemoveAdditionalPropertiesVisitor;
+
+impl Visitor for RemoveAdditionalPropertiesVisitor {
+    fn visit_schema_object(&mut self, schema: &mut SchemaObject) {
+        if let Some(object) = schema.object.as_mut() {
+            object.additional_properties = None;
+        }
+
+        // Then delegate to default implementation to visit any subschemas
+        visit_schema_object(self, schema);
     }
 }
