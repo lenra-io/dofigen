@@ -315,6 +315,16 @@
             }
           ]
         },
+        "exclude": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VecPatch<String>"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "keepGitDir": {
           "default": null,
           "type": [
@@ -599,7 +609,24 @@
             }
           ]
         },
+        "exclude": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VecPatch<String>"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "link": {
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "parents": {
           "default": null,
           "type": [
             "boolean",
@@ -634,8 +661,7 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "chown": {
           "anyOf": [
@@ -647,49 +673,42 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "content": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "link": {
           "default": null,
           "type": [
             "boolean",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "substitute": {
           "default": null,
           "type": [
             "boolean",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "target": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
-      },
-      "additionalProperties": false
+      }
     },
     "CopyResourcePatch": {
       "anyOf": [
@@ -1168,6 +1187,16 @@
                   "type": "null"
                 }
               ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exclude": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VecPatch<String>"
             },
             {
               "type": "null"
