@@ -179,9 +179,9 @@ pub fn generate_effective_content(dofigen: &Dofigen) -> Result<String> {
 /// This is useful to validate the structure and IDE autocompletion.
 #[cfg(feature = "json_schema")]
 pub fn generate_json_schema() -> String {
-    use std::ops::Deref;
     use json_schema::{RemoveAdditionalPropertiesVisitor, U16Visitor};
     use schemars::{schema::Metadata, visit::Visitor};
+    use std::ops::Deref;
 
     let settings = SchemaSettings::default().with(|s| {
         s.option_add_null_type = true;
