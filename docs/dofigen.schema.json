@@ -1,6 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://json.schemastore.org/dofigen.json",
   "title": "Dofigen",
+  "description": "Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format",
   "type": "object",
   "oneOf": [
     {
@@ -12,8 +14,7 @@
         "fromImage": {
           "$ref": "#/definitions/ParsableStruct<ImageName>"
         }
-      },
-      "additionalProperties": false
+      }
     },
     {
       "type": "object",
@@ -24,8 +25,7 @@
         "fromBuilder": {
           "type": "string"
         }
-      },
-      "additionalProperties": false
+      }
     },
     {
       "type": "object",
@@ -37,11 +37,9 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
-      },
-      "additionalProperties": false
+      }
     }
   ],
   "properties": {
@@ -53,8 +51,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "bind": {
       "anyOf": [
@@ -64,8 +61,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "builders": {
       "anyOf": [
@@ -75,8 +71,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "cache": {
       "anyOf": [
@@ -86,8 +81,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "cmd": {
       "anyOf": [
@@ -97,8 +91,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "context": {
       "anyOf": [
@@ -108,8 +101,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "copy": {
       "anyOf": [
@@ -119,8 +111,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "entrypoint": {
       "anyOf": [
@@ -130,8 +121,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "env": {
       "anyOf": [
@@ -141,8 +131,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "expose": {
       "anyOf": [
@@ -152,8 +141,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "extend": {
       "$ref": "#/definitions/OneOrMany<Resource>"
@@ -168,14 +156,12 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "ignore": {
       "anyOf": [
@@ -185,8 +171,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "root": {
       "anyOf": [
@@ -198,14 +183,12 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "run": {
       "anyOf": [
@@ -215,8 +198,7 @@
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "user": {
       "anyOf": [
@@ -228,22 +210,19 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         {
           "type": "null"
         }
-      ],
-      "nullable": true
+      ]
     },
     "workdir": {
       "default": null,
       "type": [
         "string",
         "null"
-      ],
-      "nullable": true
+      ]
     }
   },
   "definitions": {
@@ -256,16 +235,14 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "chmod": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "chown": {
           "anyOf": [
@@ -277,14 +254,12 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "files": {
           "anyOf": [
@@ -294,27 +269,23 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "link": {
           "default": null,
           "type": [
             "boolean",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "target": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
-      },
-      "additionalProperties": false
+      }
     },
     "AddGitRepo": {
       "title": "AddGitRepo",
@@ -325,8 +296,7 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "chown": {
           "anyOf": [
@@ -338,49 +308,42 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "keepGitDir": {
           "default": null,
           "type": [
             "boolean",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "link": {
           "default": null,
           "type": [
             "boolean",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "repo": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "target": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
-      },
-      "additionalProperties": false
+      }
     },
     "Bind": {
       "title": "Bind",
@@ -395,8 +358,7 @@
             "fromImage": {
               "$ref": "#/definitions/ParsableStruct<ImageName>"
             }
-          },
-          "additionalProperties": false
+          }
         },
         {
           "type": "object",
@@ -407,8 +369,7 @@
             "fromBuilder": {
               "type": "string"
             }
-          },
-          "additionalProperties": false
+          }
         },
         {
           "type": "object",
@@ -420,11 +381,9 @@
               "type": [
                 "string",
                 "null"
-              ],
-              "nullable": true
+              ]
             }
-          },
-          "additionalProperties": false
+          }
         }
       ],
       "properties": {
@@ -433,24 +392,21 @@
           "type": [
             "boolean",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "source": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "target": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
       }
     },
@@ -467,8 +423,7 @@
             "fromImage": {
               "$ref": "#/definitions/ParsableStruct<ImageName>"
             }
-          },
-          "additionalProperties": false
+          }
         },
         {
           "type": "object",
@@ -479,8 +434,7 @@
             "fromBuilder": {
               "type": "string"
             }
-          },
-          "additionalProperties": false
+          }
         },
         {
           "type": "object",
@@ -492,11 +446,9 @@
               "type": [
                 "string",
                 "null"
-              ],
-              "nullable": true
+              ]
             }
-          },
-          "additionalProperties": false
+          }
         }
       ],
       "properties": {
@@ -505,8 +457,7 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "chown": {
           "anyOf": [
@@ -518,30 +469,26 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "id": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "readonly": {
           "default": null,
           "type": [
             "boolean",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "sharing": {
           "default": null,
@@ -554,30 +501,26 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "source": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "target": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
       }
     },
@@ -603,8 +546,7 @@
             "fromImage": {
               "$ref": "#/definitions/ParsableStruct<ImageName>"
             }
-          },
-          "additionalProperties": false
+          }
         },
         {
           "type": "object",
@@ -615,8 +557,7 @@
             "fromBuilder": {
               "type": "string"
             }
-          },
-          "additionalProperties": false
+          }
         },
         {
           "type": "object",
@@ -628,11 +569,9 @@
               "type": [
                 "string",
                 "null"
-              ],
-              "nullable": true
+              ]
             }
-          },
-          "additionalProperties": false
+          }
         }
       ],
       "properties": {
@@ -641,8 +580,7 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "chown": {
           "anyOf": [
@@ -654,22 +592,19 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "link": {
           "default": null,
           "type": [
             "boolean",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "paths": {
           "anyOf": [
@@ -679,19 +614,16 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "target": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
-      },
-      "additionalProperties": false
+      }
     },
     "CopyContent": {
       "title": "CopyContent",
@@ -780,6 +712,7 @@
     },
     "HashMapDeepPatch<String, Stage>": {
       "title": "HashMapDeepPatch<String, Stage>",
+      "type": "object",
       "patternProperties": {
         "^.+$": {
           "anyOf": [
@@ -789,20 +722,19 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         }
       }
     },
     "HashMapPatch<String, String>": {
       "title": "HashMapPatch<String, String>",
+      "type": "object",
       "patternProperties": {
         "^.+$": {
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
       }
     },
@@ -815,16 +747,14 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "interval": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "retries": {
           "default": null,
@@ -832,28 +762,23 @@
             "integer",
             "null"
           ],
-          "format": "uint16",
-          "minimum": 0.0,
-          "nullable": true
+          "minimum": 0.0
         },
         "start": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "timeout": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
-      },
-      "additionalProperties": false
+      }
     },
     "ImageName": {
       "title": "ImageName",
@@ -869,8 +794,7 @@
             "tag": {
               "type": "string"
             }
-          },
-          "additionalProperties": false
+          }
         },
         {
           "type": "object",
@@ -881,8 +805,7 @@
             "digest": {
               "type": "string"
             }
-          },
-          "additionalProperties": false
+          }
         }
       ],
       "properties": {
@@ -891,16 +814,14 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "path": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "port": {
           "default": null,
@@ -908,12 +829,9 @@
             "integer",
             "null"
           ],
-          "format": "uint16",
-          "minimum": 0.0,
-          "nullable": true
+          "minimum": 0.0
         }
-      },
-      "additionalProperties": false
+      }
     },
     "OneOrMany<Resource>": {
       "title": "OneOrMany<Resource>",
@@ -922,6 +840,7 @@
           "$ref": "#/definitions/Resource"
         },
         {
+          "type": "array",
           "items": {
             "$ref": "#/definitions/Resource"
           }
@@ -1004,9 +923,7 @@
             "integer",
             "null"
           ],
-          "format": "uint16",
-          "minimum": 0.0,
-          "nullable": true
+          "minimum": 0.0
         },
         "protocol": {
           "default": null,
@@ -1019,17 +936,14 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         }
-      },
-      "additionalProperties": false
+      }
     },
     "PortProtocol": {
       "description": "Represents a port protocol",
@@ -1063,8 +977,7 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "cache": {
           "anyOf": [
@@ -1074,8 +987,7 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "run": {
           "anyOf": [
@@ -1085,8 +997,7 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         }
       }
     },
@@ -1103,8 +1014,7 @@
             "fromImage": {
               "$ref": "#/definitions/ParsableStruct<ImageName>"
             }
-          },
-          "additionalProperties": false
+          }
         },
         {
           "type": "object",
@@ -1115,8 +1025,7 @@
             "fromBuilder": {
               "type": "string"
             }
-          },
-          "additionalProperties": false
+          }
         },
         {
           "type": "object",
@@ -1128,11 +1037,9 @@
               "type": [
                 "string",
                 "null"
-              ],
-              "nullable": true
+              ]
             }
-          },
-          "additionalProperties": false
+          }
         }
       ],
       "properties": {
@@ -1144,8 +1051,7 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "bind": {
           "anyOf": [
@@ -1155,8 +1061,7 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "cache": {
           "anyOf": [
@@ -1166,8 +1071,7 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "copy": {
           "anyOf": [
@@ -1177,8 +1081,7 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "env": {
           "anyOf": [
@@ -1188,8 +1091,7 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "root": {
           "anyOf": [
@@ -1201,14 +1103,12 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "run": {
           "anyOf": [
@@ -1218,8 +1118,7 @@
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "user": {
           "anyOf": [
@@ -1231,22 +1130,19 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "workdir": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
       }
     },
@@ -1259,8 +1155,7 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "chown": {
           "anyOf": [
@@ -1272,30 +1167,26 @@
                 {
                   "type": "null"
                 }
-              ],
-              "nullable": true
+              ]
             },
             {
               "type": "null"
             }
-          ],
-          "nullable": true
+          ]
         },
         "link": {
           "default": null,
           "type": [
             "boolean",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "target": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
       }
     },
@@ -1308,19 +1199,16 @@
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         },
         "user": {
           "default": null,
           "type": [
             "string",
             "null"
-          ],
-          "nullable": true
+          ]
         }
-      },
-      "additionalProperties": false
+      }
     },
     "VecDeepPatch<ParsableStruct<Bind>>": {
       "title": "VecDeepPatch<ParsableStruct<Bind>>",
@@ -1329,18 +1217,22 @@
           "$ref": "#/definitions/ParsableStruct<Bind>"
         },
         {
+          "type": "array",
           "items": {
             "$ref": "#/definitions/ParsableStruct<Bind>"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Bind>"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Bind>"
               }
@@ -1352,11 +1244,13 @@
               "$ref": "#/definitions/ParsableStruct<Bind>"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Bind>"
               }
             },
             "_": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Bind>"
               }
@@ -1372,18 +1266,22 @@
           "$ref": "#/definitions/ParsableStruct<Cache>"
         },
         {
+          "type": "array",
           "items": {
             "$ref": "#/definitions/ParsableStruct<Cache>"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Cache>"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Cache>"
               }
@@ -1395,11 +1293,13 @@
               "$ref": "#/definitions/ParsableStruct<Cache>"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Cache>"
               }
             },
             "_": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Cache>"
               }
@@ -1415,18 +1315,22 @@
           "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
         },
         {
+          "type": "array",
           "items": {
             "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
               }
@@ -1438,11 +1342,13 @@
               "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
               }
             },
             "_": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
               }
@@ -1458,18 +1364,22 @@
           "$ref": "#/definitions/ParsableStruct<Port>"
         },
         {
+          "type": "array",
           "items": {
             "$ref": "#/definitions/ParsableStruct<Port>"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Port>"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Port>"
               }
@@ -1481,11 +1391,13 @@
               "$ref": "#/definitions/ParsableStruct<Port>"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Port>"
               }
             },
             "_": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/ParsableStruct<Port>"
               }
@@ -1501,18 +1413,22 @@
           "$ref": "#/definitions/Resource"
         },
         {
+          "type": "array",
           "items": {
             "$ref": "#/definitions/Resource"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/Resource"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/Resource"
               }
@@ -1521,11 +1437,13 @@
               "$ref": "#/definitions/Resource"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/Resource"
               }
             },
             "_": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/Resource"
               }
@@ -1541,18 +1459,22 @@
           "type": "string"
         },
         {
+          "type": "array",
           "items": {
             "type": "string"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
                 "type": "string"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
                 "type": "string"
               }
@@ -1561,11 +1483,13 @@
               "type": "string"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
                 "type": "string"
               }
             },
             "_": {
+              "type": "array",
               "items": {
                 "type": "string"
               }

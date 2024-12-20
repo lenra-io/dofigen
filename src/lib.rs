@@ -179,11 +179,22 @@ pub fn generate_effective_content(dofigen: &Dofigen) -> Result<String> {
 /// This is useful to validate the structure and IDE autocompletion.
 #[cfg(feature = "json_schema")]
 pub fn generate_json_schema() -> String {
+    use std::ops::Deref;
+    use json_schema::{RemoveAdditionalPropertiesVisitor, U16Visitor};
+    use schemars::{schema::Metadata, visit::Visitor};
+
     let settings = SchemaSettings::default().with(|s| {
-        s.option_nullable = true;
         s.option_add_null_type = true;
     });
     let gen = settings.into_generator();
-    let schema = gen.into_root_schema_for::<Extend<DofigenPatch>>();
+    let mut schema = gen.into_root_schema_for::<Extend<DofigenPatch>>();
+    let metadata = schema.schema.metadata.unwrap_or_default();
+    schema.schema.metadata = Some(Box::new(Metadata {
+        id: Some("https://json.schemastore.org/dofigen.json".to_string()),
+        description: Some("Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format".to_string()),
+        ..metadata.deref().clone()
+    }));
+    U16Visitor.visit_root_schema(&mut schema);
+    RemoveAdditionalPropertiesVisitor.visit_root_schema(&mut schema);
     serde_json::to_string_pretty(&schema).unwrap()
 }
