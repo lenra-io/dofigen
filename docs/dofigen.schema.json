@@ -29,9 +29,6 @@
     },
     {
       "type": "object",
-      "required": [
-        "fromContext"
-      ],
       "properties": {
         "fromContext": {
           "type": [
@@ -241,6 +238,7 @@
           "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ]
         },
@@ -295,6 +293,7 @@
           "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ]
         },
@@ -383,9 +382,6 @@
         },
         {
           "type": "object",
-          "required": [
-            "fromContext"
-          ],
           "properties": {
             "fromContext": {
               "type": [
@@ -448,9 +444,6 @@
         },
         {
           "type": "object",
-          "required": [
-            "fromContext"
-          ],
           "properties": {
             "fromContext": {
               "type": [
@@ -466,6 +459,7 @@
           "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ]
         },
@@ -571,9 +565,6 @@
         },
         {
           "type": "object",
-          "required": [
-            "fromContext"
-          ],
           "properties": {
             "fromContext": {
               "type": [
@@ -589,6 +580,7 @@
           "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ]
         },
@@ -660,6 +652,7 @@
           "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ]
         },
@@ -1048,9 +1041,6 @@
         },
         {
           "type": "object",
-          "required": [
-            "fromContext"
-          ],
           "properties": {
             "fromContext": {
               "type": [
@@ -1173,6 +1163,7 @@
           "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ]
         },

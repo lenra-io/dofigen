@@ -5,6 +5,7 @@ use schemars::{
     visit::{visit_schema_object, Visitor},
     JsonSchema,
 };
+use serde_json::Value;
 #[cfg(feature = "permissive")]
 use std::str::FromStr;
 use struct_patch::Patch;
@@ -265,6 +266,27 @@ where
     }
 }
 
+pub fn schema_for_optional_string_or_number(
+    _generator: &mut schemars::gen::SchemaGenerator,
+) -> Schema {
+    SchemaObject {
+        metadata: Some(Box::new(Metadata {
+            default: Some(Value::Null),
+            ..Default::default()
+        })),
+        instance_type: Some(
+            vec![
+                InstanceType::String,
+                InstanceType::Number,
+                InstanceType::Null,
+            ]
+            .into(),
+        ),
+        ..Default::default()
+    }
+    .into()
+}
+
 pub struct U16Visitor;
 
 impl Visitor for U16Visitor {
@@ -289,6 +311,26 @@ impl Visitor for RemoveAdditionalPropertiesVisitor {
     fn visit_schema_object(&mut self, schema: &mut SchemaObject) {
         if let Some(object) = schema.object.as_mut() {
             object.additional_properties = None;
+        }
+
+        // Then delegate to default implementation to visit any subschemas
+        visit_schema_object(self, schema);
+    }
+}
+
+/// Removes the required field of the `fromContext` object to avoid problems with JSON Schema
+pub struct FromContextVisitor;
+
+impl Visitor for FromContextVisitor {
+    fn visit_schema_object(&mut self, schema: &mut SchemaObject) {
+        if let Some(instance_type) = schema.instance_type.as_ref() {
+            if instance_type.contains(&InstanceType::Object) {
+                if let Some(object) = schema.object.as_mut() {
+                    if object.required.len() == 1 && object.required.contains("fromContext") {
+                        object.required.clear();
+                    }
+                }
+            }
         }
 
         // Then delegate to default implementation to visit any subschemas

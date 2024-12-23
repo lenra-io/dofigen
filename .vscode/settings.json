@@ -1,0 +1,13 @@
+{
+	"json.schemas": [
+		{
+			"fileMatch": [
+				"*.json"
+			],
+			"url": "./docs/dofigen.schema.json"
+		}
+	],
+	"yaml.schemas": {
+		"./docs/dofigen.schema.json": "*.yml"
+	}
+}
