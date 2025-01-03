@@ -168,16 +168,16 @@ jobs:
           os: linux
           arch: x86_64
           runner: ubuntu-20.04
-        # - target: x86_64-pc-windows-msvc
-        #   os: windows
-        #   arch: x86_64
-        #   runner: windows-2022
-        #   file_extension: '.exe'
-        # - target: aarch64-pc-windows-msvc
-        #   os: windows
-        #   arch: aarch64
-        #   runner: windows-2022
-        #   file_extension: '.exe'
+        - target: x86_64-pc-windows-msvc
+          os: windows
+          arch: x86_64
+          runner: windows-2022
+          file_extension: '.exe'
+        - target: aarch64-pc-windows-msvc
+          os: windows
+          arch: aarch64
+          runner: windows-2022
+          file_extension: '.exe'
         - target: x86_64-apple-darwin
           os: macos
           arch: x86_64
@@ -276,47 +276,45 @@ jobs:
 
   publish-homebrew:
     name: Publish Homebrew
-    needs: [build, get-next-version]
-    # needs: [build, get-next-version, release]
-    # if: github.ref_name == 'main'
+    needs: [build, get-next-version, release]
+    if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.get-next-version.outputs.version }}
       GITHUB_TOKEN: ${{ secrets.HOMEBREW_RELEASE_TOKEN }}
     steps:
     - name: Checkout
-      # if: ${{ needs.get-next-version.outputs.will-release }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/checkout@v3
 
     - name: download-artifact-macos-x86_64
-      # if: ${{ needs.get-next-version.outputs.will-release }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
         name: dofigen-macos-x86_64
 
     - name: download-artifact-macos-aarch64
-      # if: ${{ needs.get-next-version.outputs.will-release }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
         name: dofigen-macos-aarch64
 
     - name: download-artifact-linux-x86_64
-      # if: ${{ needs.get-next-version.outputs.will-release }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
         name: dofigen-linux-x86_64
 
     - name: download-artifact-linux-aarch64
-      # if: ${{ needs.get-next-version.outputs.will-release }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
         name: dofigen-linux-aarch64
 
     - name: Generate Homebrew file
-      # if: ${{ needs.get-next-version.outputs.will-release }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
-        ls -al
         sed -i "s/\${VERSION}/${{ env.VERSION }}/g" .github/homebrew.rb
         sed -i "s/\${MACOS_ARM_SHA256}/$(shasum -a 256 ./dofigen-macos-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
         sed -i "s/\${MACOS_INTEL_SHA256}/$(shasum -a 256 ./dofigen-macos-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
@@ -325,7 +323,7 @@ jobs:
         cat .github/homebrew.rb
 
     - name: Update Homebrew repo
-      # if: ${{ needs.get-next-version.outputs.will-release }}
+      if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
         export FILE_URL=https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb
