@@ -284,34 +284,34 @@ jobs:
     #   VERSION: ${{ needs.get-next-version.outputs.version }}
     steps:
     - name: Checkout
-      if: ${{ needs.get-next-version.outputs.will-release }}
+      # if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/checkout@v3
 
     - name: download-artifact-macos-x86_64
-      if: ${{ needs.get-next-version.outputs.will-release }}
+      # if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
         name: dofigen-macos-x86_64
 
     - name: download-artifact-macos-aarch64
-      if: ${{ needs.get-next-version.outputs.will-release }}
+      # if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
         name: dofigen-macos-aarch64
 
     - name: download-artifact-linux-x86_64
-      if: ${{ needs.get-next-version.outputs.will-release }}
+      # if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
         name: dofigen-linux-x86_64
 
     - name: download-artifact-linux-aarch64
-      if: ${{ needs.get-next-version.outputs.will-release }}
+      # if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
         name: dofigen-linux-aarch64
 
-    - name: Publish cargo
+    - name: Generate Homebrew file
       if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
@@ -322,6 +322,17 @@ jobs:
         sed -i "s/$${LINUX_ARM_SHA256}/$(shasum -a 256 ./dofigen-linux-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
         sed -i "s/$${LINUX_INTEL_SHA256}/$(shasum -a 256 ./dofigen-linux-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
         cat .github/homebrew.rb
+
+    - name: Update Homebrew repo
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      shell: bash
+      run: |
+        jq -h
+        # curl -L \
+        #   -X PUT \
+        #   -H "Authorization: Bearer <YOUR-TOKEN>" \
+        #   https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb \
+        #   -d '{"message":"feat: Dofigen release ${{ env.VERSION }}","content":""}'
 
   publish-docker:
     name: Publish Docker
