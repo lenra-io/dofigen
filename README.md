@@ -53,7 +53,15 @@ A french DevOps said about it:
 
 Install Dofigen using one of the following options.
 
-#### Cargo install
+#### Use it with Docker
+
+You can run Dofigen directly from its Docker image with the following command:
+
+```bash
+docker run --rm -it -v $(pwd):/app lenra/dofigen --help
+```
+
+#### Cargo
 
 First install Cargo, the Rust package manager: https://doc.rust-lang.org/cargo/getting-started/installation.html
 
@@ -63,17 +71,24 @@ Then use the following command to install dofigen:
 cargo install dofigen
 ```
 
+#### Homebrew
+
+You can install Dofigen using Homebrew:
+
+```bash
+brew tap lenra-io/tools
+brew install dofigen
+```
+
+Or:
+
+```bash
+brew install lenra-io/tools/dofigen
+```
+
 #### Download the binary
 
 You can download the Dofigen binary from [the release page](https://github.com/lenra-io/dofigen/releases) and add it to your path environment variable.
-
-#### Use it with Docker
-
-You can run Dofigen directly from its Docker image with the following command:
-
-```bash
-docker run --rm -it -v $(pwd):/app lenra/dofigen --help
-```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 

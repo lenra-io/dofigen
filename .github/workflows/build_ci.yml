@@ -274,6 +274,62 @@ jobs:
       shell: bash
       run: cargo publish -p dofigen --allow-dirty --token "${{ secrets.CARGO_TOKEN }}"
 
+  publish-homebrew:
+    name: Publish Homebrew
+    needs: [build, get-next-version, release]
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.get-next-version.outputs.version }}
+      GITHUB_TOKEN: ${{ secrets.HOMEBREW_RELEASE_TOKEN }}
+    steps:
+    - name: Checkout
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      uses: actions/checkout@v3
+
+    - name: download-artifact-macos-x86_64
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      uses: actions/download-artifact@v4
+      with:
+        name: dofigen-macos-x86_64
+
+    - name: download-artifact-macos-aarch64
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      uses: actions/download-artifact@v4
+      with:
+        name: dofigen-macos-aarch64
+
+    - name: download-artifact-linux-x86_64
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      uses: actions/download-artifact@v4
+      with:
+        name: dofigen-linux-x86_64
+
+    - name: download-artifact-linux-aarch64
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      uses: actions/download-artifact@v4
+      with:
+        name: dofigen-linux-aarch64
+
+    - name: Generate Homebrew file
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      shell: bash
+      run: |
+        sed -i "s/\${VERSION}/${{ env.VERSION }}/g" .github/homebrew.rb
+        sed -i "s/\${MACOS_ARM_SHA256}/$(shasum -a 256 ./dofigen-macos-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${MACOS_INTEL_SHA256}/$(shasum -a 256 ./dofigen-macos-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_ARM_SHA256}/$(shasum -a 256 ./dofigen-linux-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_INTEL_SHA256}/$(shasum -a 256 ./dofigen-linux-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
+        cat .github/homebrew.rb
+
+    - name: Update Homebrew repo
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      shell: bash
+      run: |
+        export FILE_URL=https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb
+        curl -fs -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" ${FILE_URL} \
+        -d "{\"message\":\"feat: Dofigen release ${{ env.VERSION }}\",\"content\": \"$(base64 -w0 .github/homebrew.rb)\",\"sha\":$(curl -fs ${FILE_URL} | jq '.sha')}"
+
   publish-docker:
     name: Publish Docker
     needs: [build, get-next-version, release]
