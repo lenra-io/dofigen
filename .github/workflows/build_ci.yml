@@ -282,7 +282,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.get-next-version.outputs.version }}
-      GITHUB_TOKEN: ${{ secrets.GH_PERSONNAL_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.HOMEBREW_RELEASE_TOKEN }}
     steps:
     - name: Checkout
       # if: ${{ needs.get-next-version.outputs.will-release }}
@@ -328,7 +328,7 @@ jobs:
       # if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
-        curl -X PUT -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        curl -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" \
         https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb \
         -d "$(jq -Rs "{message:\"feat: Dofigen release ${{ env.VERSION }}\",content: .}" .github/homebrew.rb)"
 
