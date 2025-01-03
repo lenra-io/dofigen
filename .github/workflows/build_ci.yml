@@ -168,16 +168,16 @@ jobs:
           os: linux
           arch: x86_64
           runner: ubuntu-20.04
-        - target: x86_64-pc-windows-msvc
-          os: windows
-          arch: x86_64
-          runner: windows-2022
-          file_extension: '.exe'
-        - target: aarch64-pc-windows-msvc
-          os: windows
-          arch: aarch64
-          runner: windows-2022
-          file_extension: '.exe'
+        # - target: x86_64-pc-windows-msvc
+        #   os: windows
+        #   arch: x86_64
+        #   runner: windows-2022
+        #   file_extension: '.exe'
+        # - target: aarch64-pc-windows-msvc
+        #   os: windows
+        #   arch: aarch64
+        #   runner: windows-2022
+        #   file_extension: '.exe'
         - target: x86_64-apple-darwin
           os: macos
           arch: x86_64
@@ -316,23 +316,23 @@ jobs:
       shell: bash
       run: |
         ls -al
-        # sed -i "s/$${VERSION}/${{ env.VERSION }}/g" .github/homebrew.rb
-        sed -i "s/$${MACOS_ARM_SHA256}/$(shasum -a 256 ./dofigen-macos-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
-        sed -i "s/$${MACOS_INTEL_SHA256}/$(shasum -a 256 ./dofigen-macos-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
-        sed -i "s/$${LINUX_ARM_SHA256}/$(shasum -a 256 ./dofigen-linux-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
-        sed -i "s/$${LINUX_INTEL_SHA256}/$(shasum -a 256 ./dofigen-linux-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
+        # sed -i "s/\${VERSION}/${{ env.VERSION }}/g" .github/homebrew.rb
+        sed -i "s/\${MACOS_ARM_SHA256}/$(shasum -a 256 ./dofigen-macos-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${MACOS_INTEL_SHA256}/$(shasum -a 256 ./dofigen-macos-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_ARM_SHA256}/$(shasum -a 256 ./dofigen-linux-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_INTEL_SHA256}/$(shasum -a 256 ./dofigen-linux-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
         cat .github/homebrew.rb
 
     - name: Update Homebrew repo
       # if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
-        jq -h
+        jq -Rs jq -Rs "{message:\"feat: Dofigen release ${{ env.VERSION }}\",content: .}" .github/homebrew.rb
         # curl -L \
         #   -X PUT \
         #   -H "Authorization: Bearer <YOUR-TOKEN>" \
         #   https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb \
-        #   -d '{"message":"feat: Dofigen release ${{ env.VERSION }}","content":""}'
+        #   -d $(jq -Rs jq -Rs "{message:\"feat: Dofigen release ${{ env.VERSION }}\",content: .}" .github/homebrew.rb)
 
   publish-docker:
     name: Publish Docker
