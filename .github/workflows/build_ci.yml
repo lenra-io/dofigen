@@ -328,9 +328,9 @@ jobs:
       # if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
-        curl -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" \
-        https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb \
-        -d "{\"message\":\"feat: Dofigen release ${{ env.VERSION }}\",\"content\": \"$(base64 -w0 .github/homebrew.rb)\"}"
+        export FILE_URL=https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb
+        curl -fs -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" ${FILE_URL} \
+        -d "{\"message\":\"feat: Dofigen release ${{ env.VERSION }}\",\"content\": \"$(base64 -w0 .github/homebrew.rb)\",\"sha\":$(curl -fs ${FILE_URL} | jq '.sha')}"
 
   publish-docker:
     name: Publish Docker
