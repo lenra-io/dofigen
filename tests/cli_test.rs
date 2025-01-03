@@ -186,15 +186,16 @@ Usage: dofigen <COMMAND>"#,
             r#"extend:
   - http://localhost:1/not-existing.yml
 "#,
-        ).unwrap();
+        )
+        .unwrap();
 
         let output = cmd.unwrap_err();
         let output = output.as_output().unwrap();
 
         assert!(!output.status.success());
-        
+
         let output = str::from_utf8(&output.stderr).unwrap().to_string();
-        
+
         assert_eq_sorted!(output, "error: error sending request for url (http://localhost:1/not-existing.yml)\n\tCaused by: client error (Connect)\n\tCaused by: tcp connect error: Connection refused (os error 111)\n\tCaused by: Connection refused (os error 111)\n");
 
         temp.close().unwrap();
