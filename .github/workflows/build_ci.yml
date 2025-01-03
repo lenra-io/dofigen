@@ -330,7 +330,7 @@ jobs:
       run: |
         curl -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" \
         https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb \
-        -d "$(jq -Rs "{message:\"feat: Dofigen release ${{ env.VERSION }}\",content: .}" .github/homebrew.rb)"
+        -d "{\"message\":\"feat: Dofigen release ${{ env.VERSION }}\",\"content\": \"$(base64 -w0 .github/homebrew.rb)\"}"
 
   publish-docker:
     name: Publish Docker
