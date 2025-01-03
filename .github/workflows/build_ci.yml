@@ -312,7 +312,7 @@ jobs:
         name: dofigen-linux-aarch64
 
     - name: Generate Homebrew file
-      if: ${{ needs.get-next-version.outputs.will-release }}
+      # if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
         ls -al
@@ -324,7 +324,7 @@ jobs:
         cat .github/homebrew.rb
 
     - name: Update Homebrew repo
-      if: ${{ needs.get-next-version.outputs.will-release }}
+      # if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
         jq -h
