@@ -313,6 +313,8 @@ jobs:
         sed -i "s/\${LINUX_ARM_SHA256}/$(cat ./artifacts/dofigen-linux-aarch64.sha256)/g" .github/homebrew.rb
         sed -i "s/\${LINUX_INTEL_SHA256}/$(cat ./artifacts/dofigen-linux-x86_64.sha256)/g" .github/homebrew.rb
 
+        cat .github/homebrew.rb
+
     # - name: Update Homebrew repo
     #   if: ${{ needs.get-next-version.outputs.will-release }}
     #   shell: bash
