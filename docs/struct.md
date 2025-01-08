@@ -39,6 +39,7 @@ It extends the [Extend](#extend) and [Stage](#stage) structures.
 | `builders` | map<string, [Stage](#stage)> | The builder stages of the Dockerfile. |
 | `entrypoint` | string[] | The entrypoint of the Dockerfile. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#entrypoint). |
 | `cmd` | string[] | The default command of the Dockerfile. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#cmd). |
+| `volume` | string[] | Create volume mounts. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#volume). |
 | `expose` | [Port](#port)[] | The ports exposed by the Dockerfile. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#expose). |
 | `healthcheck` | [Healthcheck](#healthcheck) | The healthcheck of the Dockerfile. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#healthcheck). |
 

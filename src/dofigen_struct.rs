@@ -57,6 +57,13 @@ pub struct Dofigen {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cmd: Vec<String>,
 
+    /// Create volume mounts
+    /// See https://docs.docker.com/reference/dockerfile/#volume
+    #[patch(name = "VecPatch<String>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "volumes"))))]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub volume: Vec<String>,
+
     /// The ports exposed by the Dockerfile
     /// See https://docs.docker.com/reference/dockerfile/#expose
     #[cfg_attr(
