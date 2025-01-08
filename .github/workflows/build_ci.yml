@@ -217,15 +217,22 @@ jobs:
         command: build
         args: --release --target ${{ matrix.target }}
 
-    - name: Rename artifact to platform specific name
+    - name: Rename artifact to platform specific name and generate hash
       run: |
         mv target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }} ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
+        shasum -a 256 ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }} | awk '{printf $1}' > ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
 
-    - name: Upload
+    - name: Upload binary
       uses: actions/upload-artifact@v4
       with:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
         path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
+
+    - name: Upload hash
+      uses: actions/upload-artifact@v4
+      with:
+        name: dofigen-${{ matrix.os }}-${{ matrix.arch }}.sha256
+        path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
 
 
   release:
@@ -274,6 +281,45 @@ jobs:
       shell: bash
       run: cargo publish -p dofigen --allow-dirty --token "${{ secrets.CARGO_TOKEN }}"
 
+  publish-homebrew:
+    name: Publish Homebrew
+    needs: [build, get-next-version, release]
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.get-next-version.outputs.version }}
+      GITHUB_TOKEN: ${{ secrets.HOMEBREW_RELEASE_TOKEN }}
+    steps:
+    - name: Checkout
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      uses: actions/checkout@v3
+
+    - name: download-artifacts
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      uses: actions/download-artifact@v4
+      with:
+        path: artifacts
+        pattern: dofigen-{linux,macos}-{x86_64,aarch64}.sha256
+        merge-multiple: true
+        
+    - name: Generate Homebrew file
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      shell: bash
+      run: |
+        sed -i "s/\${VERSION}/${{ env.VERSION }}/g" .github/homebrew.rb
+        sed -i "s/\${MACOS_ARM_SHA256}/$(cat ./artifacts/dofigen-macos-aarch64.sha256)/g" .github/homebrew.rb
+        sed -i "s/\${MACOS_INTEL_SHA256}/$(cat ./artifacts/dofigen-macos-x86_64.sha256)/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_ARM_SHA256}/$(cat ./artifacts/dofigen-linux-aarch64.sha256)/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_INTEL_SHA256}/$(cat ./artifacts/dofigen-linux-x86_64.sha256)/g" .github/homebrew.rb
+
+    - name: Update Homebrew repo
+      if: ${{ needs.get-next-version.outputs.will-release }}
+      shell: bash
+      run: |
+        export FILE_URL=https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb
+        curl -fs -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" ${FILE_URL} \
+        -d "{\"message\":\"feat: Dofigen release ${{ env.VERSION }}\",\"content\": \"$(base64 -w0 .github/homebrew.rb)\",\"sha\":$(curl -fs ${FILE_URL} | jq '.sha')}"
+
   publish-docker:
     name: Publish Docker
     needs: [build, get-next-version, release]
@@ -294,25 +340,21 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: download-artifact-linux-x86_64
+      - name: download-artifacts
         if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/download-artifact@v4
         with:
-          name: dofigen-linux-x86_64
-
-      - name: download-artifact-linux-aarch64
-        if: ${{ needs.get-next-version.outputs.will-release }}
-        uses: actions/download-artifact@v4
-        with:
-          name: dofigen-linux-aarch64
+          path: artifacts
+          pattern: dofigen-linux-{x86_64,aarch64}
+          merge-multiple: true
 
       - name: move artifacts
         if: ${{ needs.get-next-version.outputs.will-release }}
         run: |
           mkdir -p ./builds/linux/amd64/
           mkdir -p ./builds/linux/arm64/
-          mv ./dofigen-linux-x86_64 ./builds/linux/amd64/dofigen
-          mv ./dofigen-linux-aarch64 ./builds/linux/arm64/dofigen
+          mv ./artifacts/dofigen-linux-x86_64 ./builds/linux/amd64/dofigen
+          mv ./artifacts/dofigen-linux-aarch64 ./builds/linux/arm64/dofigen
 
       - name: Set up QEMU
         if: ${{ needs.get-next-version.outputs.will-release }}
