@@ -276,8 +276,9 @@ jobs:
 
   publish-homebrew:
     name: Publish Homebrew
-    needs: [build, get-next-version, release]
-    if: github.ref_name == 'main'
+    needs: [build, get-next-version]
+    # needs: [build, get-next-version, release]
+    # if: github.ref_name == 'main'
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.get-next-version.outputs.version }}
@@ -305,13 +306,13 @@ jobs:
         sed -i "s/\${LINUX_ARM_SHA256}/$(shasum -a 256 ./artifacts/dofigen-linux-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
         sed -i "s/\${LINUX_INTEL_SHA256}/$(shasum -a 256 ./artifacts/dofigen-linux-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
 
-    - name: Update Homebrew repo
-      if: ${{ needs.get-next-version.outputs.will-release }}
-      shell: bash
-      run: |
-        export FILE_URL=https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb
-        curl -fs -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" ${FILE_URL} \
-        -d "{\"message\":\"feat: Dofigen release ${{ env.VERSION }}\",\"content\": \"$(base64 -w0 .github/homebrew.rb)\",\"sha\":$(curl -fs ${FILE_URL} | jq '.sha')}"
+    # - name: Update Homebrew repo
+    #   if: ${{ needs.get-next-version.outputs.will-release }}
+    #   shell: bash
+    #   run: |
+    #     export FILE_URL=https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb
+    #     curl -fs -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" ${FILE_URL} \
+    #     -d "{\"message\":\"feat: Dofigen release ${{ env.VERSION }}\",\"content\": \"$(base64 -w0 .github/homebrew.rb)\",\"sha\":$(curl -fs ${FILE_URL} | jq '.sha')}"
 
   publish-docker:
     name: Publish Docker
