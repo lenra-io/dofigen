@@ -474,6 +474,14 @@ impl DockerfileGenerator for Dofigen {
         lines.append(&mut self.stage.generate_dockerfile_lines(context)?);
         context.pop_state();
 
+        self.volume.iter().for_each(|volume| {
+            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "VOLUME".into(),
+                content: volume.clone(),
+                options: vec![],
+            }))
+        });
+
         self.expose.iter().for_each(|port| {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "EXPOSE".into(),
