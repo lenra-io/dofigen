@@ -222,13 +222,17 @@ jobs:
         mv target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }} ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
         shasum -a 256 ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }} | awk '{printf $1}' > ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
 
-    - name: Upload
+    - name: Upload binary
       uses: actions/upload-artifact@v4
       with:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
-        path: |
-          ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
-          ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
+        path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
+
+    - name: Upload hash
+      uses: actions/upload-artifact@v4
+      with:
+        name: dofigen-${{ matrix.os }}-${{ matrix.arch }}.sha256
+        path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
 
 
   release:
