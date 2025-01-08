@@ -128,15 +128,11 @@ impl DofigenContext {
                         "Offline mode can't load URL resources".to_string(),
                     ));
                 }
-                let response = reqwest::blocking::get(url.as_ref()).map_err(|err| {
-                    Error::Custom(format!("Could not get url {:?}: {}", url, err))
-                })?;
-                response.text().map_err(|err| {
-                    Error::Custom(format!(
-                        "Could not read response from url {:?}: {}",
-                        url, err
-                    ))
-                })?
+                reqwest::blocking::get(url.as_ref())
+                    .map_err(Error::from)?
+                    .error_for_status()?
+                    .text()
+                    .map_err(Error::from)?
             }
         };
         let version = ResourceVersion {
