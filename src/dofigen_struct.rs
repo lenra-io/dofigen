@@ -271,10 +271,16 @@ pub struct Cache {
     /// The permissions of the cache
     #[cfg_attr(
         feature = "permissive",
-        patch(attribute(serde(
-            deserialize_with = "deserialize_from_optional_string_or_number",
-            default
-        )))
+        patch(
+            attribute(serde(
+                deserialize_with = "deserialize_from_optional_string_or_number",
+                default
+            )),
+            attribute(cfg_attr(
+                feature = "json_schema",
+                schemars(schema_with = "crate::json_schema::schema_for_optional_string_or_number")
+            ))
+        )
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chmod: Option<String>,
@@ -555,10 +561,16 @@ pub struct CopyOptions {
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     #[cfg_attr(
         feature = "permissive",
-        patch(attribute(serde(
-            deserialize_with = "deserialize_from_optional_string_or_number",
-            default
-        )))
+        patch(
+            attribute(serde(
+                deserialize_with = "deserialize_from_optional_string_or_number",
+                default
+            )),
+            attribute(cfg_attr(
+                feature = "json_schema",
+                schemars(schema_with = "crate::json_schema::schema_for_optional_string_or_number")
+            ))
+        )
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chmod: Option<String>,
