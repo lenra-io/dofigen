@@ -287,40 +287,23 @@ jobs:
       if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/checkout@v3
 
-    - name: download-artifact-macos-x86_64
+    - name: download-artifacts
       if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
-        name: dofigen-macos-x86_64
-
-    - name: download-artifact-macos-aarch64
-      if: ${{ needs.get-next-version.outputs.will-release }}
-      uses: actions/download-artifact@v4
-      with:
-        name: dofigen-macos-aarch64
-
-    - name: download-artifact-linux-x86_64
-      if: ${{ needs.get-next-version.outputs.will-release }}
-      uses: actions/download-artifact@v4
-      with:
-        name: dofigen-linux-x86_64
-
-    - name: download-artifact-linux-aarch64
-      if: ${{ needs.get-next-version.outputs.will-release }}
-      uses: actions/download-artifact@v4
-      with:
-        name: dofigen-linux-aarch64
-
+        path: artifacts
+        pattern: dofigen-[linux|macos]-[aarch64|x86_64]
+        merge-multiple: true
+        
     - name: Generate Homebrew file
       if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
         sed -i "s/\${VERSION}/${{ env.VERSION }}/g" .github/homebrew.rb
-        sed -i "s/\${MACOS_ARM_SHA256}/$(shasum -a 256 ./dofigen-macos-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
-        sed -i "s/\${MACOS_INTEL_SHA256}/$(shasum -a 256 ./dofigen-macos-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
-        sed -i "s/\${LINUX_ARM_SHA256}/$(shasum -a 256 ./dofigen-linux-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
-        sed -i "s/\${LINUX_INTEL_SHA256}/$(shasum -a 256 ./dofigen-linux-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
-        cat .github/homebrew.rb
+        sed -i "s/\${MACOS_ARM_SHA256}/$(shasum -a 256 ./artifacts/dofigen-macos-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${MACOS_INTEL_SHA256}/$(shasum -a 256 ./artifacts/dofigen-macos-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_ARM_SHA256}/$(shasum -a 256 ./artifacts/dofigen-linux-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_INTEL_SHA256}/$(shasum -a 256 ./artifacts/dofigen-linux-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
 
     - name: Update Homebrew repo
       if: ${{ needs.get-next-version.outputs.will-release }}
