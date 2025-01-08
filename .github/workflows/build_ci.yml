@@ -217,15 +217,18 @@ jobs:
         command: build
         args: --release --target ${{ matrix.target }}
 
-    - name: Rename artifact to platform specific name
+    - name: Rename artifact to platform specific name and generate hash
       run: |
         mv target/${{ matrix.target }}/release/dofigen${{ matrix.file_extension }} ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
+        shasum -a 256 ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }} | awk '{printf $1}' > ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
 
     - name: Upload
       uses: actions/upload-artifact@v4
       with:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}
-        path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
+        path: |
+          ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}
+          ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
 
 
   release:
@@ -293,7 +296,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: artifacts
-        pattern: dofigen-{linux,macos}-{x86_64,aarch64}
+        pattern: dofigen-{linux,macos}-{x86_64,aarch64}.sha256
         merge-multiple: true
         
     - name: Generate Homebrew file
@@ -301,10 +304,10 @@ jobs:
       shell: bash
       run: |
         sed -i "s/\${VERSION}/${{ env.VERSION }}/g" .github/homebrew.rb
-        sed -i "s/\${MACOS_ARM_SHA256}/$(shasum -a 256 ./artifacts/dofigen-macos-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
-        sed -i "s/\${MACOS_INTEL_SHA256}/$(shasum -a 256 ./artifacts/dofigen-macos-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
-        sed -i "s/\${LINUX_ARM_SHA256}/$(shasum -a 256 ./artifacts/dofigen-linux-aarch64 | awk '{printf $1}')/g" .github/homebrew.rb
-        sed -i "s/\${LINUX_INTEL_SHA256}/$(shasum -a 256 ./artifacts/dofigen-linux-x86_64 | awk '{printf $1}')/g" .github/homebrew.rb
+        sed -i "s/\${MACOS_ARM_SHA256}/$(cat ./artifacts/dofigen-macos-aarch64.sha256)/g" .github/homebrew.rb
+        sed -i "s/\${MACOS_INTEL_SHA256}/$(cat ./artifacts/dofigen-macos-x86_64.sha256)/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_ARM_SHA256}/$(cat ./artifacts/dofigen-linux-aarch64.sha256)/g" .github/homebrew.rb
+        sed -i "s/\${LINUX_INTEL_SHA256}/$(cat ./artifacts/dofigen-linux-x86_64.sha256)/g" .github/homebrew.rb
 
     # - name: Update Homebrew repo
     #   if: ${{ needs.get-next-version.outputs.will-release }}
