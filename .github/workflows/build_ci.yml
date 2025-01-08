@@ -293,7 +293,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: artifacts
-        pattern: dofigen-[linux|macos]-[aarch64|x86_64]
+        pattern: dofigen-{linux,macos}-{x86_64,aarch64}
         merge-multiple: true
         
     - name: Generate Homebrew file
@@ -334,25 +334,21 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: download-artifact-linux-x86_64
+      - name: download-artifacts
         if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/download-artifact@v4
         with:
-          name: dofigen-linux-x86_64
-
-      - name: download-artifact-linux-aarch64
-        if: ${{ needs.get-next-version.outputs.will-release }}
-        uses: actions/download-artifact@v4
-        with:
-          name: dofigen-linux-aarch64
+          path: artifacts
+          pattern: dofigen-linux-{x86_64,aarch64}
+          merge-multiple: true
 
       - name: move artifacts
         if: ${{ needs.get-next-version.outputs.will-release }}
         run: |
           mkdir -p ./builds/linux/amd64/
           mkdir -p ./builds/linux/arm64/
-          mv ./dofigen-linux-x86_64 ./builds/linux/amd64/dofigen
-          mv ./dofigen-linux-aarch64 ./builds/linux/arm64/dofigen
+          mv ./artifacts/dofigen-linux-x86_64 ./builds/linux/amd64/dofigen
+          mv ./artifacts/dofigen-linux-aarch64 ./builds/linux/arm64/dofigen
 
       - name: Set up QEMU
         if: ${{ needs.get-next-version.outputs.will-release }}
