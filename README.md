@@ -61,6 +61,16 @@ You can run Dofigen directly from its Docker image with the following command:
 docker run --rm -it -v $(pwd):/app lenra/dofigen --help
 ```
 
+#### Arch Linux
+
+[dofigen](https://aur.archlinux.org/packages/dofigen) is available as an AUR package.
+
+You can install it using an AUR helper (e.g. `paru`):
+
+```bash
+paru -S dofigen
+```
+
 #### Cargo
 
 First install Cargo, the Rust package manager: https://doc.rust-lang.org/cargo/getting-started/installation.html
