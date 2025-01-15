@@ -42,7 +42,7 @@ struct-patch = { version = "0.8.6", default-features = false, features = ["optio
 reqwest = { version = "0.12.9", default-features = false, features = ["json", "blocking", "rustls-tls"] }
 relative-path = "1.9.3"
 sha256 = { version = "1.5.0", default-features = false }
-colored = "2.1.0"
+colored = "3.0.0"
 
 [dev-dependencies]
 assert_cmd = "2.0.16"
