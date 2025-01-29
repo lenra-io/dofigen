@@ -557,7 +557,8 @@ where
         // save the number of elements added before the positions
         let mut adapted_positions: Vec<usize> = vec![0; self.len()];
         // save the current position and corresponding adapted position to avoid recomputing it
-        let mut current_position: (usize, usize) = (0, 0);
+        let mut current_position = 0;
+        let mut position_adaptation = 0;
 
         for command in patch.commands {
             match command {
@@ -579,11 +580,13 @@ where
                     if pos == last_modified_position {
                         panic!("Cannot replace element at position {} after another modification on it", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    println!("pos: {}, last_modified_position: {}, current_position: {:?}", pos, last_modified_position, current_position);
+                    for i in current_position..pos {
+                        current_position = i;
+                        position_adaptation += adapted_positions[i];
+                        println!("current_position_start: {}, current_position_end: {:?}", current_position, position_adaptation);
                     }
-                    self[current_position.1] = elements;
+                    self[current_position + position_adaptation] = elements;
                     last_modified_position = pos;
                 }
                 VecPatchCommand::InsertBefore(pos, elements) => {
@@ -596,13 +599,13 @@ where
                     if pos >= initial_len {
                         panic!("Position {} is out of bounds", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position..pos {
+                        current_position = i;
+                        position_adaptation += adapted_positions[i];
                     }
                     let added = elements.len();
-                    self.splice(current_position.1..current_position.1, elements);
-                    current_position.1 += added;
+                    self.splice(position_adaptation..position_adaptation, elements);
+                    position_adaptation += added;
                     adapted_positions[pos as usize] += added;
                 }
                 VecPatchCommand::InsertAfter(pos, elements) => {
@@ -615,11 +618,11 @@ where
                     if pos >= initial_len {
                         panic!("Position {} is out of bounds", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position..pos {
+                        current_position = i;
+                        position_adaptation += adapted_positions[i];
                     }
-                    let usize_pos = current_position.1 + 1;
+                    let usize_pos = position_adaptation + 1;
                     let added = elements.len();
                     self.splice(usize_pos..usize_pos, elements);
                     if pos + 1 < initial_len {
@@ -668,7 +671,8 @@ where
         // save the number of elements added before the positions
         let mut adapted_positions: Vec<usize> = vec![0; self.len()];
         // save the current position and corresponding adapted position to avoid recomputing it
-        let mut current_position: (usize, usize) = (0, 0);
+        let mut current_position_start = 0;
+        let mut current_position_end = 0;
 
         for command in patch.commands {
             match command {
@@ -693,11 +697,11 @@ where
                     if pos == last_modified_position {
                         panic!("Cannot replace element at position {} after another modification on it", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position_start..pos {
+                        current_position_start = i;
+                        current_position_end += adapted_positions[i + 1];
                     }
-                    self[current_position.1] = element;
+                    self[current_position_end] = element;
                     last_modified_position = pos;
                 }
                 VecDeepPatchCommand::Patch(pos, element) => {
@@ -713,11 +717,11 @@ where
                             pos
                         );
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position_start..pos {
+                        current_position_start = i;
+                        current_position_end += adapted_positions[i + 1];
                     }
-                    self[current_position.1].apply(element);
+                    self[current_position_end].apply(element);
                     last_modified_position = pos;
                 }
                 VecDeepPatchCommand::InsertBefore(pos, elements) => {
@@ -730,13 +734,13 @@ where
                     if pos >= initial_len {
                         panic!("Position {} is out of bounds", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position_start..pos {
+                        current_position_start = i;
+                        current_position_end += adapted_positions[i + 1];
                     }
                     let added = elements.len();
-                    self.splice(current_position.1..current_position.1, elements);
-                    current_position.1 += added;
+                    self.splice(current_position_end..current_position_end, elements);
+                    current_position_end += added;
                     adapted_positions[pos as usize] += added;
                 }
                 VecDeepPatchCommand::InsertAfter(pos, elements) => {
@@ -749,11 +753,11 @@ where
                     if pos >= initial_len {
                         panic!("Position {} is out of bounds", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position_start..pos {
+                        current_position_start = i;
+                        current_position_end += adapted_positions[i + 1];
                     }
-                    let usize_pos = current_position.1 + 1;
+                    let usize_pos = current_position_end + 1;
                     let added = elements.len();
                     self.splice(usize_pos..usize_pos, elements);
                     if pos + 1 < initial_len {
@@ -1862,13 +1866,16 @@ mod test {
                   list:
                     - item1
                     - item2
+                    - item3
+                    - item4
                   num: 42
             "#;
 
             let patch = r#"
                 sub:
                     list:
-                        0: item3
+                        1: item5
+                        3: item6
             "#;
 
             let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
@@ -1883,7 +1890,7 @@ mod test {
                 TestStruct {
                     name: "patch1".into(),
                     sub: Some(SubTestStruct {
-                        list: vec!["item3".into(), "item2".into()],
+                        list: vec!["item1".into(), "item5".into(), "item3".into(), "item6".into()],
                         num: Some(42)
                     })
                 }
@@ -2125,7 +2132,7 @@ mod test {
 
             let patch = r#"
                 subs:
-                  0: 
+                  1: 
                     name: sub3
                     num: 3
             "#;
@@ -2143,12 +2150,12 @@ mod test {
                     name: "patch1".into(),
                     subs: vec![
                         SubTestStruct {
-                            name: "sub3".into(),
-                            num: 3
+                            name: "sub1".into(),
+                            num: 1
                         },
                         SubTestStruct {
-                            name: "sub2".into(),
-                            num: 2
+                            name: "sub3".into(),
+                            num: 3
                         },
                     ]
                 }
