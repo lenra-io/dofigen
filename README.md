@@ -229,9 +229,9 @@ RUSTFLAGS="-C instrument-coverage" \
   LLVM_PROFILE_FILE="target/coverage/profiles/cargo-test-%p-%m.profraw" \
   cargo test
 # Convert to lcov format
-grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore ../* --ignore /* -o target/coverage/lcov.info
+grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing -o target/coverage/lcov.info
 # Generate the HTML report
-grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html --branch --ignore-not-existing --ignore ../* --ignore /* -o target/coverage/html
+grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html --branch --ignore-not-existing -o target/coverage/html
 ```
 
 ### Generate the JSON Schema
