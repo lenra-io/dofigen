@@ -16,13 +16,13 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  get-next-version:
+  get-version:
     name: Get next version
     uses: lenra-io/github-actions/.github/workflows/get-version.yml@main
 
   style:
     name: Check Style
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
     - name: Checkout
@@ -45,7 +45,7 @@ jobs:
   test-base:
     name: Test base
     needs: [style]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
     - name: Checkout
@@ -85,7 +85,7 @@ jobs:
   test-permissive:
     name: Test permissive
     needs: [style]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
     - name: Checkout
@@ -119,7 +119,7 @@ jobs:
   test-strict:
     name: Test strict
     needs: [style]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
     - name: Checkout
@@ -152,10 +152,10 @@ jobs:
 
   build:
     name: Build ${{ matrix.os }} ${{ matrix.arch }}
-    needs: [test-base, test-permissive, test-strict, get-next-version]
+    needs: [test-base, test-permissive, test-strict, get-version]
     runs-on: "${{ matrix.runner }}"
     env:
-      VERSION: ${{ needs.get-next-version.outputs.version }}
+      VERSION: ${{ needs.get-version.outputs.version }}
     timeout-minutes: 20
     strategy:
       matrix: # Need to find what's the best target for `x86-x64-linux` and remove the others (gnu or musl)
@@ -163,11 +163,11 @@ jobs:
         - target: aarch64-unknown-linux-musl
           os: linux
           arch: aarch64
-          runner: ubuntu-20.04
+          runner: ubuntu-24.04
         - target: x86_64-unknown-linux-musl
           os: linux
           arch: x86_64
-          runner: ubuntu-20.04
+          runner: ubuntu-24.04
         - target: x86_64-pc-windows-msvc
           os: windows
           arch: x86_64
@@ -234,68 +234,58 @@ jobs:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}.sha256
         path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
 
-
-  release:
-    name: Release
-    needs: [build, get-next-version]
-    if: github.ref_name == 'main' || github.ref_name == 'rc' || github.ref_name == 'beta'
-    uses: lenra-io/github-actions/.github/workflows/release.yml@main
+  release-github:
+    name: Release GitHub
+    needs: [get-version, build, style]
+    if: needs.get-version.outputs.version != ''
+    # Call the reusable workflow to create release to GitHub.
+    uses: lenra-io/github-actions/.github/workflows/upsert-release.yml@main
     with:
-      download-artifacts: true
-      assets: artifacts/
+      version: ${{ needs.get-version.outputs.version }}
+      changelog: ${{ needs.get-version.outputs.changelog }}
+      prerelease: ${{ needs.get-version.outputs.channel != '' }}
+
 
   publish-cargo:
     name: Publish Cargo
-    needs: [build, get-next-version, release]
-    if: github.ref_name == 'main' || github.ref_name == 'rc' || github.ref_name == 'beta'
+    needs: [build, get-version, release-github]
+    if: needs.get-version.outputs.version != ''
     runs-on: ubuntu-latest
     env:
-      VERSION: ${{ needs.get-next-version.outputs.version }}
+      VERSION: ${{ needs.get-version.outputs.version }}
     steps:
     - name: Checkout
-      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/checkout@v3
 
-    - name: download-artifacts
-      if: ${{ needs.get-next-version.outputs.will-release }}
-      uses: actions/download-artifact@v4
-      with:
-        path: artifacts/
-
     - name: Install cargo-edit
-      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions-rs/cargo@v1
       with:
         command: install
         args: cargo-edit
 
     - name: Set version
-      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions-rs/cargo@v1
       with:
         command: set-version
         args: ${{ env.VERSION }}
 
     - name: Publish cargo
-      if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: cargo publish -p dofigen --allow-dirty --token "${{ secrets.CARGO_TOKEN }}"
 
   publish-homebrew:
     name: Publish Homebrew
-    needs: [build, get-next-version, release]
-    if: github.ref_name == 'main'
+    needs: [build, get-version, release-github]
+    if: github.ref_name == 'main' && needs.get-version.outputs.version != ''
     runs-on: ubuntu-latest
     env:
-      VERSION: ${{ needs.get-next-version.outputs.version }}
+      VERSION: ${{ needs.get-version.outputs.version }}
       GITHUB_TOKEN: ${{ secrets.HOMEBREW_RELEASE_TOKEN }}
     steps:
     - name: Checkout
-      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/checkout@v3
 
     - name: download-artifacts
-      if: ${{ needs.get-next-version.outputs.will-release }}
       uses: actions/download-artifact@v4
       with:
         path: artifacts
@@ -303,7 +293,6 @@ jobs:
         merge-multiple: true
         
     - name: Generate Homebrew file
-      if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
         sed -i "s/\${VERSION}/${{ env.VERSION }}/g" .github/homebrew.rb
@@ -313,7 +302,6 @@ jobs:
         sed -i "s/\${LINUX_INTEL_SHA256}/$(cat ./artifacts/dofigen-linux-x86_64.sha256)/g" .github/homebrew.rb
 
     - name: Update Homebrew repo
-      if: ${{ needs.get-next-version.outputs.will-release }}
       shell: bash
       run: |
         export FILE_URL=https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb
@@ -322,15 +310,14 @@ jobs:
 
   publish-docker:
     name: Publish Docker
-    needs: [build, get-next-version, release]
-    if: github.ref_name == 'main' || github.ref_name == 'rc' || github.ref_name == 'beta'
+    needs: [build, get-version, release-github]
+    if: needs.get-version.outputs.version != ''
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      VERSION: ${{ needs.get-next-version.outputs.version }}
+      VERSION: ${{ needs.get-version.outputs.version }}
     steps:
       - name: Checkout
-        if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/checkout@v3
         with:
           submodules: true
@@ -341,7 +328,6 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: download-artifacts
-        if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -349,7 +335,6 @@ jobs:
           merge-multiple: true
 
       - name: move artifacts
-        if: ${{ needs.get-next-version.outputs.will-release }}
         run: |
           mkdir -p ./builds/linux/amd64/
           mkdir -p ./builds/linux/arm64/
@@ -357,16 +342,13 @@ jobs:
           mv ./artifacts/dofigen-linux-aarch64 ./builds/linux/arm64/dofigen
 
       - name: Set up QEMU
-        if: ${{ needs.get-next-version.outputs.will-release }}
         uses: docker/setup-qemu-action@v1
 
       - name: Set up Docker Buildx
-        if: ${{ needs.get-next-version.outputs.will-release }}
         id: buildx
         uses: docker/setup-buildx-action@v1
 
       - name: Cache
-        if: ${{ needs.get-next-version.outputs.will-release }}
         uses: actions/cache@v3
         with:
           path: |
@@ -374,7 +356,6 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('./Dockerfile') }}
 
       - name: Build Docker images
-        if: ${{ needs.get-next-version.outputs.will-release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PERSONNAL_TOKEN }}
           DOCKER_IMAGE: lenra/dofigen
