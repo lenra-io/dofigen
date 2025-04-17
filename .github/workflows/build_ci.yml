@@ -22,7 +22,7 @@ jobs:
 
   style:
     name: Check Style
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
     - name: Checkout
@@ -45,7 +45,7 @@ jobs:
   test-base:
     name: Test base
     needs: [style]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
     - name: Checkout
@@ -85,7 +85,7 @@ jobs:
   test-permissive:
     name: Test permissive
     needs: [style]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
     - name: Checkout
@@ -119,7 +119,7 @@ jobs:
   test-strict:
     name: Test strict
     needs: [style]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
     - name: Checkout
@@ -163,11 +163,11 @@ jobs:
         - target: aarch64-unknown-linux-musl
           os: linux
           arch: aarch64
-          runner: ubuntu-20.04
+          runner: ubuntu-24.04
         - target: x86_64-unknown-linux-musl
           os: linux
           arch: x86_64
-          runner: ubuntu-20.04
+          runner: ubuntu-24.04
         - target: x86_64-pc-windows-msvc
           os: windows
           arch: x86_64
