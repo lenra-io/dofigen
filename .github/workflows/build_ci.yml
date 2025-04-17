@@ -248,7 +248,7 @@ jobs:
 
   publish-cargo:
     name: Publish Cargo
-    needs: [build, get-version, release]
+    needs: [build, get-version, release-github]
     if: needs.get-version.outputs.version != ''
     runs-on: ubuntu-latest
     env:
@@ -275,7 +275,7 @@ jobs:
 
   publish-homebrew:
     name: Publish Homebrew
-    needs: [build, get-version, release]
+    needs: [build, get-version, release-github]
     if: github.ref_name == 'main' && needs.get-version.outputs.version != ''
     runs-on: ubuntu-latest
     env:
@@ -310,7 +310,7 @@ jobs:
 
   publish-docker:
     name: Publish Docker
-    needs: [build, get-version, release]
+    needs: [build, get-version, release-github]
     if: needs.get-version.outputs.version != ''
     runs-on: ubuntu-latest
     timeout-minutes: 60
