@@ -140,6 +140,16 @@
             }
           ]
         },
+        "label": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NestedMap_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "root": {
           "anyOf": [
             {
@@ -184,23 +194,6 @@
             }
           ]
         },
-        "workdir": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "label": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/NestedMap_for_String"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "volume": {
           "anyOf": [
             {
@@ -209,6 +202,13 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "workdir": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
           ]
         }
       }
