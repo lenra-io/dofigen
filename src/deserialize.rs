@@ -2857,7 +2857,6 @@ mod test {
             assert_eq!(
                 base_data,
                 HashMap::from([
-
                     // fn flatten_nested_map<T: Clone>(
                     //     map: &NestedMap<T>,
                     //     current_path: String,
@@ -3053,10 +3052,7 @@ mod test {
                             "key2".to_string(),
                             NestedMapValue::Value("value2".to_string())
                         ),
-                        (
-                            "key3".to_string(),
-                            NestedMapValue::Null
-                        )
+                        ("key3".to_string(), NestedMapValue::Null)
                     ]))
                 );
             }
