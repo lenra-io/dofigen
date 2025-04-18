@@ -386,6 +386,7 @@ where
     }
 }
 
+#[cfg(not(feature = "strict"))]
 impl<T: Clone> NestedMap<T> {
     fn flatten(&mut self) {
         let keys = self.0.keys().cloned().collect::<Vec<_>>();
@@ -901,6 +902,7 @@ where
     }
 }
 
+#[cfg(not(feature = "strict"))]
 impl<T: Clone> From<NestedMap<T>> for HashMap<String, Option<T>> {
     fn from(value: NestedMap<T>) -> Self {
         let mut value = value.clone();
@@ -922,6 +924,7 @@ impl<T: Clone> From<NestedMap<T>> for HashMap<String, Option<T>> {
     }
 }
 
+#[cfg(not(feature = "strict"))]
 impl<T> Patch<NestedMap<T>> for HashMap<String, T>
 where
     T: Clone,
@@ -1715,6 +1718,7 @@ where
     }
 }
 
+#[cfg(not(feature = "strict"))]
 impl<T> Merge for NestedMap<T>
 where
     T: Clone,

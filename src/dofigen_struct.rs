@@ -804,10 +804,16 @@ mod test {
 
             #[test]
             fn label() {
+                #[cfg(not(feature = "strict"))]
                 let data = r#"
                 label:
                   io.dofigen:
                     test: test
+                "#;
+                #[cfg(feature = "strict")]
+                let data = r#"
+                label:
+                  io.dofigen.test: test
                 "#;
 
                 let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
