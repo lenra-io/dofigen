@@ -22,6 +22,14 @@ use url::Url;
     )
 )]
 pub struct Dofigen {
+    /// Add metadata to an image
+    /// See https://docs.docker.com/reference/dockerfile/#label
+    #[cfg_attr(not(feature = "strict"), patch(name = "NestedMap<String>"))]
+    #[cfg_attr(feature = "strict", patch(name = "HashMapPatch<String, String>"))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "labels"))))]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub label: HashMap<String, String>,
+
     /// The context of the Docker build
     /// This is used to generate a .dockerignore file
     #[patch(name = "VecPatch<String>")]
@@ -792,6 +800,26 @@ mod test {
                 println!("{:?}", dofigen);
 
                 assert!(dofigen.is_err());
+            }
+
+            #[test]
+            fn label() {
+                let data = r#"
+                label:
+                  io.dofigen:
+                    test: test
+                "#;
+
+                let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
+
+                assert_eq_sorted!(
+                    dofigen,
+                    Dofigen {
+                        label: HashMap::from([("io.dofigen.test".into(), "test".into())]),
+                        ..Default::default()
+                    }
+                );
             }
         }
 
