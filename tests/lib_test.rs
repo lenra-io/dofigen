@@ -60,6 +60,7 @@ copy:
     paths: /fwatchdog
     target: /fwatchdog
     chmod: 555
+volume: /app/cache
 expose: 8080
 healthcheck:
   interval: 3s
@@ -115,6 +116,7 @@ COPY \
     --link \
     "/fwatchdog" "/fwatchdog"
 USER 1000:1000
+VOLUME /app/cache
 EXPOSE 8080
 HEALTHCHECK \
     --interval=3s \
