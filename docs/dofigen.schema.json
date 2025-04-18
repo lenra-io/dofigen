@@ -190,6 +190,26 @@
             "string",
             "null"
           ]
+        },
+        "label": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NestedMap_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VecPatch<String>"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       }
     }
@@ -589,71 +609,6 @@
             "null"
           ]
         }
-      }
-    },
-    "CopyContent": {
-      "title": "CopyContent",
-      "type": "object",
-      "properties": {
-        "chmod": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ],
-          "nullable": true
-        },
-        "chown": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/User"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "nullable": true
-        },
-        "content": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ],
-          "nullable": true
-        },
-        "link": {
-          "default": null,
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "nullable": true
-        },
-        "substitute": {
-          "default": null,
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "nullable": true
-        },
-        "target": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ],
-          "nullable": true
-        }
       },
       "additionalProperties": false
     },
@@ -797,6 +752,26 @@
           ],
           "minimum": 0.0
         }
+      }
+    },
+    "NestedMapValue_for_String": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/NestedMap_for_String"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "NestedMap_for_String": {
+      "description": "A multilevel key map",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/NestedMapValue_for_String"
       }
     },
     "OneOrMany<Resource>": {
