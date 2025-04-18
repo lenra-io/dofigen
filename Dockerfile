@@ -12,5 +12,6 @@ COPY \
     --link \
     "builds/${TARGETPLATFORM}/dofigen" "/bin/dofigen"
 USER 1000:1000
+VOLUME /app
 ENTRYPOINT ["/bin/dofigen"]
 CMD ["--help"]

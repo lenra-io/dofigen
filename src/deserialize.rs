@@ -137,35 +137,17 @@ where
 /// A multilevel key map
 #[cfg(not(feature = "strict"))]
 #[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub(crate) struct NestedMap<T>(HashMap<String, NestedMapValue<T>>);
 
 #[cfg(not(feature = "strict"))]
 #[derive(Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 #[serde(untagged)]
 enum NestedMapValue<T> {
     Value(T),
     Map(NestedMap<T>),
     Null,
-}
-
-impl<T: Clone> NestedMap<T> {
-    fn flatten(&mut self) {
-        let keys = self.0.keys().cloned().collect::<Vec<_>>();
-        for key in keys {
-            if let Some(NestedMapValue::Map(nested_map)) = self.0.get_mut(&key) {
-                let mut nested_map = nested_map.clone();
-                self.0.remove(&key);
-                nested_map.flatten();
-                for (nested_key, nested_value) in nested_map.0 {
-                    let final_key = format!("{key}.{nested_key}");
-                    // Check if the key already exists in the map
-                    if !self.0.contains_key(&final_key) {
-                        self.0.insert(final_key, nested_value);
-                    }
-                }
-            }
-        }
-    }
 }
 
 //////////////////////// Deserialization structures ////////////////////////
@@ -400,6 +382,26 @@ where
             VecDeepPatchDeserializable::Map(v) => VecDeepPatch {
                 commands: v.commands,
             },
+        }
+    }
+}
+
+impl<T: Clone> NestedMap<T> {
+    fn flatten(&mut self) {
+        let keys = self.0.keys().cloned().collect::<Vec<_>>();
+        for key in keys {
+            if let Some(NestedMapValue::Map(nested_map)) = self.0.get_mut(&key) {
+                let mut nested_map = nested_map.clone();
+                self.0.remove(&key);
+                nested_map.flatten();
+                for (nested_key, nested_value) in nested_map.0 {
+                    let final_key = format!("{key}.{nested_key}");
+                    // Check if the key already exists in the map
+                    if !self.0.contains_key(&final_key) {
+                        self.0.insert(final_key, nested_value);
+                    }
+                }
+            }
         }
     }
 }

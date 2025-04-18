@@ -453,13 +453,18 @@ impl DockerfileGenerator for Dofigen {
 
         // Label
         if !self.label.is_empty() {
+            let mut keys = self.label.keys().collect::<Vec<&String>>();
+            keys.sort();
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "LABEL".into(),
-                content: self
-                    .label
+                content: keys
                     .iter()
-                    .map(|(key, value)| {
-                        format!("{}=\"{}\"", key, value.replace("\n", LINE_SEPARATOR))
+                    .map(|&key| {
+                        format!(
+                            "{}=\"{}\"",
+                            key,
+                            self.label.get(key).unwrap().replace("\n", "\\\n")
+                        )
                     })
                     .collect::<Vec<String>>()
                     .join(LINE_SEPARATOR),
@@ -1168,7 +1173,7 @@ mod test {
                 lines[2],
                 DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "LABEL".into(),
-                    content: "key1=\"value1\" \\\n    key2=\"value2 \\\n    ligne2\"".into(),
+                    content: "key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),
                     options: vec![],
                 })
             );

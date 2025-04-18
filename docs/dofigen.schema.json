@@ -188,6 +188,17 @@
       ],
       "nullable": true
     },
+    "label": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/NestedMap_for_String"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "nullable": true
+    },
     "root": {
       "anyOf": [
         {
@@ -230,6 +241,17 @@
             }
           ],
           "nullable": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "nullable": true
+    },
+    "volume": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/VecPatch<String>"
         },
         {
           "type": "null"
@@ -340,6 +362,17 @@
                 }
               ],
               "nullable": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "nullable": true
+        },
+        "exclude": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VecPatch<String>"
             },
             {
               "type": "null"
@@ -663,7 +696,26 @@
           ],
           "nullable": true
         },
+        "exclude": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VecPatch<String>"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "nullable": true
+        },
         "link": {
+          "default": null,
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "nullable": true
+        },
+        "parents": {
           "default": null,
           "type": [
             "boolean",
@@ -914,6 +966,26 @@
         }
       },
       "additionalProperties": false
+    },
+    "NestedMapValue_for_String": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "$ref": "#/definitions/NestedMap_for_String"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "NestedMap_for_String": {
+      "description": "A multilevel key map",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/NestedMapValue_for_String"
+      }
     },
     "OneOrMany<Resource>": {
       "title": "OneOrMany<Resource>",
@@ -1274,6 +1346,17 @@
                 }
               ],
               "nullable": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "nullable": true
+        },
+        "exclude": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VecPatch<String>"
             },
             {
               "type": "null"
