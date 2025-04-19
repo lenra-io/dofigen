@@ -4,8 +4,9 @@
 
 LABEL \
     io.dofigen.version="0.0.0" \
+    org.opencontainers.image.base.digest="sha256:123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234" \
     org.opencontainers.image.base.name="docker.io/alpine:latest"
 
 # runtime
-FROM alpine AS runtime
+FROM alpine@sha256:123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234 AS runtime
 USER 1000:1000
