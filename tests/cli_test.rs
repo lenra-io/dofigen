@@ -114,14 +114,18 @@ Usage: dofigen <COMMAND>"#,
 
         #[cfg(not(feature = "permissive"))]
         {
-            temp.copy_from("tests/cases", &["simple.yml", "simple.lock"]).unwrap();
+            temp.copy_from("tests/cases", &["simple.yml", "simple.lock"])
+                .unwrap();
             cmd.arg("simple.yml");
         }
 
         #[cfg(feature = "permissive")]
         {
-            temp.copy_from("tests/cases", &["simple.permissive.yml", "simple.permissive.lock"])
-                .unwrap();
+            temp.copy_from(
+                "tests/cases",
+                &["simple.permissive.yml", "simple.permissive.lock"],
+            )
+            .unwrap();
             cmd.arg("simple.permissive.yml");
         }
 

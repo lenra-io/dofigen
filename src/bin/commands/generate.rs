@@ -55,7 +55,7 @@ impl CliCommand for Generate {
         let path = get_file_path(&self.options.file)?;
         let lockfile_path = get_lockfile_path(path.clone());
         let lockfile = load_lockfile(lockfile_path.clone());
-        
+
         let mut context = lockfile
             .as_ref()
             .map(|l| l.to_context())

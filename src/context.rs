@@ -244,7 +244,7 @@ impl DofigenContext {
                 DEFAULT_NAMESPACE
             };
             let request_url = format!(
-                "https://{host}{port}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
+                "https://{DOCKER_HUB_HOST}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
                 namespace = namespace,
                 repo = repo,
                 tag = tag
