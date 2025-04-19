@@ -1,14 +1,17 @@
+use std::collections::HashMap;
+
 use crate::errors::Error;
 
+use crate::lock::DEFAULT_PORT;
 use crate::{
-    dockerfile_struct::*, dofigen_struct::*, LintMessage, LintSession, Result, DOCKERFILE_VERSION,
-    FILE_HEADER_COMMENTS,
+    dockerfile_struct::*, dofigen_struct::*, DofigenContext, LintMessage, LintSession, Result,
+    DOCKERFILE_VERSION, FILE_HEADER_COMMENTS,
 };
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
 pub const DEFAULT_FROM: &str = "scratch";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct GenerationContext {
     dofigen: Dofigen,
     pub(crate) user: Option<User>,
@@ -16,6 +19,9 @@ pub struct GenerationContext {
     pub(crate) default_from: FromContext,
     state_stack: Vec<GenerationContextState>,
     pub(crate) lint_session: LintSession,
+    pub no_default_labels: bool,
+    /// The tags of the locked images
+    pub(crate) locked_images: HashMap<String, String>,
 }
 
 impl GenerationContext {
@@ -57,11 +63,19 @@ impl GenerationContext {
         let lint_session = LintSession::analyze(&dofigen);
         Self {
             dofigen,
-            user: None,
-            stage_name: String::default(),
-            default_from: FromContext::default(),
             lint_session,
-            state_stack: vec![],
+            ..Default::default()
+        }
+    }
+
+    pub fn from_context(dofigen: Dofigen, context: DofigenContext) -> Self {
+        let lint_session = LintSession::analyze(&dofigen);
+        let locked_images = context.get_locked_images_map();
+        Self {
+            dofigen,
+            lint_session,
+            locked_images,
+            ..Default::default()
         }
     }
 
@@ -124,6 +138,25 @@ pub trait DockerfileGenerator {
         &self,
         context: &mut GenerationContext,
     ) -> Result<Vec<DockerfileLine>>;
+}
+
+impl Dofigen {
+    pub fn get_base_image(&self) -> Option<ImageName> {
+        let mut stage = &self.stage;
+        while let FromContext::FromBuilder(builder_name) = &stage.from {
+            if let Some(builder) = self.builders.get(builder_name) {
+                stage = builder;
+            } else {
+                return None;
+            }
+        }
+        match &stage.from {
+            FromContext::FromImage(image) => Some(image.clone()),
+            // For basic context we can't know if it's an image, a builder not strongly typed or a build context
+            FromContext::FromContext(_) => None,
+            FromContext::FromBuilder(_) => unreachable!(),
+        }
+    }
 }
 
 impl Stage {
@@ -198,8 +231,10 @@ impl ToString for ImageName {
         if let Some(host) = &self.host {
             registry.push_str(host);
             if let Some(port) = self.port.clone() {
-                registry.push_str(":");
-                registry.push_str(port.to_string().as_str());
+                if port != DEFAULT_PORT {
+                    registry.push_str(":");
+                    registry.push_str(port.to_string().as_str());
+                }
             }
             registry.push_str("/");
         }
@@ -446,15 +481,54 @@ impl DockerfileGenerator for Dofigen {
             default_from: Some(self.stage.from(context).clone()),
             ..Default::default()
         });
-        let mut lines = vec![
-            DockerfileLine::Comment(format!("syntax=docker/dockerfile:{}", DOCKERFILE_VERSION)),
-            DockerfileLine::Empty,
-        ];
+        let mut lines = vec![DockerfileLine::Comment(format!(
+            "syntax=docker/dockerfile:{}",
+            DOCKERFILE_VERSION
+        ))];
+
+        let mut labels = HashMap::from([(
+            "io.dofigen.version".into(),
+            env!("CARGO_PKG_VERSION").into(),
+        )]);
+
+        if !context.no_default_labels {
+            if let Some(image) = self.get_base_image() {
+                let filled_image = image.fill();
+                if let Some(version) = &filled_image.version {
+                    let image_name = filled_image.to_string();
+                    match version {
+                        ImageVersion::Tag(_) => {
+                            labels.insert("org.opencontainers.image.base.name".into(), image_name);
+                        }
+                        ImageVersion::Digest(digest) => {
+                            let tag = context.locked_images.get(&image_name);
+                            labels.insert(
+                                "org.opencontainers.image.base.digest".into(),
+                                digest.clone(),
+                            );
+                            if let Some(tag) = tag {
+                                let image_tag = ImageName {
+                                    version: Some(ImageVersion::Tag(tag.clone())),
+                                    ..filled_image
+                                };
+                                labels.insert(
+                                    "org.opencontainers.image.base.name".into(),
+                                    image_tag.to_string(),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        labels.extend(self.label.clone());
 
         // Label
-        if !self.label.is_empty() {
-            let mut keys = self.label.keys().collect::<Vec<&String>>();
+        if !labels.is_empty() {
+            let mut keys = labels.keys().collect::<Vec<&String>>();
             keys.sort();
+            lines.push(DockerfileLine::Empty);
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "LABEL".into(),
                 content: keys
@@ -463,7 +537,7 @@ impl DockerfileGenerator for Dofigen {
                         format!(
                             "{}=\"{}\"",
                             key,
-                            self.label.get(key).unwrap().replace("\n", "\\\n")
+                            labels.get(key).unwrap().replace("\n", "\\\n")
                         )
                     })
                     .collect::<Vec<String>>()
@@ -482,8 +556,8 @@ impl DockerfileGenerator for Dofigen {
                 .get(&name)
                 .expect(format!("The builder '{}' not found", name).as_str());
 
-            lines.append(&mut Stage::generate_dockerfile_lines(builder, context)?);
             lines.push(DockerfileLine::Empty);
+            lines.append(&mut Stage::generate_dockerfile_lines(builder, context)?);
             context.pop_state();
         }
 
@@ -492,6 +566,7 @@ impl DockerfileGenerator for Dofigen {
             stage_name: Some("runtime".into()),
             default_from: Some(FromContext::default()),
         });
+        lines.push(DockerfileLine::Empty);
         lines.append(&mut self.stage.generate_dockerfile_lines(context)?);
         context.pop_state();
 
@@ -794,19 +869,6 @@ fn string_vec_into(string_vec: Vec<String>) -> String {
 mod test {
     use super::*;
     use pretty_assertions_sorted::assert_eq_sorted;
-
-    impl Default for GenerationContext {
-        fn default() -> Self {
-            Self {
-                dofigen: Dofigen::default(),
-                user: None,
-                stage_name: String::default(),
-                default_from: FromContext::default(),
-                lint_session: LintSession::default(),
-                state_stack: vec![],
-            }
-        }
-    }
 
     mod stage {
         use std::collections::HashMap;
@@ -1151,7 +1213,7 @@ mod test {
                 lines[2],
                 DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "LABEL".into(),
-                    content: "key=\"value\"".into(),
+                    content: "io.dofigen.version=\"0.0.0\" \\\n    key=\"value\"".into(),
                     options: vec![],
                 })
             );
@@ -1173,7 +1235,7 @@ mod test {
                 lines[2],
                 DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "LABEL".into(),
-                    content: "key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),
+                    content: "io.dofigen.version=\"0.0.0\" \\\n    key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),
                     options: vec![],
                 })
             );

@@ -221,6 +221,15 @@ impl DofigenContext {
             .host
             .clone()
             .ok_or(Error::Custom("No host found for image".into()))?;
+        let port = image
+            .port
+            .clone()
+            .ok_or(Error::Custom("No port found for image".into()))?;
+        let port = if port == 443 {
+            String::new()
+        } else {
+            format!(":{port}")
+        };
 
         let client = reqwest::blocking::Client::new();
 
@@ -235,7 +244,7 @@ impl DofigenContext {
                 DEFAULT_NAMESPACE
             };
             let request_url = format!(
-                "https://{host}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
+                "https://{host}{port}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
                 namespace = namespace,
                 repo = repo,
                 tag = tag
@@ -251,7 +260,7 @@ impl DofigenContext {
             }
         } else {
             let request_url = format!(
-                "https://{host}/v2/{path}/manifests/{tag}",
+                "https://{host}{port}/v2/{path}/manifests/{tag}",
                 path = image.path,
                 tag = tag
             );
@@ -290,6 +299,24 @@ impl DofigenContext {
                 }
             }
         }
+    }
+
+    /// The tags of the locked images
+    pub(crate) fn get_locked_images_map(&self) -> HashMap<String, String> {
+        self.images
+            .iter()
+            .map(|(image, tag)| {
+                if let Some(ImageVersion::Tag(tag_name)) = &image.version {
+                    let locked_image = ImageName {
+                        version: Some(ImageVersion::Digest(tag.digest.clone())),
+                        ..image.clone()
+                    };
+                    return (locked_image.to_string(), tag_name.clone());
+                } else {
+                    unreachable!("Image can only be a tag here")
+                }
+            })
+            .collect()
     }
 
     //////////  Getters  //////////

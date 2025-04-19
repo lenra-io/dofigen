@@ -1,0 +1,16 @@
+effective: |
+  fromImage:
+    path: alpine
+    digest: sha256:123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234
+images:
+  docker.io:
+    library:
+      alpine:
+        latest:
+          digest: sha256:123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234
+resources:
+  simple.yml:
+    hash: cb29cc6a75089ec2ea2002b6afc64663d3786996d02d221a4e7e3c5705eb7045
+    content: |-
+      fromImage:
+        path: alpine

@@ -11,7 +11,6 @@ mod cli {
     use escargot::CargoRun;
     use lazy_static::lazy_static;
     use pretty_assertions_sorted::assert_eq_sorted;
-    use regex::Regex;
 
     lazy_static! {
         static ref BIN: CargoRun = generate_bin();
@@ -44,6 +43,12 @@ mod cli {
         let mut output = str::from_utf8(output).unwrap().to_string();
 
         output.truncate(expected.len());
+
+        assert_eq_sorted!(output, expected);
+    }
+
+    fn assert_output(output: &Vec<u8>, expected: &str) {
+        let output = str::from_utf8(output).unwrap().to_string();
 
         assert_eq_sorted!(output, expected);
     }
@@ -100,7 +105,7 @@ Usage: dofigen <COMMAND>"#,
     }
 
     #[test]
-    fn generate_specified_file_offline() {
+    fn generate_specified_file_locked() {
         let temp = assert_fs::TempDir::new().unwrap();
 
         let mut cmd = BIN.command();
@@ -109,13 +114,13 @@ Usage: dofigen <COMMAND>"#,
 
         #[cfg(not(feature = "permissive"))]
         {
-            temp.copy_from("tests/cases", &["simple.yml"]).unwrap();
+            temp.copy_from("tests/cases", &["simple.yml", "simple.lock"]).unwrap();
             cmd.arg("simple.yml");
         }
 
         #[cfg(feature = "permissive")]
         {
-            temp.copy_from("tests/cases", &["simple.permissive.yml"])
+            temp.copy_from("tests/cases", &["simple.permissive.yml", "simple.permissive.lock"])
                 .unwrap();
             cmd.arg("simple.permissive.yml");
         }
@@ -124,7 +129,7 @@ Usage: dofigen <COMMAND>"#,
 
         assert!(output.status.success());
 
-        output_starts_with(&output.stdout, "        Add resource simple.");
+        assert_output(&output.stdout, "");
 
         let dockerfile = temp.child("Dockerfile");
         let dockerignore = temp.child(".dockerignore");
@@ -134,13 +139,9 @@ Usage: dofigen <COMMAND>"#,
 
         let dockerfile_content = read_to_string(dockerfile.path()).unwrap();
 
-        // Remove the sha256 hash
-        let re = Regex::new(r"@sha256:\S+").unwrap();
-        let dockerfile_content = re.replace_all(dockerfile_content.as_str(), "");
-
         assert_eq_sorted!(
             dockerfile_content,
-            read_to_string("tests/cases/simple.result.Dockerfile").unwrap()
+            read_to_string("tests/cases/simple.locked.result.Dockerfile").unwrap()
         );
 
         dockerignore.assert(

@@ -3,9 +3,10 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 pub(crate) const DOCKER_HUB_HOST: &str = "registry.hub.docker.com";
+pub(crate) const DOCKER_IO_HOST: &str = "docker.io";
 pub(crate) const DEFAULT_NAMESPACE: &str = "library";
-const DEFAULT_TAG: &str = "latest";
-const DEFAULT_PORT: u16 = 443;
+pub(crate) const DEFAULT_TAG: &str = "latest";
+pub(crate) const DEFAULT_PORT: u16 = 443;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, PartialOrd, Eq)]
 pub struct DockerTag {
@@ -21,7 +22,7 @@ pub struct ResourceVersion {
 impl ImageName {
     pub fn fill(&self) -> Self {
         Self {
-            host: self.host.clone().or(Some(DOCKER_HUB_HOST.to_string())),
+            host: self.host.clone().or(Some(DOCKER_IO_HOST.to_string())),
             port: self.port.clone().or(Some(DEFAULT_PORT)),
             version: self
                 .version
@@ -59,7 +60,13 @@ impl LockFile {
                     Some(parts.next().unwrap().parse().unwrap()),
                 )
             } else {
-                (host, None)
+                (host, Some(DEFAULT_PORT))
+            };
+            // In order to do not create breaking changes, we replace the Docker hub host with docker.io
+            let host = if host == DOCKER_HUB_HOST {
+                DOCKER_IO_HOST.to_string()
+            } else {
+                host
             };
             for (namespace, repositories) in namespaces {
                 for (repository, tags) in repositories {
@@ -100,7 +107,17 @@ impl LockFile {
     pub fn from_context(effective: &Dofigen, context: &DofigenContext) -> Result<LockFile> {
         let mut images = HashMap::new();
         for (image, docker_tag) in context.used_image_tags() {
-            let host = format!("{}:{}", image.host.unwrap(), image.port.unwrap());
+            let host = image
+                .host
+                .ok_or(Error::Custom("Image host is not set".to_string()))?;
+            let port = image
+                .port
+                .ok_or(Error::Custom("Image port is not set".to_string()))?;
+            let host = if port == DEFAULT_PORT {
+                host
+            } else {
+                format!("{}:{}", host, port)
+            };
             let (namespace, repository) = if image.path.contains("/") {
                 let mut parts = image.path.split("/");
                 let namespace = parts.next().unwrap();
@@ -215,7 +232,7 @@ impl Lock for FromContext {
 
 impl Lock for ImageName {
     fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
-        match self.version.clone() {
+        match &self.version {
             Some(ImageVersion::Digest(_)) => Ok(self.clone()),
             _ => Ok(Self {
                 version: Some(ImageVersion::Digest(

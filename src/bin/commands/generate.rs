@@ -27,6 +27,10 @@ pub struct Generate {
     /// Locked version of the dofigen definition
     #[clap(short, long, action)]
     locked: bool,
+
+    /// Do not define the default labels
+    #[clap(short, long, action)]
+    no_labels: bool,
 }
 
 impl Generate {
@@ -51,6 +55,7 @@ impl CliCommand for Generate {
         let path = get_file_path(&self.options.file)?;
         let lockfile_path = get_lockfile_path(path.clone());
         let lockfile = load_lockfile(lockfile_path.clone());
+        
         let mut context = lockfile
             .as_ref()
             .map(|l| l.to_context())
@@ -88,7 +93,8 @@ impl CliCommand for Generate {
             locked_image
         };
 
-        let mut generation_context = GenerationContext::from(dofigen);
+        let mut generation_context = GenerationContext::from_context(dofigen, context);
+        generation_context.no_default_labels = self.no_labels;
 
         let dockerfile_content = generation_context.generate_dockerfile()?;
 
