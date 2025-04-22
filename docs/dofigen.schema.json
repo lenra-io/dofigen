@@ -3,47 +3,14 @@
   "$id": "https://json.schemastore.org/dofigen.json",
   "title": "Dofigen",
   "description": "Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format",
-  "anyOf": [
-    {
-      "$ref": "#/definitions/FromContext"
-    },
+  "allOf": [
     {
       "type": "object",
       "properties": {
-        "arg": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/HashMapPatch<String, String>"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "bind": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Bind>>"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "builders": {
           "anyOf": [
             {
               "$ref": "#/definitions/HashMapDeepPatch<String, Stage>"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "cache": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Cache>>"
             },
             {
               "type": "null"
@@ -70,30 +37,10 @@
             }
           ]
         },
-        "copy": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/VecDeepPatch<ParsableStruct<CopyResourcePatch>>"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "entrypoint": {
           "anyOf": [
             {
               "$ref": "#/definitions/VecPatch<String>"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "env": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/HashMapPatch<String, String>"
             },
             {
               "type": "null"
@@ -150,50 +97,6 @@
             }
           ]
         },
-        "root": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/Run"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "run": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/VecPatch<String>"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "user": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/ParsableStruct<User>"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "volume": {
           "anyOf": [
             {
@@ -203,15 +106,11 @@
               "type": "null"
             }
           ]
-        },
-        "workdir": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
         }
       }
+    },
+    {
+      "$ref": "#/definitions/Stage"
     }
   ],
   "definitions": {
@@ -944,10 +843,7 @@
     },
     "Stage": {
       "title": "Stage",
-      "anyOf": [
-        {
-          "$ref": "#/definitions/FromContext"
-        },
+      "allOf": [
         {
           "type": "object",
           "properties": {
@@ -955,26 +851,6 @@
               "anyOf": [
                 {
                   "$ref": "#/definitions/HashMapPatch<String, String>"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "bind": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Bind>>"
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "cache": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Cache>>"
                 },
                 {
                   "type": "null"
@@ -1004,24 +880,7 @@
             "root": {
               "anyOf": [
                 {
-                  "anyOf": [
-                    {
-                      "$ref": "#/definitions/Run"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ]
-                },
-                {
-                  "type": "null"
-                }
-              ]
-            },
-            "run": {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/VecPatch<String>"
+                  "$ref": "#/definitions/Run"
                 },
                 {
                   "type": "null"
@@ -1053,6 +912,19 @@
               ]
             }
           }
+        },
+        {
+          "$ref": "#/definitions/Run"
+        },
+        {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/FromContext"
+            },
+            {
+              "type": "object"
+            }
+          ]
         }
       ]
     },
