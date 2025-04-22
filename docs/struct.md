@@ -34,6 +34,7 @@ It extends the [Extend](#extend) and [Stage](#stage) structures.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `label` | map<string, string> | Add metadata to an image. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#label) |
 | `context` | string[] | The context of the Docker build. This is used to generate a `.dockerignore` file. |
 | `ignore` | string[] | The elements to ignore from the build context. This is used to generate a `.dockerignore` file. |
 | `builders` | map<string, [Stage](#stage)> | The builder stages of the Dockerfile. |

@@ -22,6 +22,14 @@ use url::Url;
     )
 )]
 pub struct Dofigen {
+    /// Add metadata to an image
+    /// See https://docs.docker.com/reference/dockerfile/#label
+    #[cfg_attr(not(feature = "strict"), patch(name = "NestedMap<String>"))]
+    #[cfg_attr(feature = "strict", patch(name = "HashMapPatch<String, String>"))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "labels"))))]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub label: HashMap<String, String>,
+
     /// The context of the Docker build
     /// This is used to generate a .dockerignore file
     #[patch(name = "VecPatch<String>")]
@@ -271,10 +279,16 @@ pub struct Cache {
     /// The permissions of the cache
     #[cfg_attr(
         feature = "permissive",
-        patch(attribute(serde(
-            deserialize_with = "deserialize_from_optional_string_or_number",
-            default
-        )))
+        patch(
+            attribute(serde(
+                deserialize_with = "deserialize_from_optional_string_or_number",
+                default
+            )),
+            attribute(cfg_attr(
+                feature = "json_schema",
+                schemars(schema_with = "crate::json_schema::schema_for_optional_string_or_number")
+            ))
+        )
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chmod: Option<String>,
@@ -555,10 +569,16 @@ pub struct CopyOptions {
     /// See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod
     #[cfg_attr(
         feature = "permissive",
-        patch(attribute(serde(
-            deserialize_with = "deserialize_from_optional_string_or_number",
-            default
-        )))
+        patch(
+            attribute(serde(
+                deserialize_with = "deserialize_from_optional_string_or_number",
+                default
+            )),
+            attribute(cfg_attr(
+                feature = "json_schema",
+                schemars(schema_with = "crate::json_schema::schema_for_optional_string_or_number")
+            ))
+        )
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chmod: Option<String>,
@@ -792,6 +812,32 @@ mod test {
                 println!("{:?}", dofigen);
 
                 assert!(dofigen.is_err());
+            }
+
+            #[test]
+            fn label() {
+                #[cfg(not(feature = "strict"))]
+                let data = r#"
+                label:
+                  io.dofigen:
+                    test: test
+                "#;
+                #[cfg(feature = "strict")]
+                let data = r#"
+                label:
+                  io.dofigen.test: test
+                "#;
+
+                let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
+
+                assert_eq_sorted!(
+                    dofigen,
+                    Dofigen {
+                        label: HashMap::from([("io.dofigen.test".into(), "test".into())]),
+                        ..Default::default()
+                    }
+                );
             }
         }
 

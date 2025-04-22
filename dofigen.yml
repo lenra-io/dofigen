@@ -1,6 +1,6 @@
 # Runtime
 workdir: /app
-# volume: /app
+volume: /app
 arg:
   TARGETPLATFORM: ""
 copy:

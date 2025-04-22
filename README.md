@@ -239,7 +239,7 @@ grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html 
 To generate the JSON schema of the Dofigen file structure, use the following command:
 
 ```bash
-cargo run -F json_schema -- schema
+cargo run -F json_schema -- schema > docs/dofigen.schema.json
 ```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
