@@ -1263,6 +1263,17 @@
           ],
           "nullable": true
         },
+        "label": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/NestedMap_for_String"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "nullable": true
+        },
         "root": {
           "anyOf": [
             {
