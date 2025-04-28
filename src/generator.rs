@@ -598,6 +598,24 @@ impl DockerfileGenerator for Stage {
             }),
         ];
 
+        // Arg
+        if !self.arg.is_empty() {
+            let mut keys = self.arg.keys().collect::<Vec<&String>>();
+            keys.sort();
+            keys.iter().for_each(|key| {
+                let value = self.arg.get(*key).unwrap();
+                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "ARG".into(),
+                    content: if value.is_empty() {
+                        key.to_string()
+                    } else {
+                        format!("{}={}", key, value)
+                    },
+                    options: vec![],
+                }));
+            });
+        }
+
         // Label
         if !self.label.is_empty() {
             let mut keys = self.label.keys().collect::<Vec<&String>>();
@@ -617,24 +635,6 @@ impl DockerfileGenerator for Stage {
                     .join(LINE_SEPARATOR),
                 options: vec![],
             }));
-        }
-
-        // Arg
-        if !self.arg.is_empty() {
-            let mut keys = self.arg.keys().collect::<Vec<&String>>();
-            keys.sort();
-            keys.iter().for_each(|key| {
-                let value = self.arg.get(*key).unwrap();
-                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
-                    command: "ARG".into(),
-                    content: if value.is_empty() {
-                        key.to_string()
-                    } else {
-                        format!("{}={}", key, value)
-                    },
-                    options: vec![],
-                }));
-            });
         }
 
         // Env

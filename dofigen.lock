@@ -1,6 +1,8 @@
 effective: |
   context:
   - /builds
+  label:
+    io.dofigen.version: 0.0.0
   workdir: /app
   arg:
     TARGETPLATFORM: ''

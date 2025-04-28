@@ -4,8 +4,8 @@
 
 # runtime
 FROM scratch AS runtime
-LABEL io.dofigen.version="0.0.0"
 ARG TARGETPLATFORM
+LABEL io.dofigen.version="0.0.0"
 WORKDIR /app
 COPY \
     --chown=1000:1000 \
