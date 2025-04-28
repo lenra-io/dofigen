@@ -223,27 +223,33 @@ impl Lock for Stage {
                 ))?;
                 FromContext::FromImage(match version {
                     ImageVersion::Tag(_) => {
-                        label.insert(
-                            "org.opencontainers.image.base.name".into(),
-                            image_name_filled.to_string(),
-                        );
+                        if !context.no_default_labels {
+                            label.insert(
+                                "org.opencontainers.image.base.name".into(),
+                                image_name_filled.to_string(),
+                            );
+                        }
                         let locked = image_name.lock(context)?;
-                        match &locked.version {
-                            Some(ImageVersion::Digest(digest)) => {
-                                label.insert(
-                                    "org.opencontainers.image.base.digest".into(),
-                                    digest.clone(),
-                                );
+                        if !context.no_default_labels {
+                            match &locked.version {
+                                Some(ImageVersion::Digest(digest)) => {
+                                    label.insert(
+                                        "org.opencontainers.image.base.digest".into(),
+                                        digest.clone(),
+                                    );
+                                }
+                                _ => unreachable!("Version must be a digest in locked image name"),
                             }
-                            _ => unreachable!("Version must be a digest in locked image name"),
                         }
                         locked
                     }
                     ImageVersion::Digest(digest) => {
-                        label.insert(
-                            "org.opencontainers.image.base.digest".into(),
-                            digest.clone(),
-                        );
+                        if !context.no_default_labels {
+                            label.insert(
+                                "org.opencontainers.image.base.digest".into(),
+                                digest.clone(),
+                            );
+                        }
                         image_name_filled
                     }
                 })
