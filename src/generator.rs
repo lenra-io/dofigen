@@ -1,11 +1,9 @@
-use std::collections::HashMap;
-
 use crate::errors::Error;
 
 use crate::lock::DEFAULT_PORT;
 use crate::{
-    dockerfile_struct::*, dofigen_struct::*, DofigenContext, LintMessage, LintSession, Result,
-    DOCKERFILE_VERSION, FILE_HEADER_COMMENTS,
+    dockerfile_struct::*, dofigen_struct::*, LintMessage, LintSession, Result, DOCKERFILE_VERSION,
+    FILE_HEADER_COMMENTS,
 };
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
@@ -19,8 +17,6 @@ pub struct GenerationContext {
     pub(crate) default_from: FromContext,
     state_stack: Vec<GenerationContextState>,
     pub(crate) lint_session: LintSession,
-    /// The tags of the locked images
-    pub(crate) locked_images: HashMap<String, String>,
 }
 
 impl GenerationContext {
@@ -63,17 +59,6 @@ impl GenerationContext {
         Self {
             dofigen,
             lint_session,
-            ..Default::default()
-        }
-    }
-
-    pub fn from_context(dofigen: Dofigen, context: DofigenContext) -> Self {
-        let lint_session = LintSession::analyze(&dofigen);
-        let locked_images = context.get_locked_images_map();
-        Self {
-            dofigen,
-            lint_session,
-            locked_images,
             ..Default::default()
         }
     }
@@ -1158,7 +1143,7 @@ mod test {
     mod label {
         use std::collections::HashMap;
 
-        use crate::lock::Lock;
+        use crate::{lock::Lock, DofigenContext};
 
         use super::*;
 

@@ -302,24 +302,6 @@ impl DofigenContext {
         }
     }
 
-    /// The tags of the locked images
-    pub(crate) fn get_locked_images_map(&self) -> HashMap<String, String> {
-        self.images
-            .iter()
-            .map(|(image, tag)| {
-                if let Some(ImageVersion::Tag(tag_name)) = &image.version {
-                    let locked_image = ImageName {
-                        version: Some(ImageVersion::Digest(tag.digest.clone())),
-                        ..image.clone()
-                    };
-                    return (locked_image.to_string(), tag_name.clone());
-                } else {
-                    unreachable!("Image can only be a tag here")
-                }
-            })
-            .collect()
-    }
-
     //////////  Getters  //////////
 
     pub(crate) fn used_resource_contents(&self) -> HashMap<Resource, ResourceVersion> {

@@ -94,7 +94,7 @@ impl CliCommand for Generate {
             locked_image
         };
 
-        let mut generation_context = GenerationContext::from_context(dofigen, context);
+        let mut generation_context = GenerationContext::from(dofigen);
 
         let dockerfile_content = generation_context.generate_dockerfile()?;
 
