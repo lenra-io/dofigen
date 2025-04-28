@@ -882,7 +882,7 @@ mod test {
                 label:
                   io.dofigen.test: test
                 "#;
-                
+
                 let stage: StagePatch = serde_yaml::from_str(data).unwrap();
                 let stage: Stage = stage.into();
 
