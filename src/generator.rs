@@ -19,7 +19,6 @@ pub struct GenerationContext {
     pub(crate) default_from: FromContext,
     state_stack: Vec<GenerationContextState>,
     pub(crate) lint_session: LintSession,
-    pub no_default_labels: bool,
     /// The tags of the locked images
     pub(crate) locked_images: HashMap<String, String>,
 }
@@ -486,66 +485,6 @@ impl DockerfileGenerator for Dofigen {
             DOCKERFILE_VERSION
         ))];
 
-        let mut labels = HashMap::from([(
-            "io.dofigen.version".into(),
-            env!("CARGO_PKG_VERSION").into(),
-        )]);
-
-        if !context.no_default_labels {
-            if let Some(image) = self.get_base_image() {
-                let filled_image = image.fill();
-                if let Some(version) = &filled_image.version {
-                    let image_name = filled_image.to_string();
-                    match version {
-                        ImageVersion::Tag(_) => {
-                            labels.insert("org.opencontainers.image.base.name".into(), image_name);
-                        }
-                        ImageVersion::Digest(digest) => {
-                            let tag = context.locked_images.get(&image_name);
-                            labels.insert(
-                                "org.opencontainers.image.base.digest".into(),
-                                digest.clone(),
-                            );
-                            if let Some(tag) = tag {
-                                let image_tag = ImageName {
-                                    version: Some(ImageVersion::Tag(tag.clone())),
-                                    ..filled_image
-                                };
-                                labels.insert(
-                                    "org.opencontainers.image.base.name".into(),
-                                    image_tag.to_string(),
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        labels.extend(self.label.clone());
-
-        // Label
-        if !labels.is_empty() {
-            let mut keys = labels.keys().collect::<Vec<&String>>();
-            keys.sort();
-            lines.push(DockerfileLine::Empty);
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
-                command: "LABEL".into(),
-                content: keys
-                    .iter()
-                    .map(|&key| {
-                        format!(
-                            "{}=\"{}\"",
-                            key,
-                            labels.get(key).unwrap().replace("\n", "\\\n")
-                        )
-                    })
-                    .collect::<Vec<String>>()
-                    .join(LINE_SEPARATOR),
-                options: vec![],
-            }));
-        }
-
         for name in context.lint_session.get_sorted_builders() {
             context.push_state(GenerationContextState {
                 stage_name: Some(name.clone()),
@@ -658,6 +597,27 @@ impl DockerfileGenerator for Stage {
                 options: vec![],
             }),
         ];
+
+        // Label
+        if !self.label.is_empty() {
+            let mut keys = self.label.keys().collect::<Vec<&String>>();
+            keys.sort();
+            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "LABEL".into(),
+                content: keys
+                    .iter()
+                    .map(|&key| {
+                        format!(
+                            "{}=\"{}\"",
+                            key,
+                            self.label.get(key).unwrap().replace("\n", "\\\n")
+                        )
+                    })
+                    .collect::<Vec<String>>()
+                    .join(LINE_SEPARATOR),
+                options: vec![],
+            }));
+        }
 
         // Arg
         if !self.arg.is_empty() {
@@ -1198,22 +1158,24 @@ mod test {
     mod label {
         use std::collections::HashMap;
 
+        use crate::lock::Lock;
+
         use super::*;
 
         #[test]
         fn with_label() {
-            let dofigen = Dofigen {
+            let stage = Stage {
                 label: HashMap::from([("key".into(), "value".into())]),
                 ..Default::default()
             };
-            let lines = dofigen
+            let lines = stage
                 .generate_dockerfile_lines(&mut GenerationContext::default())
                 .unwrap();
             assert_eq_sorted!(
                 lines[2],
                 DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "LABEL".into(),
-                    content: "io.dofigen.version=\"0.0.0\" \\\n    key=\"value\"".into(),
+                    content: "key=\"value\"".into(),
                     options: vec![],
                 })
             );
@@ -1221,18 +1183,44 @@ mod test {
 
         #[test]
         fn with_many_multiline_labels() {
-            let dofigen = Dofigen {
+            let stage = Stage {
                 label: HashMap::from([
                     ("key1".into(), "value1".into()),
                     ("key2".into(), "value2\nligne2".into()),
                 ]),
                 ..Default::default()
             };
-            let lines = dofigen
+            let lines = stage
                 .generate_dockerfile_lines(&mut GenerationContext::default())
                 .unwrap();
             assert_eq_sorted!(
                 lines[2],
+                DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "LABEL".into(),
+                    content: "key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),
+                    options: vec![],
+                })
+            );
+        }
+
+        #[test]
+        fn locked_with_many_multiline_labels() {
+            let dofigen = Dofigen {
+                stage: Stage {
+                    label: HashMap::from([
+                        ("key1".into(), "value1".into()),
+                        ("key2".into(), "value2\nligne2".into()),
+                    ]),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let dofigen = dofigen.lock(&mut DofigenContext::new()).unwrap();
+            let lines = dofigen
+                .generate_dockerfile_lines(&mut GenerationContext::default())
+                .unwrap();
+            assert_eq_sorted!(
+                lines[4],
                 DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "LABEL".into(),
                     content: "io.dofigen.version=\"0.0.0\" \\\n    key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),

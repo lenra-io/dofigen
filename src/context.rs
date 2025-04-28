@@ -21,6 +21,7 @@ pub struct DofigenContext {
     pub update_url_resources: bool,
     pub update_docker_tags: bool,
     pub display_updates: bool,
+    pub no_default_labels: bool,
 
     // Load resources
     load_resource_stack: Vec<Resource>,
@@ -643,6 +644,7 @@ impl DofigenContext {
             update_file_resources: true,
             update_url_resources: false,
             display_updates: true,
+            no_default_labels: false,
             load_resource_stack: vec![],
             resources: HashMap::new(),
             used_resources: HashSet::new(),
@@ -661,6 +663,7 @@ impl DofigenContext {
             update_file_resources: true,
             update_url_resources: false,
             display_updates: true,
+            no_default_labels: false,
             load_resource_stack: vec![],
             resources,
             used_resources: HashSet::new(),

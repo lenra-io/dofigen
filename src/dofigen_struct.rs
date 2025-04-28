@@ -22,14 +22,6 @@ use url::Url;
     )
 )]
 pub struct Dofigen {
-    /// Add metadata to an image
-    /// See https://docs.docker.com/reference/dockerfile/#label
-    #[cfg_attr(not(feature = "strict"), patch(name = "NestedMap<String>"))]
-    #[cfg_attr(feature = "strict", patch(name = "HashMapPatch<String, String>"))]
-    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "labels"))))]
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    pub label: HashMap<String, String>,
-
     /// The context of the Docker build
     /// This is used to generate a .dockerignore file
     #[patch(name = "VecPatch<String>")]
@@ -116,6 +108,14 @@ pub struct Stage {
     #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
     #[patch(name = "FromContextPatch", attribute(serde(flatten, default)))]
     pub from: FromContext,
+
+    /// Add metadata to an image
+    /// See https://docs.docker.com/reference/dockerfile/#label
+    #[cfg_attr(not(feature = "strict"), patch(name = "NestedMap<String>"))]
+    #[cfg_attr(feature = "strict", patch(name = "HashMapPatch<String, String>"))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "labels"))))]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub label: HashMap<String, String>,
 
     /// The user and group of the stage
     /// See https://docs.docker.com/reference/dockerfile/#user
@@ -801,32 +801,6 @@ mod test {
 
                 assert!(dofigen.is_err());
             }
-
-            #[test]
-            fn label() {
-                #[cfg(not(feature = "strict"))]
-                let data = r#"
-                label:
-                  io.dofigen:
-                    test: test
-                "#;
-                #[cfg(feature = "strict")]
-                let data = r#"
-                label:
-                  io.dofigen.test: test
-                "#;
-
-                let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
-                let dofigen: Dofigen = dofigen.into();
-
-                assert_eq_sorted!(
-                    dofigen,
-                    Dofigen {
-                        label: HashMap::from([("io.dofigen.test".into(), "test".into())]),
-                        ..Default::default()
-                    }
-                );
-            }
         }
 
         mod stage {
@@ -893,6 +867,32 @@ mod test {
                 let stage: serde_yaml::Result<StagePatch> = serde_yaml::from_str(data);
 
                 assert!(stage.is_err());
+            }
+
+            #[test]
+            fn label() {
+                #[cfg(not(feature = "strict"))]
+                let data = r#"
+                label:
+                  io.dofigen:
+                    test: test
+                "#;
+                #[cfg(feature = "strict")]
+                let data = r#"
+                label:
+                  io.dofigen.test: test
+                "#;
+                
+                let stage: StagePatch = serde_yaml::from_str(data).unwrap();
+                let stage: Stage = stage.into();
+
+                assert_eq_sorted!(
+                    stage,
+                    Stage {
+                        label: HashMap::from([("io.dofigen.test".into(), "test".into())]),
+                        ..Default::default()
+                    }
+                );
             }
         }
 
