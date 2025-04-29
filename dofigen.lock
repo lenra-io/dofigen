@@ -1,6 +1,8 @@
 effective: |
   context:
   - /builds
+  label:
+    io.dofigen.version: 0.0.0
   workdir: /app
   arg:
     TARGETPLATFORM: ''
@@ -13,14 +15,16 @@ effective: |
   - /bin/dofigen
   cmd:
   - --help
+  volume:
+  - /app
 images: {}
 resources:
   dofigen.yml:
-    hash: 95a420edbdb40b289e59dda6f5ff2c0295aacf48a229ce39e86fddaa17eea59c
+    hash: d9d84d1e0c613783d40ef7dcf1de021c5b714bc2d54954984552620debc855e1
     content: |
       # Runtime
       workdir: /app
-      # volume: /app
+      volume: /app
       arg:
         TARGETPLATFORM: ""
       copy:

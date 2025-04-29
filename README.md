@@ -123,6 +123,7 @@ Options:
       --offline          The command won't load data from any URL. This disables extending file from URL and loading image tag
   -o, --output <OUTPUT>  The output Dockerfile file Define to - to write to stdout [default: Dockerfile]
   -l, --locked           Locked version of the dofigen definition
+  -n, --no-labels        Do not define the default labels
   -h, --help             Print help
 ```
 
@@ -239,7 +240,7 @@ grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html 
 To generate the JSON schema of the Dofigen file structure, use the following command:
 
 ```bash
-cargo run -F json_schema -- schema
+cargo run -F json_schema -- schema > docs/dofigen.schema.json
 ```
 
 <p align="right">(<a href="#top">back to top</a>)</p>

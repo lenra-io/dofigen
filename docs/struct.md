@@ -60,6 +60,7 @@ It extends the [Run](#run) structure.
 | Field | Type | Description |
 | --- | --- | --- |
 | `from...` | [FromContext](#fromcontext) | The base of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#from). |
+| `label` | map<string, string> | Add metadata to an image. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#label) |
 | `user` | [User](#user) | The user and group of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#user). |
 | `workdir` | string | The working directory of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#workdir). |
 | `arg` | map<string, string> | The build args that can be used in the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#arg). |

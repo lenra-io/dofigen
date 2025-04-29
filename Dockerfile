@@ -5,6 +5,7 @@
 # runtime
 FROM scratch AS runtime
 ARG TARGETPLATFORM
+LABEL io.dofigen.version="0.0.0"
 WORKDIR /app
 COPY \
     --chown=1000:1000 \
@@ -12,5 +13,6 @@ COPY \
     --link \
     "builds/${TARGETPLATFORM}/dofigen" "/bin/dofigen"
 USER 1000:1000
+VOLUME /app
 ENTRYPOINT ["/bin/dofigen"]
 CMD ["--help"]

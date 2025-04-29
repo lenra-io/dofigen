@@ -20,6 +20,9 @@ fn test_cases() {
     // Get the Dockerfile results by filtering the files ending with .result.Dockerfile in a map with the basename as key
     let (dockerfile_results, path_ref) = filter_to_map(path_ref, ".result.Dockerfile");
 
+    // Get the lock files
+    let (_, path_ref) = filter_to_map(path_ref, ".lock");
+
     // Iterate over remaining files and generate the effective YAML and Dockerfile to compare with the expected results
     for path in path_ref {
         let mut basename = path.to_str().unwrap().to_string();
@@ -35,7 +38,8 @@ fn test_cases() {
 
         println!("Processing {}", basename);
 
-        let dofigen: Dofigen = DofigenContext::new()
+        let mut context = DofigenContext::new();
+        let dofigen: Dofigen = context
             .parse_from_resource(Resource::File(path.clone()))
             .unwrap();
 

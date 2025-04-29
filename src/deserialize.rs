@@ -134,6 +134,22 @@ where
     patches: HashMap<K, Option<V>>,
 }
 
+/// A multilevel key map
+#[cfg(not(feature = "strict"))]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub(crate) struct NestedMap<T>(HashMap<String, NestedMapValue<T>>);
+
+#[cfg(not(feature = "strict"))]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(untagged)]
+enum NestedMapValue<T> {
+    Value(T),
+    Map(NestedMap<T>),
+    Null,
+}
+
 //////////////////////// Deserialization structures ////////////////////////
 
 #[derive(Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
@@ -366,6 +382,27 @@ where
             VecDeepPatchDeserializable::Map(v) => VecDeepPatch {
                 commands: v.commands,
             },
+        }
+    }
+}
+
+#[cfg(not(feature = "strict"))]
+impl<T: Clone> NestedMap<T> {
+    fn flatten(&mut self) {
+        let keys = self.0.keys().cloned().collect::<Vec<_>>();
+        for key in keys {
+            if let Some(NestedMapValue::Map(nested_map)) = self.0.get_mut(&key) {
+                let mut nested_map = nested_map.clone();
+                self.0.remove(&key);
+                nested_map.flatten();
+                for (nested_key, nested_value) in nested_map.0 {
+                    let final_key = format!("{key}.{nested_key}");
+                    // Check if the key already exists in the map
+                    if !self.0.contains_key(&final_key) {
+                        self.0.insert(final_key, nested_value);
+                    }
+                }
+            }
         }
     }
 }
@@ -862,6 +899,61 @@ where
         HashMapDeepPatch {
             patches: HashMap::new(),
         }
+    }
+}
+
+#[cfg(not(feature = "strict"))]
+impl<T: Clone> From<NestedMap<T>> for HashMap<String, Option<T>> {
+    fn from(value: NestedMap<T>) -> Self {
+        let mut value = value.clone();
+        value.flatten();
+        return value
+            .0
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    key,
+                    match value {
+                        NestedMapValue::Value(value) => Some(value),
+                        NestedMapValue::Map(_) => unreachable!(),
+                        NestedMapValue::Null => None,
+                    },
+                )
+            })
+            .collect();
+    }
+}
+
+#[cfg(not(feature = "strict"))]
+impl<T> Patch<NestedMap<T>> for HashMap<String, T>
+where
+    T: Clone,
+{
+    fn apply(&mut self, patch: NestedMap<T>) {
+        let flatten: HashMap<String, Option<T>> = patch.into();
+        flatten.into_iter().for_each(|(key, opt)| {
+            if let Some(value) = opt {
+                self.insert(key, value);
+            } else {
+                self.remove(&key);
+            }
+        });
+    }
+
+    fn into_patch(self) -> NestedMap<T> {
+        NestedMap(
+            self.into_iter()
+                .map(|(key, value)| (key.clone(), NestedMapValue::Value(value)))
+                .collect(),
+        )
+    }
+
+    fn into_patch_by_diff(self, _previous_struct: Self) -> NestedMap<T> {
+        todo!()
+    }
+
+    fn new_empty_patch() -> NestedMap<T> {
+        NestedMap(HashMap::new())
     }
 }
 
@@ -1621,6 +1713,22 @@ where
                     self.patches.remove(&key);
                 }
             }
+        }
+        self
+    }
+}
+
+#[cfg(not(feature = "strict"))]
+impl<T> Merge for NestedMap<T>
+where
+    T: Clone,
+{
+    fn merge(mut self, other: Self) -> Self {
+        let mut flatten = other.clone();
+        flatten.flatten();
+        self.flatten();
+        for (key, value) in flatten.0 {
+            self.0.insert(key.clone(), value.clone());
         }
         self
     }
@@ -2728,6 +2836,41 @@ mod test {
     }
 
     #[cfg(feature = "permissive")]
+    mod nested_map {
+
+        use super::*;
+
+        #[test]
+        fn test_nested_map_patch() {
+            let mut base_data: HashMap<String, String> =
+                HashMap::from([("key1.key2".to_string(), "value2".to_string())]);
+            let patch_data: NestedMap<String> = NestedMap(HashMap::from([
+                (
+                    "key1".to_string(),
+                    NestedMapValue::Map(NestedMap(HashMap::from([(
+                        "key2".to_string(),
+                        NestedMapValue::Value("patch 1".to_string()),
+                    )]))),
+                ),
+                (
+                    "key1.key3".to_string(),
+                    NestedMapValue::Value("value3".to_string()),
+                ),
+            ]));
+
+            base_data.apply(patch_data);
+
+            assert_eq!(
+                base_data,
+                HashMap::from([
+                    ("key1.key2".to_string(), "patch 1".to_string()),
+                    ("key1.key3".to_string(), "value3".to_string())
+                ])
+            );
+        }
+    }
+
+    #[cfg(feature = "permissive")]
     mod deserialize {
         use super::*;
 
@@ -2865,6 +3008,130 @@ mod test {
             fn absent() {
                 let ret: TestStruct = serde_yaml::from_str("").unwrap();
                 assert_eq_sorted!(ret, TestStruct { test: None })
+            }
+        }
+
+        mod nested_map {
+
+            use super::*;
+
+            #[test]
+            fn test_single_level_map() {
+                let yaml = r#"
+                        key1: value1
+                        key2: value2
+                        key3:
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([
+                        (
+                            "key1".to_string(),
+                            NestedMapValue::Value("value1".to_string())
+                        ),
+                        (
+                            "key2".to_string(),
+                            NestedMapValue::Value("value2".to_string())
+                        ),
+                        ("key3".to_string(), NestedMapValue::Null)
+                    ]))
+                );
+            }
+
+            #[test]
+            fn test_multilevel_map() {
+                let yaml = r#"
+                        key1:
+                          key2: value
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([(
+                        "key1".to_string(),
+                        NestedMapValue::Map(NestedMap(HashMap::from([(
+                            "key2".to_string(),
+                            NestedMapValue::Value("value".to_string())
+                        )])))
+                    )]))
+                );
+            }
+
+            #[test]
+            fn test_equivalent_flattened_map() {
+                let yaml = r#"
+                          key1.key2: value
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([(
+                        "key1.key2".to_string(),
+                        NestedMapValue::Value("value".to_string())
+                    )]))
+                );
+            }
+
+            #[test]
+            fn test_combined_multilevel_and_flattened_map() {
+                let yaml = r#"
+                          key1:
+                            key2: value2
+                          key1.key3: value3
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([
+                        (
+                            "key1".to_string(),
+                            NestedMapValue::Map(NestedMap(HashMap::from([(
+                                "key2".to_string(),
+                                NestedMapValue::Value("value2".to_string())
+                            )])))
+                        ),
+                        (
+                            "key1.key3".to_string(),
+                            NestedMapValue::Value("value3".to_string())
+                        )
+                    ]))
+                );
+            }
+
+            #[test]
+            fn test_empty_map() {
+                let yaml = r#"
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(result, NestedMap(HashMap::new()));
+            }
+
+            #[test]
+            fn test_nested_empty_map() {
+                let yaml = r#"
+                          key1: {}
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([(
+                        "key1".to_string(),
+                        NestedMapValue::Map(NestedMap(HashMap::new()))
+                    )]))
+                );
             }
         }
     }

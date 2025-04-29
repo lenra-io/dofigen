@@ -21,6 +21,7 @@ pub struct DofigenContext {
     pub update_url_resources: bool,
     pub update_docker_tags: bool,
     pub display_updates: bool,
+    pub no_default_labels: bool,
 
     // Load resources
     load_resource_stack: Vec<Resource>,
@@ -221,6 +222,15 @@ impl DofigenContext {
             .host
             .clone()
             .ok_or(Error::Custom("No host found for image".into()))?;
+        let port = image
+            .port
+            .clone()
+            .ok_or(Error::Custom("No port found for image".into()))?;
+        let port = if port == 443 {
+            String::new()
+        } else {
+            format!(":{port}")
+        };
 
         let client = reqwest::blocking::Client::new();
 
@@ -235,7 +245,7 @@ impl DofigenContext {
                 DEFAULT_NAMESPACE
             };
             let request_url = format!(
-                "https://{host}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
+                "https://{DOCKER_HUB_HOST}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
                 namespace = namespace,
                 repo = repo,
                 tag = tag
@@ -251,7 +261,7 @@ impl DofigenContext {
             }
         } else {
             let request_url = format!(
-                "https://{host}/v2/{path}/manifests/{tag}",
+                "https://{host}{port}/v2/{path}/manifests/{tag}",
                 path = image.path,
                 tag = tag
             );
@@ -616,6 +626,7 @@ impl DofigenContext {
             update_file_resources: true,
             update_url_resources: false,
             display_updates: true,
+            no_default_labels: false,
             load_resource_stack: vec![],
             resources: HashMap::new(),
             used_resources: HashSet::new(),
@@ -634,6 +645,7 @@ impl DofigenContext {
             update_file_resources: true,
             update_url_resources: false,
             display_updates: true,
+            no_default_labels: false,
             load_resource_stack: vec![],
             resources,
             used_resources: HashSet::new(),

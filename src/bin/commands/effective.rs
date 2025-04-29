@@ -17,6 +17,10 @@ pub struct Effective {
     /// Locked version of the dofigen definition
     #[clap(short, long, action)]
     locked: bool,
+
+    /// Do not define the default labels
+    #[clap(short, long, action)]
+    no_labels: bool,
 }
 
 impl CliCommand for Effective {
@@ -41,6 +45,7 @@ impl CliCommand for Effective {
             context.offline = self.options.offline;
             context.update_file_resources = true;
             context.display_updates = false;
+            context.no_default_labels = self.no_labels;
 
             let dofigen = get_image_from_path(path, &mut context)?;
 
