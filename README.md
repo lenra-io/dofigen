@@ -123,6 +123,7 @@ Options:
       --offline          The command won't load data from any URL. This disables extending file from URL and loading image tag
   -o, --output <OUTPUT>  The output Dockerfile file Define to - to write to stdout [default: Dockerfile]
   -l, --locked           Locked version of the dofigen definition
+  -n, --no-labels        Do not define the default labels
   -h, --help             Print help
 ```
 
