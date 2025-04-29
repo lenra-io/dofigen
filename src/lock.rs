@@ -197,9 +197,16 @@ where
 
 impl Lock for Dofigen {
     fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        let mut stage = self.stage.lock(context)?;
+        if !context.no_default_labels {
+            stage.label.insert(
+                "io.dofigen.version".into(),
+                env!("CARGO_PKG_VERSION").into(),
+            );
+        }
         Ok(Self {
             builders: self.builders.lock(context)?,
-            stage: self.stage.lock(context)?,
+            stage,
             ..self.clone()
         })
     }
@@ -207,8 +214,51 @@ impl Lock for Dofigen {
 
 impl Lock for Stage {
     fn lock(&self, context: &mut DofigenContext) -> Result<Self> {
+        let mut label = self.label.clone();
+        let from = match &self.from {
+            FromContext::FromImage(image_name) => {
+                let image_name_filled = image_name.fill();
+                let version = image_name_filled.version.clone().ok_or(Error::Custom(
+                    "Version must be set in filled image name".into(),
+                ))?;
+                FromContext::FromImage(match version {
+                    ImageVersion::Tag(_) => {
+                        if !context.no_default_labels {
+                            label.insert(
+                                "org.opencontainers.image.base.name".into(),
+                                image_name_filled.to_string(),
+                            );
+                        }
+                        let locked = image_name.lock(context)?;
+                        if !context.no_default_labels {
+                            match &locked.version {
+                                Some(ImageVersion::Digest(digest)) => {
+                                    label.insert(
+                                        "org.opencontainers.image.base.digest".into(),
+                                        digest.clone(),
+                                    );
+                                }
+                                _ => unreachable!("Version must be a digest in locked image name"),
+                            }
+                        }
+                        locked
+                    }
+                    ImageVersion::Digest(digest) => {
+                        if !context.no_default_labels {
+                            label.insert(
+                                "org.opencontainers.image.base.digest".into(),
+                                digest.clone(),
+                            );
+                        }
+                        image_name_filled
+                    }
+                })
+            }
+            from => from.clone(),
+        };
         Ok(Self {
-            from: self.from.lock(context)?,
+            from,
+            label,
             copy: self.copy.lock(context)?,
             run: self.run.lock(context)?,
             root: self

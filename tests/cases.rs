@@ -38,7 +38,8 @@ fn test_cases() {
 
         println!("Processing {}", basename);
 
-        let dofigen: Dofigen = DofigenContext::new()
+        let mut context = DofigenContext::new();
+        let dofigen: Dofigen = context
             .parse_from_resource(Resource::File(path.clone()))
             .unwrap();
 

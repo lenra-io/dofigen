@@ -2863,28 +2863,6 @@ mod test {
             assert_eq!(
                 base_data,
                 HashMap::from([
-                    // fn flatten_nested_map<T: Clone>(
-                    //     map: &NestedMap<T>,
-                    //     current_path: String,
-                    // ) -> Vec<(String, Option<T>)> {
-                    //     return map
-                    //         .0
-                    //         .clone()
-                    //         .into_iter()
-                    //         .flat_map(|(key, value)| {
-                    //             let new_key = if current_path.is_empty() {
-                    //                 key
-                    //             } else {
-                    //                 format!("{current_path}.{key}")
-                    //             };
-                    //             return match value {
-                    //                 NestedMapValue::Map(map_value) => flatten_nested_map(&map_value, new_key),
-                    //                 NestedMapValue::Value(t_value) => vec![(new_key, Some(t_value))],
-                    //                 NestedMapValue::Null => vec![(new_key, None)],
-                    //             };
-                    //         })
-                    //         .collect();
-                    // }
                     ("key1.key2".to_string(), "patch 1".to_string()),
                     ("key1.key3".to_string(), "value3".to_string())
                 ])

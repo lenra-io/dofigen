@@ -72,6 +72,7 @@ impl CliCommand for Generate {
         } else {
             context.offline = self.options.offline;
             context.update_file_resources = true;
+            context.no_default_labels = self.no_labels;
 
             let dofigen = get_image_from_path(path, &mut context)?;
 
@@ -93,8 +94,7 @@ impl CliCommand for Generate {
             locked_image
         };
 
-        let mut generation_context = GenerationContext::from_context(dofigen, context);
-        generation_context.no_default_labels = self.no_labels;
+        let mut generation_context = GenerationContext::from(dofigen);
 
         let dockerfile_content = generation_context.generate_dockerfile()?;
 

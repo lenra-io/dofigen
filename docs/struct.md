@@ -34,7 +34,6 @@ It extends the [Extend](#extend) and [Stage](#stage) structures.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `label` | map<string, string> | Add metadata to an image. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#label) |
 | `context` | string[] | The context of the Docker build. This is used to generate a `.dockerignore` file. |
 | `ignore` | string[] | The elements to ignore from the build context. This is used to generate a `.dockerignore` file. |
 | `builders` | map<string, [Stage](#stage)> | The builder stages of the Dockerfile. |
@@ -61,6 +60,7 @@ It extends the [Run](#run) structure.
 | Field | Type | Description |
 | --- | --- | --- |
 | `from...` | [FromContext](#fromcontext) | The base of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#from). |
+| `label` | map<string, string> | Add metadata to an image. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#label) |
 | `user` | [User](#user) | The user and group of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#user). |
 | `workdir` | string | The working directory of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#workdir). |
 | `arg` | map<string, string> | The build args that can be used in the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#arg). |
