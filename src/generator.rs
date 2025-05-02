@@ -64,17 +64,11 @@ impl GenerationContext {
     }
 
     pub fn generate_dockerfile(&mut self) -> Result<String> {
-        let mut lines = self.dofigen.clone().generate_dockerfile_lines(self)?;
-        let mut line_number = 1;
-
-        for line in FILE_HEADER_COMMENTS {
-            lines.insert(line_number, DockerfileLine::Comment(line.to_string()));
-            line_number += 1;
-        }
-
         Ok(format!(
             "{}\n",
-            lines
+            self.dofigen
+                .clone()
+                .generate_dockerfile_lines(self)?
                 .iter()
                 .map(DockerfileLine::generate_content)
                 .collect::<Vec<String>>()
@@ -469,6 +463,9 @@ impl DockerfileGenerator for Dofigen {
             "syntax=docker/dockerfile:{}",
             DOCKERFILE_VERSION
         ))];
+        for line in FILE_HEADER_COMMENTS {
+            lines.push(DockerfileLine::Comment(line.to_string()));
+        }
 
         for name in context.lint_session.get_sorted_builders() {
             context.push_state(GenerationContextState {
@@ -1205,7 +1202,7 @@ mod test {
                 .generate_dockerfile_lines(&mut GenerationContext::default())
                 .unwrap();
             assert_eq_sorted!(
-                lines[4],
+                lines[6],
                 DockerfileLine::Instruction(DockerfileInsctruction {
                     command: "LABEL".into(),
                     content: "io.dofigen.version=\"0.0.0\" \\\n    key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),
