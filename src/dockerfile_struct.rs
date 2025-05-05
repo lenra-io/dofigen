@@ -2,7 +2,7 @@ use std::{str::FromStr, vec};
 
 use regex::Regex;
 
-use crate::{generator::*, Dofigen, Error};
+use crate::{generator::*, Error};
 
 macro_rules! escaped_newline {
     () => {
@@ -53,19 +53,31 @@ const DOCKERFILE_LINE_REGEX: &str = concat!(
     r")(?:\r?\n|$)",
 );
 
-pub struct Dockerfile {
-    pub lines: Vec<DockerfileLine>,
+pub struct DockerFile {
+    pub lines: Vec<DockerFileLine>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DockerFileLine {
+    Instruction(DockerfileInsctruction),
+    Comment(String),
+    Empty,
+}
+
+pub struct DockerIgnore {
+    pub lines: Vec<DockerIgnoreLine>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum DockerIgnoreLine {
+    Pattern(String),
+    NegatePattern(String),
+    Comment(String),
+    Empty,
 }
 
 pub trait DockerfileContent {
     fn generate_content(&self) -> String;
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum DockerfileLine {
-    Instruction(DockerfileInsctruction),
-    Comment(String),
-    Empty,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -104,16 +116,16 @@ impl InstructionOptionOption {
     }
 }
 
-impl DockerfileContent for DockerfileLine {
+impl DockerfileContent for DockerFileLine {
     fn generate_content(&self) -> String {
         match self {
-            DockerfileLine::Instruction(instruction) => instruction.generate_content(),
-            DockerfileLine::Comment(comment) => comment
+            DockerFileLine::Instruction(instruction) => instruction.generate_content(),
+            DockerFileLine::Comment(comment) => comment
                 .lines()
                 .map(|l| format!("# {}", l))
                 .collect::<Vec<String>>()
                 .join("\n"),
-            DockerfileLine::Empty => "".into(),
+            DockerFileLine::Empty => String::new(),
         }
     }
 }
@@ -166,7 +178,7 @@ impl DockerfileContent for InstructionOptionOption {
     }
 }
 
-impl FromStr for Dockerfile {
+impl FromStr for DockerFile {
     type Err = Error;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
@@ -210,18 +222,67 @@ impl FromStr for Dockerfile {
                     })
                     .unwrap_or_default();
 
-                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                     command: command.to_string(),
                     content,
                     options,
                 }));
             } else if m.trim().is_empty() {
-                lines.push(DockerfileLine::Empty);
+                lines.push(DockerFileLine::Empty);
             } else if let Some(comment) = captures.name("comment") {
-                lines.push(DockerfileLine::Comment(comment.as_str().to_string()));
+                lines.push(DockerFileLine::Comment(comment.as_str().to_string()));
             }
         });
         Ok(Self { lines })
+    }
+}
+
+impl ToString for DockerFile {
+    fn to_string(&self) -> String {
+        self.lines
+            .iter()
+            .map(|line| line.generate_content())
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+}
+
+impl FromStr for DockerIgnore {
+    type Err = Error;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        Ok(Self {
+            lines: string
+                .lines()
+                .map(|line| {
+                    let line = line.trim();
+                    if line.is_empty() {
+                        DockerIgnoreLine::Empty
+                    } else if line.starts_with('#') {
+                        DockerIgnoreLine::Comment(line[1..].trim().to_string())
+                    } else if line.starts_with('!') {
+                        DockerIgnoreLine::NegatePattern(line[1..].trim().to_string())
+                    } else {
+                        DockerIgnoreLine::Pattern(line.to_string())
+                    }
+                })
+                .collect(),
+        })
+    }
+}
+
+impl ToString for DockerIgnore {
+    fn to_string(&self) -> String {
+        self.lines
+            .iter()
+            .map(|line| match line {
+                DockerIgnoreLine::Pattern(pattern) => pattern.clone(),
+                DockerIgnoreLine::NegatePattern(pattern) => format!("!{}", pattern),
+                DockerIgnoreLine::Comment(comment) => format!("# {}", comment),
+                DockerIgnoreLine::Empty => String::new(),
+            })
+            .collect::<Vec<String>>()
+            .join("\n")
     }
 }
 
@@ -252,13 +313,13 @@ mod test {
 
         #[test]
         fn comment() {
-            let comment = DockerfileLine::Comment("This is a comment".into());
+            let comment = DockerFileLine::Comment("This is a comment".into());
             assert_eq_sorted!(comment.generate_content(), "# This is a comment");
         }
 
         #[test]
         fn empty() {
-            let empty = DockerfileLine::Empty;
+            let empty = DockerFileLine::Empty;
             assert_eq_sorted!(empty.generate_content(), "");
         }
 
@@ -297,7 +358,7 @@ mod test {
 
         #[test]
         fn simple() {
-            let dockerfile: Dockerfile = r#"FROM alpine:3.11 as builder
+            let dockerfile: DockerFile = r#"FROM alpine:3.11 as builder
 RUN echo "hello world" > /hello-world
 # This is a comment
 
@@ -312,7 +373,7 @@ COPY --from=builder /hello-world /hello-world
 
             assert_eq!(
                 lines[0],
-                DockerfileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "FROM".to_string(),
                     content: "alpine:3.11 as builder".to_string(),
                     options: vec![]
@@ -320,7 +381,7 @@ COPY --from=builder /hello-world /hello-world
             );
             assert_eq!(
                 lines[1],
-                DockerfileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "RUN".to_string(),
                     content: "echo \"hello world\" > /hello-world".to_string(),
                     options: vec![]
@@ -328,12 +389,12 @@ COPY --from=builder /hello-world /hello-world
             );
             assert_eq!(
                 lines[2],
-                DockerfileLine::Comment("This is a comment".to_string())
+                DockerFileLine::Comment("This is a comment".to_string())
             );
-            assert_eq!(lines[3], DockerfileLine::Empty);
+            assert_eq!(lines[3], DockerFileLine::Empty);
             assert_eq!(
                 lines[4],
-                DockerfileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "FROM".to_string(),
                     content: "scratch".to_string(),
                     options: vec![]
@@ -341,7 +402,7 @@ COPY --from=builder /hello-world /hello-world
             );
             assert_eq!(
                 lines[5],
-                DockerfileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "COPY".to_string(),
                     content: "/hello-world /hello-world".to_string(),
                     options: vec![InstructionOption::WithValue(
