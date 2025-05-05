@@ -38,7 +38,7 @@ clap = { version = "4.5", features = ["derive"], optional = true }
 schemars = { version = "0.8.21", optional = true, features = ["url"] }
 regex = "1.11.1"
 url = { version = "2.5.4", features = ["serde"] }
-struct-patch = { version = "=0.8.6", default-features = false, features = ["option", "merge"] }
+struct-patch = { version = "=0.9.4", default-features = false, features = ["option", "merge"] }
 reqwest = { version = "0.12.15", default-features = false, features = ["json", "blocking", "rustls-tls-native-roots"] }
 relative-path = "1.9.3"
 sha256 = { version = "1.5.0", default-features = false }
