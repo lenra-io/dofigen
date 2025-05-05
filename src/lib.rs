@@ -31,7 +31,7 @@ mod json_schema;
 mod linter;
 pub mod lock;
 pub use {
-    context::*, deserialize::*, dofigen_struct::*, errors::*, extend::*,
+    context::*, deserialize::*, dockerfile_struct::*, dofigen_struct::*, errors::*, extend::*,
     generator::GenerationContext, linter::*,
 };
 
