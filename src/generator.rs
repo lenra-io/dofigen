@@ -63,50 +63,44 @@ impl GenerationContext {
         }
     }
 
+    pub fn generate_dockerfile_struct(&mut self) -> Result<DockerFile> {
+        Ok(DockerFile {
+            lines: self.dofigen.clone().generate_dockerfile_lines(self)?,
+        })
+    }
+
     pub fn generate_dockerfile(&mut self) -> Result<String> {
-        let mut lines = self.dofigen.clone().generate_dockerfile_lines(self)?;
-        let mut line_number = 1;
-
-        for line in FILE_HEADER_COMMENTS {
-            lines.insert(line_number, DockerfileLine::Comment(line.to_string()));
-            line_number += 1;
-        }
-
         Ok(format!(
             "{}\n",
-            lines
-                .iter()
-                .map(DockerfileLine::generate_content)
-                .collect::<Vec<String>>()
-                .join("\n")
+            self.generate_dockerfile_struct()?.to_string()
         ))
     }
 
-    pub fn generate_dockerignore(&self) -> Result<String> {
-        let mut content = String::new();
+    pub fn generate_dockerignore_struct(&self) -> Result<DockerIgnore> {
+        let mut lines = vec![];
 
         for line in FILE_HEADER_COMMENTS {
-            content.push_str("# ");
-            content.push_str(line);
-            content.push_str("\n");
+            lines.push(DockerIgnoreLine::Comment(line.to_string()));
         }
-        content.push_str("\n");
+        lines.push(DockerIgnoreLine::Empty);
 
         if !self.dofigen.context.is_empty() {
-            content.push_str("**\n");
+            lines.push(DockerIgnoreLine::Pattern("**".into()));
             self.dofigen.context.iter().for_each(|path| {
-                content.push_str("!");
-                content.push_str(path);
-                content.push_str("\n");
+                lines.push(DockerIgnoreLine::NegatePattern(path.clone()));
             });
         }
-        if !self.dofigen.ignore.is_empty() {
-            self.dofigen.ignore.iter().for_each(|path| {
-                content.push_str(path);
-                content.push_str("\n");
-            });
-        }
-        Ok(content)
+        self.dofigen.ignore.iter().for_each(|path| {
+            lines.push(DockerIgnoreLine::Pattern(path.clone()));
+        });
+        Ok(DockerIgnore { lines })
+    }
+
+    pub fn generate_dockerignore(&self) -> Result<String> {
+        Ok(format!(
+            "{}\n",
+            self.generate_dockerignore_struct()?.to_string()
+        ))
     }
 }
 
@@ -121,7 +115,7 @@ pub trait DockerfileGenerator {
     fn generate_dockerfile_lines(
         &self,
         context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>>;
+    ) -> Result<Vec<DockerFileLine>>;
 }
 
 impl Dofigen {
@@ -312,7 +306,7 @@ impl DockerfileGenerator for CopyResource {
     fn generate_dockerfile_lines(
         &self,
         context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
+    ) -> Result<Vec<DockerFileLine>> {
         match self {
             CopyResource::Copy(copy) => copy.generate_dockerfile_lines(context),
             CopyResource::Content(content) => content.generate_dockerfile_lines(context),
@@ -344,7 +338,7 @@ impl DockerfileGenerator for Copy {
     fn generate_dockerfile_lines(
         &self,
         context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
+    ) -> Result<Vec<DockerFileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
 
         let from = match &self.from {
@@ -365,7 +359,7 @@ impl DockerfileGenerator for Copy {
             options.push(InstructionOption::Flag("parents".into()));
         }
 
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+        Ok(vec![DockerFileLine::Instruction(DockerfileInsctruction {
             command: "COPY".into(),
             content: copy_paths_into(self.paths.to_vec(), &self.options.target),
             options,
@@ -377,7 +371,7 @@ impl DockerfileGenerator for CopyContent {
     fn generate_dockerfile_lines(
         &self,
         context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
+    ) -> Result<Vec<DockerFileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
 
         add_copy_options(&mut options, &self.options, context);
@@ -394,7 +388,7 @@ impl DockerfileGenerator for CopyContent {
             self.content.clone()
         );
 
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+        Ok(vec![DockerFileLine::Instruction(DockerfileInsctruction {
             command: "COPY".into(),
             content,
             options,
@@ -406,7 +400,7 @@ impl DockerfileGenerator for Add {
     fn generate_dockerfile_lines(
         &self,
         context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
+    ) -> Result<Vec<DockerFileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
         if let Some(checksum) = &self.checksum {
             options.push(InstructionOption::WithValue(
@@ -416,7 +410,7 @@ impl DockerfileGenerator for Add {
         }
         add_copy_options(&mut options, &self.options, context);
 
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+        Ok(vec![DockerFileLine::Instruction(DockerfileInsctruction {
             command: "ADD".into(),
             content: copy_paths_into(
                 self.files
@@ -434,7 +428,7 @@ impl DockerfileGenerator for AddGitRepo {
     fn generate_dockerfile_lines(
         &self,
         context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
+    ) -> Result<Vec<DockerFileLine>> {
         let mut options: Vec<InstructionOption> = vec![];
         add_copy_options(&mut options, &self.options, context);
 
@@ -448,7 +442,7 @@ impl DockerfileGenerator for AddGitRepo {
             ));
         }
 
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+        Ok(vec![DockerFileLine::Instruction(DockerfileInsctruction {
             command: "ADD".into(),
             content: copy_paths_into(vec![self.repo.clone()], &self.options.target),
             options,
@@ -460,15 +454,18 @@ impl DockerfileGenerator for Dofigen {
     fn generate_dockerfile_lines(
         &self,
         context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
+    ) -> Result<Vec<DockerFileLine>> {
         context.push_state(GenerationContextState {
             default_from: Some(self.stage.from(context).clone()),
             ..Default::default()
         });
-        let mut lines = vec![DockerfileLine::Comment(format!(
+        let mut lines = vec![DockerFileLine::Comment(format!(
             "syntax=docker/dockerfile:{}",
             DOCKERFILE_VERSION
         ))];
+        for line in FILE_HEADER_COMMENTS {
+            lines.push(DockerFileLine::Comment(line.to_string()));
+        }
 
         for name in context.lint_session.get_sorted_builders() {
             context.push_state(GenerationContextState {
@@ -480,7 +477,7 @@ impl DockerfileGenerator for Dofigen {
                 .get(&name)
                 .expect(format!("The builder '{}' not found", name).as_str());
 
-            lines.push(DockerfileLine::Empty);
+            lines.push(DockerFileLine::Empty);
             lines.append(&mut Stage::generate_dockerfile_lines(builder, context)?);
             context.pop_state();
         }
@@ -490,12 +487,12 @@ impl DockerfileGenerator for Dofigen {
             stage_name: Some("runtime".into()),
             default_from: Some(FromContext::default()),
         });
-        lines.push(DockerfileLine::Empty);
+        lines.push(DockerFileLine::Empty);
         lines.append(&mut self.stage.generate_dockerfile_lines(context)?);
         context.pop_state();
 
         self.volume.iter().for_each(|volume| {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "VOLUME".into(),
                 content: volume.clone(),
                 options: vec![],
@@ -503,7 +500,7 @@ impl DockerfileGenerator for Dofigen {
         });
 
         self.expose.iter().for_each(|port| {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "EXPOSE".into(),
                 content: port.to_string(),
                 options: vec![],
@@ -535,21 +532,21 @@ impl DockerfileGenerator for Dofigen {
                     retries.to_string(),
                 ));
             }
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "HEALTHCHECK".into(),
                 content: format!("CMD {}", healthcheck.cmd.clone()),
                 options,
             }))
         }
         if !self.entrypoint.is_empty() {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "ENTRYPOINT".into(),
                 content: string_vec_into(self.entrypoint.to_vec()),
                 options: vec![],
             }))
         }
         if !self.cmd.is_empty() {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "CMD".into(),
                 content: string_vec_into(self.cmd.to_vec()),
                 options: vec![],
@@ -563,7 +560,7 @@ impl DockerfileGenerator for Stage {
     fn generate_dockerfile_lines(
         &self,
         context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
+    ) -> Result<Vec<DockerFileLine>> {
         context.push_state(GenerationContextState {
             user: Some(self.user(context)),
             ..Default::default()
@@ -572,8 +569,8 @@ impl DockerfileGenerator for Stage {
 
         // From
         let mut lines = vec![
-            DockerfileLine::Comment(stage_name.clone()),
-            DockerfileLine::Instruction(DockerfileInsctruction {
+            DockerFileLine::Comment(stage_name.clone()),
+            DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "FROM".into(),
                 content: format!(
                     "{image_name} AS {stage_name}",
@@ -589,7 +586,7 @@ impl DockerfileGenerator for Stage {
             keys.sort();
             keys.iter().for_each(|key| {
                 let value = self.arg.get(*key).unwrap();
-                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "ARG".into(),
                     content: if value.is_empty() {
                         key.to_string()
@@ -605,7 +602,7 @@ impl DockerfileGenerator for Stage {
         if !self.label.is_empty() {
             let mut keys = self.label.keys().collect::<Vec<&String>>();
             keys.sort();
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "LABEL".into(),
                 content: keys
                     .iter()
@@ -624,7 +621,7 @@ impl DockerfileGenerator for Stage {
 
         // Env
         if !self.env.is_empty() {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "ENV".into(),
                 content: self
                     .env
@@ -638,7 +635,7 @@ impl DockerfileGenerator for Stage {
 
         // Workdir
         if let Some(workdir) = &self.workdir {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "WORKDIR".into(),
                 content: workdir.clone(),
                 options: vec![],
@@ -655,7 +652,7 @@ impl DockerfileGenerator for Stage {
             if !root.is_empty() {
                 let root_user = User::new("0");
                 // User
-                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "USER".into(),
                     content: root_user.to_string(),
                     options: vec![],
@@ -673,7 +670,7 @@ impl DockerfileGenerator for Stage {
 
         // User
         if let Some(user) = self.user(context) {
-            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
                 command: "USER".into(),
                 content: user.to_string(),
                 options: vec![],
@@ -693,7 +690,7 @@ impl DockerfileGenerator for Run {
     fn generate_dockerfile_lines(
         &self,
         context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
+    ) -> Result<Vec<DockerFileLine>> {
         let script = &self.run;
         if script.is_empty() {
             return Ok(vec![]);
@@ -781,7 +778,7 @@ impl DockerfileGenerator for Run {
             ));
         }
 
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+        Ok(vec![DockerFileLine::Instruction(DockerfileInsctruction {
             command: "RUN".into(),
             content,
             options,
@@ -858,18 +855,18 @@ mod test {
             assert_eq_sorted!(
                 lines.unwrap(),
                 vec![
-                    DockerfileLine::Comment("test".into()),
-                    DockerfileLine::Instruction(DockerfileInsctruction {
+                    DockerFileLine::Comment("test".into()),
+                    DockerFileLine::Instruction(DockerfileInsctruction {
                         command: "FROM".into(),
                         content: "scratch AS test".into(),
                         options: vec![],
                     }),
-                    DockerfileLine::Instruction(DockerfileInsctruction {
+                    DockerFileLine::Instruction(DockerfileInsctruction {
                         command: "ARG".into(),
                         content: "arg1=value1".into(),
                         options: vec![],
                     }),
-                    DockerfileLine::Instruction(DockerfileInsctruction {
+                    DockerFileLine::Instruction(DockerfileInsctruction {
                         command: "ARG".into(),
                         content: "arg2".into(),
                         options: vec![],
@@ -900,7 +897,7 @@ mod test {
 
             assert_eq_sorted!(
                 lines,
-                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                vec![DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "COPY".into(),
                     content: "\"/path/to/file\" \"/app/\"".into(),
                     options: vec![
@@ -928,7 +925,7 @@ mod test {
 
             assert_eq_sorted!(
                 lines,
-                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                vec![DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "COPY".into(),
                     content: "<<EOF test.sh\necho hello\nEOF".into(),
                     options: vec![InstructionOption::Flag("link".into())],
@@ -1005,7 +1002,7 @@ mod test {
                 builder
                     .generate_dockerfile_lines(&mut GenerationContext::default())
                     .unwrap(),
-                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                vec![DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "RUN".into(),
                     content: "echo Hello".into(),
                     options: vec![],
@@ -1058,7 +1055,7 @@ mod test {
             };
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
-                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                vec![DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "RUN".into(),
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
@@ -1090,7 +1087,7 @@ mod test {
             };
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
-                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                vec![DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "RUN".into(),
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
@@ -1123,7 +1120,7 @@ mod test {
             };
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
-                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                vec![DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "RUN".into(),
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
@@ -1158,7 +1155,7 @@ mod test {
                 .unwrap();
             assert_eq_sorted!(
                 lines[2],
-                DockerfileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "LABEL".into(),
                     content: "key=\"value\"".into(),
                     options: vec![],
@@ -1180,7 +1177,7 @@ mod test {
                 .unwrap();
             assert_eq_sorted!(
                 lines[2],
-                DockerfileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "LABEL".into(),
                     content: "key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),
                     options: vec![],
@@ -1205,8 +1202,8 @@ mod test {
                 .generate_dockerfile_lines(&mut GenerationContext::default())
                 .unwrap();
             assert_eq_sorted!(
-                lines[4],
-                DockerfileLine::Instruction(DockerfileInsctruction {
+                lines[6],
+                DockerFileLine::Instruction(DockerfileInsctruction {
                     command: "LABEL".into(),
                     content: "io.dofigen.version=\"0.0.0\" \\\n    key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),
                     options: vec![],

@@ -1,4 +1,6 @@
 # Runtime
+context:
+  - "/builds"
 workdir: /app
 volume: /app
 arg:
@@ -9,5 +11,3 @@ copy:
     chmod: 555
 entrypoint: /bin/dofigen
 cmd: --help
-context:
-  - "/builds"

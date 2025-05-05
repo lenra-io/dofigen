@@ -33,7 +33,7 @@ pub mod lock;
 #[cfg(feature = "json_schema")]
 use schemars::gen::*;
 pub use {
-    context::*, deserialize::*, dofigen_struct::*, errors::*, extend::*,
+    context::*, deserialize::*, dockerfile_struct::*, dofigen_struct::*, errors::*, extend::*,
     generator::GenerationContext, linter::*,
 };
 
