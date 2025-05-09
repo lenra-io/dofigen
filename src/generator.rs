@@ -375,7 +375,7 @@ impl DockerfileGenerator for Dofigen {
 
         self.volume.iter().for_each(|volume| {
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "VOLUME".into(),
+                command: DockerFileCommand::VOLUME,
                 content: volume.clone(),
                 options: vec![],
             }))
@@ -383,7 +383,7 @@ impl DockerfileGenerator for Dofigen {
 
         self.expose.iter().for_each(|port| {
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "EXPOSE".into(),
+                command: DockerFileCommand::EXPOSE,
                 content: port.to_string(),
                 options: vec![],
             }))
@@ -415,21 +415,21 @@ impl DockerfileGenerator for Dofigen {
                 ));
             }
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "HEALTHCHECK".into(),
+                command: DockerFileCommand::HEALTHCHECK,
                 content: format!("CMD {}", healthcheck.cmd.clone()),
                 options,
             }))
         }
         if !self.entrypoint.is_empty() {
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "ENTRYPOINT".into(),
+                command: DockerFileCommand::ENTRYPOINT,
                 content: string_vec_into(self.entrypoint.to_vec()),
                 options: vec![],
             }))
         }
         if !self.cmd.is_empty() {
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "CMD".into(),
+                command: DockerFileCommand::CMD,
                 content: string_vec_into(self.cmd.to_vec()),
                 options: vec![],
             }))
@@ -453,7 +453,7 @@ impl DockerfileGenerator for Stage {
         let mut lines = vec![
             DockerFileLine::Comment(stage_name.clone()),
             DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "FROM".into(),
+                command: DockerFileCommand::FROM,
                 content: format!(
                     "{image_name} AS {stage_name}",
                     image_name = self.from(context).to_string()
@@ -484,7 +484,7 @@ impl DockerfileGenerator for Stage {
             let mut keys = self.label.keys().collect::<Vec<&String>>();
             keys.sort();
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "LABEL".into(),
+                command: DockerFileCommand::LABEL,
                 content: keys
                     .iter()
                     .map(|&key| {
@@ -503,7 +503,7 @@ impl DockerfileGenerator for Stage {
         // Env
         if !self.env.is_empty() {
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "ENV".into(),
+                command: DockerFileCommand::ENV,
                 content: self
                     .env
                     .iter()
@@ -517,7 +517,7 @@ impl DockerfileGenerator for Stage {
         // Workdir
         if let Some(workdir) = &self.workdir {
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "WORKDIR".into(),
+                command: DockerFileCommand::WORKDIR,
                 content: workdir.clone(),
                 options: vec![],
             }));
@@ -534,7 +534,7 @@ impl DockerfileGenerator for Stage {
                 let root_user = User::new("0");
                 // User
                 lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "USER".into(),
+                    command: DockerFileCommand::USER,
                     content: root_user.to_string(),
                     options: vec![],
                 }));
@@ -552,7 +552,7 @@ impl DockerfileGenerator for Stage {
         // User
         if let Some(user) = self.user(context) {
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "USER".into(),
+                command: DockerFileCommand::USER,
                 content: user.to_string(),
                 options: vec![],
             }));
@@ -743,7 +743,7 @@ impl DockerfileGenerator for Run {
         // Shell
         if !self.shell.is_empty() {
             lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                command: "SHELL".into(),
+                command: DockerFileCommand::SHELL,
                 content: string_vec_into(self.shell.to_vec()),
                 options: vec![],
             }));
@@ -764,7 +764,7 @@ impl DockerfileGenerator for Run {
         }
 
         lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-            command: "RUN".into(),
+            command: DockerFileCommand::RUN,
             content,
             options,
         }));
@@ -831,7 +831,7 @@ impl DockerfileGenerator for Copy {
         }
 
         Ok(vec![DockerFileLine::Instruction(DockerfileInsctruction {
-            command: "COPY".into(),
+            command: DockerFileCommand::COPY,
             content: copy_paths_into(self.paths.to_vec(), &self.options.target),
             options,
         })])
@@ -860,7 +860,7 @@ impl DockerfileGenerator for CopyContent {
         );
 
         Ok(vec![DockerFileLine::Instruction(DockerfileInsctruction {
-            command: "COPY".into(),
+            command: DockerFileCommand::COPY,
             content,
             options,
         })])
@@ -888,7 +888,7 @@ impl DockerfileGenerator for Add {
         add_copy_options(&mut options, &self.options, context);
 
         Ok(vec![DockerFileLine::Instruction(DockerfileInsctruction {
-            command: "ADD".into(),
+            command: DockerFileCommand::ADD,
             content: copy_paths_into(
                 self.files
                     .iter()
@@ -926,7 +926,7 @@ impl DockerfileGenerator for AddGitRepo {
         }
 
         Ok(vec![DockerFileLine::Instruction(DockerfileInsctruction {
-            command: "ADD".into(),
+            command: DockerFileCommand::ADD,
             content: copy_paths_into(vec![self.repo.clone()], &self.options.target),
             options,
         })])
@@ -961,7 +961,7 @@ fn generate_arg_command(arg: &HashMap<String, String>) -> Vec<DockerFileLine> {
     keys.iter().for_each(|key| {
         let value = arg.get(*key).unwrap();
         lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-            command: "ARG".into(),
+            command: DockerFileCommand::ARG,
             content: if value.is_empty() {
                 key.to_string()
             } else {
@@ -1023,17 +1023,17 @@ mod test {
                 vec![
                     DockerFileLine::Comment("test".into()),
                     DockerFileLine::Instruction(DockerfileInsctruction {
-                        command: "FROM".into(),
+                        command: DockerFileCommand::FROM,
                         content: "scratch AS test".into(),
                         options: vec![],
                     }),
                     DockerFileLine::Instruction(DockerfileInsctruction {
-                        command: "ARG".into(),
+                        command: DockerFileCommand::ARG,
                         content: "arg1=value1".into(),
                         options: vec![],
                     }),
                     DockerFileLine::Instruction(DockerfileInsctruction {
-                        command: "ARG".into(),
+                        command: DockerFileCommand::ARG,
                         content: "arg2".into(),
                         options: vec![],
                     }),
@@ -1064,7 +1064,7 @@ mod test {
             assert_eq_sorted!(
                 lines,
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "COPY".into(),
+                    command: DockerFileCommand::COPY,
                     content: "\"/path/to/file\" \"/app/\"".into(),
                     options: vec![
                         InstructionOption::WithValue("chmod".into(), "755".into()),
@@ -1092,7 +1092,7 @@ mod test {
             assert_eq_sorted!(
                 lines,
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "COPY".into(),
+                    command: DockerFileCommand::COPY,
                     content: "<<EOF test.sh\necho hello\nEOF".into(),
                     options: vec![InstructionOption::Flag("link".into())],
                 })]
@@ -1174,7 +1174,7 @@ mod test {
                 vec![
                     DockerFileLine::Comment("runtime".into()),
                     DockerFileLine::Instruction(DockerfileInsctruction {
-                        command: "FROM".into(),
+                        command: DockerFileCommand::FROM,
                         content: "alpine AS runtime".into(),
                         options: vec![InstructionOption::WithValue(
                             "platform".into(),
@@ -1200,7 +1200,7 @@ mod test {
                     .generate_dockerfile_lines(&mut GenerationContext::default())
                     .unwrap(),
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".into(),
+                    command: DockerFileCommand::RUN,
                     content: "echo Hello".into(),
                     options: vec![],
                 })]
@@ -1253,7 +1253,7 @@ mod test {
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".into(),
+                    command: DockerFileCommand::RUN,
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
@@ -1285,7 +1285,7 @@ mod test {
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".into(),
+                    command: DockerFileCommand::RUN,
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
@@ -1318,7 +1318,7 @@ mod test {
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".into(),
+                    command: DockerFileCommand::RUN,
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
@@ -1350,7 +1350,7 @@ mod test {
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".into(),
+                    command: DockerFileCommand::RUN,
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
@@ -1380,7 +1380,7 @@ mod test {
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".into(),
+                    command: DockerFileCommand::RUN,
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
@@ -1407,7 +1407,7 @@ mod test {
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".into(),
+                    command: DockerFileCommand::RUN,
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
@@ -1434,7 +1434,7 @@ mod test {
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".into(),
+                    command: DockerFileCommand::RUN,
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
@@ -1461,7 +1461,7 @@ mod test {
             assert_eq_sorted!(
                 builder.generate_dockerfile_lines(&mut context).unwrap(),
                 vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".into(),
+                    command: DockerFileCommand::RUN,
                     content: "echo Hello".into(),
                     options: vec![InstructionOption::WithOptions(
                         "mount".into(),
@@ -1491,7 +1491,7 @@ mod test {
             assert_eq_sorted!(
                 lines[2],
                 DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "LABEL".into(),
+                    command: DockerFileCommand::LABEL,
                     content: "key=\"value\"".into(),
                     options: vec![],
                 })
@@ -1513,7 +1513,7 @@ mod test {
             assert_eq_sorted!(
                 lines[2],
                 DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "LABEL".into(),
+                    command: DockerFileCommand::LABEL,
                     content: "key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),
                     options: vec![],
                 })
@@ -1539,7 +1539,7 @@ mod test {
             assert_eq_sorted!(
                 lines[6],
                 DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "LABEL".into(),
+                    command: DockerFileCommand::LABEL,
                     content: "io.dofigen.version=\"0.0.0\" \\\n    key1=\"value1\" \\\n    key2=\"value2\\\nligne2\"".into(),
                     options: vec![],
                 })
