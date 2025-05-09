@@ -131,7 +131,7 @@ pub struct DockerFile {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DockerFileLine {
-    Instruction(DockerfileInsctruction),
+    Instruction(DockerFileInsctruction),
     Comment(String),
     Empty,
 }
@@ -153,7 +153,7 @@ pub trait DockerfileContent {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DockerfileInsctruction {
+pub struct DockerFileInsctruction {
     pub command: DockerFileCommand,
     pub content: String,
     pub options: Vec<InstructionOption>,
@@ -202,7 +202,7 @@ impl DockerfileContent for DockerFileLine {
     }
 }
 
-impl DockerfileContent for DockerfileInsctruction {
+impl DockerfileContent for DockerFileInsctruction {
     fn generate_content(&self) -> String {
         let separator = if !self.options.is_empty() || self.content.contains("\\\n") {
             LINE_SEPARATOR
@@ -294,7 +294,7 @@ impl FromStr for DockerFile {
                     })
                     .unwrap_or_default();
 
-                lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
+                lines.push(DockerFileLine::Instruction(DockerFileInsctruction {
                     command: command.parse()?,
                     content,
                     options,
@@ -369,7 +369,7 @@ mod test {
 
         #[test]
         fn instruction() {
-            let instruction = DockerfileInsctruction {
+            let instruction = DockerFileInsctruction {
                 command: DockerFileCommand::RUN,
                 content: "echo 'Hello, World!'".into(),
                 options: vec![
@@ -443,44 +443,83 @@ COPY --from=builder /hello-world /hello-world
             let lines = dockerfile.lines;
             assert_eq!(lines.len(), 6);
 
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[0],
-                DockerFileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerFileInsctruction {
                     command: DockerFileCommand::FROM,
                     content: "alpine:3.11 as builder".to_string(),
                     options: vec![]
                 })
             );
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[1],
-                DockerFileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerFileInsctruction {
                     command: DockerFileCommand::RUN,
                     content: "echo \"hello world\" > /hello-world".to_string(),
                     options: vec![]
                 })
             );
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[2],
                 DockerFileLine::Comment("This is a comment".to_string())
             );
             assert_eq!(lines[3], DockerFileLine::Empty);
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[4],
-                DockerFileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerFileInsctruction {
                     command: DockerFileCommand::FROM,
                     content: "scratch".to_string(),
                     options: vec![]
                 })
             );
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[5],
-                DockerFileLine::Instruction(DockerfileInsctruction {
+                DockerFileLine::Instruction(DockerFileInsctruction {
                     command: DockerFileCommand::COPY,
                     content: "/hello-world /hello-world".to_string(),
                     options: vec![InstructionOption::WithValue(
                         "from".to_string(),
                         "builder".to_string()
                     )]
+                })
+            );
+        }
+
+        #[test]
+        fn args() {
+            let dockerfile: DockerFile = r#"FROM alpine:3.11 as builder
+ARG arg1 \
+    arg2=value2
+ARG arg3=3
+"#
+            .parse()
+            .unwrap();
+
+            let lines = dockerfile.lines;
+            assert_eq!(lines.len(), 4);
+
+            assert_eq_sorted!(
+                lines[0],
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::FROM,
+                    content: "alpine:3.11 as builder".to_string(),
+                    options: vec![]
+                })
+            );
+            assert_eq_sorted!(
+                lines[1],
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::ARG,
+                    content: "arg1 \\\n    arg2=value2".to_string(),
+                    options: vec![]
+                })
+            );
+            assert_eq_sorted!(
+                lines[2],
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::ARG,
+                    content: "arg3=3".to_string(),
+                    options: vec![]
                 })
             );
         }
