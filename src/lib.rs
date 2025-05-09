@@ -30,11 +30,13 @@ mod generator;
 mod json_schema;
 mod linter;
 pub mod lock;
+#[cfg(feature = "permissive")]
+mod parse;
 #[cfg(feature = "json_schema")]
 use schemars::gen::*;
 pub use {
     context::*, deserialize::*, dockerfile_struct::*, dofigen_struct::*, errors::*, extend::*,
-    generator::GenerationContext, linter::*,
+    generator::GenerationContext, linter::*, parse::*,
 };
 
 #[cfg(all(feature = "strict", feature = "permissive"))]
