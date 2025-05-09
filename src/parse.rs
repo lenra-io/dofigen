@@ -1,6 +1,5 @@
 use crate::{
-    DockerFile, DockerFileLine, DockerIgnore, DockerIgnoreLine, Dofigen, Error, FromContextPatch,
-    Result, Stage,
+    DockerFile, DockerFileCommand, DockerFileLine, DockerIgnore, DockerIgnoreLine, Dofigen, Error, FromContextPatch, Result, Stage
 };
 use std::collections::HashMap;
 
@@ -40,10 +39,9 @@ impl Dofigen {
         let mut builders: HashMap<String, Stage> = HashMap::new();
 
         for line in instructions {
-            if let DockerFileLine::Instruction(instruction) = line {
-                let command = instruction.command.to_uppercase();
-                match command.as_str() {
-                    "FROM" => {
+            if let DockerFileLine::Instruction(instruction) = line.clone() {
+                match instruction.command {
+                    DockerFileCommand::FROM => {
                         if let Some(previous_stage) = stage {
                             builders.insert(
                                 stage_name.unwrap_or(format!("builder-{}", builders.len())),
@@ -78,7 +76,7 @@ impl Dofigen {
                     }
                     c => {
                         return Err(Error::Custom(format!(
-                            "Unsupported instruction: {c} in line: {line:?}"
+                            "Unsupported instruction: {c:?} in line: {line:?}"
                         )));
                     }
                 }
@@ -116,7 +114,7 @@ mod tests {
             let result = Dofigen::from_dockerfile(
                 DockerFile {
                     lines: vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                        command: "FROM".to_string(),
+                        command: DockerFileCommand::FROM,
                         content: "ubuntu:25.04".to_string(),
                         options: vec![],
                     })],
@@ -145,7 +143,7 @@ mod tests {
             let result = Dofigen::from_dockerfile(
                 DockerFile {
                     lines: vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                        command: "FROM".to_string(),
+                        command: DockerFileCommand::FROM,
                         content: "ubuntu:25.04".to_string(),
                         options: vec![],
                     })],
@@ -171,7 +169,7 @@ mod tests {
         fn image_ubuntu() {
             let dockerfile = DockerFile {
                 lines: vec![DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "FROM".to_string(),
+                    command: DockerFileCommand::FROM,
                     content: "ubuntu:25.04".to_string(),
                     options: vec![],
                 })],
@@ -201,12 +199,12 @@ mod tests {
             let dockerfile = DockerFile {
                 lines: vec![
                     DockerFileLine::Instruction(DockerfileInsctruction {
-                        command: "FROM".to_string(),
+                        command: DockerFileCommand::FROM,
                         content: "ubuntu:25.04 as builder".to_string(),
                         options: vec![],
                     }),
                     DockerFileLine::Instruction(DockerfileInsctruction {
-                        command: "FROM".to_string(),
+                        command: DockerFileCommand::FROM,
                         content: "scratch".to_string(),
                         options: vec![],
                     }),

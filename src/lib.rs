@@ -36,7 +36,7 @@ mod parse;
 use schemars::gen::*;
 pub use {
     context::*, deserialize::*, dockerfile_struct::*, dofigen_struct::*, errors::*, extend::*,
-    generator::GenerationContext, linter::*, parse::*,
+    generator::GenerationContext, linter::*,
 };
 
 #[cfg(all(feature = "strict", feature = "permissive"))]
