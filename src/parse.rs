@@ -1,5 +1,9 @@
+use colored::{Color, Colorize};
+use regex::Regex;
+
 use crate::{
-    DockerFile, DockerFileCommand, DockerFileLine, DockerIgnore, DockerIgnoreLine, Dofigen, Error, FromContextPatch, Result, Stage
+    DockerFile, DockerFileCommand, DockerFileInsctruction, DockerFileLine, DockerIgnore,
+    DockerIgnoreLine, Dofigen, Error, FromContextPatch, LintMessage, MessageLevel, Result, Stage,
 };
 use std::collections::HashMap;
 
@@ -9,6 +13,7 @@ impl Dofigen {
         dockerignore: Option<DockerIgnore>,
     ) -> Result<Self> {
         let mut dofigen = Self::default();
+        let mut messages = vec![];
 
         if let Some(dockerignore) = dockerignore {
             // TODO: If there is a negate pattern with **, then manage context field
@@ -34,17 +39,21 @@ impl Dofigen {
             .filter(|line| matches!(line, DockerFileLine::Instruction(_)))
             .collect();
 
-        let mut stage_name: Option<String> = None;
-        let mut stage: Option<Stage> = None;
+        let mut current_stage_name: Option<String> = None;
+        let mut current_stage: Option<Stage> = None;
+        let mut last_inscruction: Option<DockerFileInsctruction> = None;
         let mut builders: HashMap<String, Stage> = HashMap::new();
 
         for line in instructions {
             if let DockerFileLine::Instruction(instruction) = line.clone() {
+                let stage_name = current_stage_name
+                    .clone()
+                    .unwrap_or("Unnamed stage".to_string());
                 match instruction.command {
                     DockerFileCommand::FROM => {
-                        if let Some(previous_stage) = stage {
+                        if let Some(previous_stage) = current_stage {
                             builders.insert(
-                                stage_name.unwrap_or(format!("builder-{}", builders.len())),
+                                current_stage_name.unwrap_or(format!("builder-{}", builders.len())),
                                 previous_stage,
                             );
                         }
@@ -63,16 +72,56 @@ impl Dofigen {
                         } else {
                             FromContextPatch::FromImage(from_name.parse()?)
                         };
-                        stage_name = instruction
+                        current_stage_name = instruction
                             .content
                             .split(" as ")
                             .last()
                             .map(|s| s.to_string());
 
-                        stage = Some(Stage {
+                        current_stage = Some(Stage {
                             from: from.into(),
                             ..Default::default()
                         });
+                    }
+                    DockerFileCommand::ARG => {
+                        if let Some(inscruction) = last_inscruction {
+                            if !matches!(
+                                inscruction.command,
+                                DockerFileCommand::FROM | DockerFileCommand::ARG
+                            ) {
+                                messages.push(LintMessage {
+                                    level: MessageLevel::Warn,
+                                    path: vec![stage_name.clone(), "ARG".to_string()],
+                                    message: "The ARG instruction is not the first of the stage. It could be used in a previous instruction before the declaration".to_string(),
+                                });
+                            }
+                        } else {
+                            return Err(Error::Custom(format!(
+                                "Global ARG instruction is not managed yet: {line:?}"
+                            )));
+                        }
+                        let stage = get_stage(&mut current_stage, &instruction)?;
+                        messages.extend(add_entries(
+                            &mut stage.arg,
+                            vec![stage_name.clone(), "ARG".to_string()],
+                            instruction.content.clone(),
+                        )?);
+                    }
+                    DockerFileCommand::LABEL => {
+                        let stage = get_stage(&mut current_stage, &instruction)?;
+                        messages.extend(add_entries(
+                            &mut stage.label,
+                            vec![stage_name.clone(), "LABEL".to_string()],
+                            instruction.content.clone(),
+                        )?);
+                    }
+                    DockerFileCommand::ENV => {
+                        let stage = get_stage(&mut current_stage, &instruction)?;
+                        messages.extend(add_entries(
+                            &mut stage.env,
+                            vec![stage_name.clone(), "ENV".to_string()],
+                            instruction.content.clone(),
+                        )?);
                     }
                     c => {
                         return Err(Error::Custom(format!(
@@ -80,6 +129,7 @@ impl Dofigen {
                         )));
                     }
                 }
+                last_inscruction = Some(instruction);
             }
         }
 
@@ -87,16 +137,100 @@ impl Dofigen {
             dofigen.builders = builders;
         }
 
-        dofigen.stage = stage.ok_or(Error::Custom("No FROM instruction found".to_string()))?;
+        dofigen.stage =
+            current_stage.ok_or(Error::Custom("No FROM instruction found".to_string()))?;
+
+        messages.iter().for_each(|message| {
+            eprintln!(
+                "{}[path={}]: {}",
+                match message.level {
+                    MessageLevel::Error => "error".color(Color::Red).bold(),
+                    MessageLevel::Warn => "warning".color(Color::Yellow).bold(),
+                },
+                message.path.join(".").color(Color::Blue).bold(),
+                message.message
+            );
+        });
 
         Ok(dofigen.into())
     }
 }
 
+fn get_stage<'a>(
+    stage: &'a mut Option<Stage>,
+    instruction: &'a DockerFileInsctruction,
+) -> Result<&'a mut Stage> {
+    stage.as_mut().ok_or(Error::Custom(format!(
+        "No FROM instruction found before line: {:?}",
+        instruction
+    )))
+}
+
+fn add_entries(
+    entries: &mut HashMap<String, String>,
+    path: Vec<String>,
+    content: String,
+) -> Result<Vec<LintMessage>> {
+    let mut messages: Vec<LintMessage> = vec![];
+    let (new_entries, parse_messages) = parse_key_value_entries(content)?;
+    messages.extend(parse_messages.into_iter().map(|m| {
+        let mut path = path.clone();
+        path.extend(m.path);
+        LintMessage { path, ..m }
+    }));
+    for (k, v) in new_entries {
+        if entries.contains_key(&k) {
+            let mut path = path.clone();
+            path.push(k.clone());
+            messages.push(LintMessage {
+                message: format!("Duplicate key '{k}' found. The last one will be used."),
+                level: MessageLevel::Warn,
+                path,
+            });
+        }
+        entries.insert(k, v);
+    }
+    Ok(messages)
+}
+
+fn parse_key_value_entries(content: String) -> Result<(HashMap<String, String>, Vec<LintMessage>)> {
+    let mut entries = HashMap::new();
+    let mut messages = Vec::new();
+    let clean_content = content.replace("\\\n", "\n");
+    let regex =
+        Regex::new("(?<key>(?:[^=\\s\"]+|\"[^=\"]+\"))(?:=(?<value>(?:[^=\\s\"]+|\"[^=\"]+\")))?")?;
+    for m in regex.find_iter(clean_content.as_str()) {
+        let m = m.as_str();
+        let captures = regex.captures(m).unwrap();
+        let mut key = captures.name("key").unwrap().as_str().to_string();
+        if key.starts_with('"') && key.ends_with('"') {
+            key = key[1..key.len() - 1].to_string();
+        }
+        let mut value = captures
+            .name("value")
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default();
+        if value.starts_with('"') && value.ends_with('"') {
+            value = value[1..value.len() - 1].to_string();
+        }
+
+        if entries.contains_key(&key) {
+            messages.push(LintMessage {
+                message: format!("Duplicate key '{key}' found. The last one will be used."),
+                path: vec![key.clone()],
+                level: MessageLevel::Warn,
+            });
+        }
+
+        entries.insert(key, value);
+    }
+    Ok((entries, messages))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{DockerfileInsctruction, FromContext, ImageName};
+    use crate::{DockerFileInsctruction, FromContext, ImageName};
     use pretty_assertions_sorted::assert_eq_sorted;
 
     mod dockerignore {
@@ -113,7 +247,7 @@ mod tests {
 
             let result = Dofigen::from_dockerfile(
                 DockerFile {
-                    lines: vec![DockerFileLine::Instruction(DockerfileInsctruction {
+                    lines: vec![DockerFileLine::Instruction(DockerFileInsctruction {
                         command: DockerFileCommand::FROM,
                         content: "ubuntu:25.04".to_string(),
                         options: vec![],
@@ -142,7 +276,7 @@ mod tests {
 
             let result = Dofigen::from_dockerfile(
                 DockerFile {
-                    lines: vec![DockerFileLine::Instruction(DockerfileInsctruction {
+                    lines: vec![DockerFileLine::Instruction(DockerFileInsctruction {
                         command: DockerFileCommand::FROM,
                         content: "ubuntu:25.04".to_string(),
                         options: vec![],
@@ -168,7 +302,7 @@ mod tests {
         #[test]
         fn image_ubuntu() {
             let dockerfile = DockerFile {
-                lines: vec![DockerFileLine::Instruction(DockerfileInsctruction {
+                lines: vec![DockerFileLine::Instruction(DockerFileInsctruction {
                     command: DockerFileCommand::FROM,
                     content: "ubuntu:25.04".to_string(),
                     options: vec![],
@@ -198,12 +332,12 @@ mod tests {
         fn build_stage_and_main_stage_from_scratch() {
             let dockerfile = DockerFile {
                 lines: vec![
-                    DockerFileLine::Instruction(DockerfileInsctruction {
+                    DockerFileLine::Instruction(DockerFileInsctruction {
                         command: DockerFileCommand::FROM,
                         content: "ubuntu:25.04 as builder".to_string(),
                         options: vec![],
                     }),
-                    DockerFileLine::Instruction(DockerfileInsctruction {
+                    DockerFileLine::Instruction(DockerFileInsctruction {
                         command: DockerFileCommand::FROM,
                         content: "scratch".to_string(),
                         options: vec![],
@@ -244,6 +378,179 @@ mod tests {
             let error = result.unwrap_err();
 
             assert_eq_sorted!(error.to_string(), "No FROM instruction found");
+        }
+    }
+
+    mod arg {
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ARG,
+                        content: "FOO=bar".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            assert!(result.is_ok());
+            let dofigen = result.unwrap();
+
+            assert_eq!(dofigen.ignore.len(), 0);
+            assert_eq!(dofigen.builders.len(), 0);
+            assert_eq_sorted!(
+                dofigen.stage.arg,
+                HashMap::from([("FOO".to_string(), "bar".to_string())])
+            );
+        }
+
+        #[test]
+        fn multiline() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ARG,
+                        content: "FOO=bar baz \\\n\t test=OK".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            assert!(result.is_ok());
+            let dofigen = result.unwrap();
+
+            assert_eq!(dofigen.ignore.len(), 0);
+            assert_eq!(dofigen.builders.len(), 0);
+            assert_eq_sorted!(
+                dofigen.stage.arg,
+                HashMap::from([
+                    ("FOO".to_string(), "bar".to_string()),
+                    ("baz".to_string(), String::new()),
+                    ("test".to_string(), "OK".to_string())
+                ])
+            );
+        }
+
+        #[test]
+        fn with_space() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ARG,
+                        content: "FOO=\"bar baz\"".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            assert!(result.is_ok());
+            let dofigen = result.unwrap();
+
+            assert_eq!(dofigen.ignore.len(), 0);
+            assert_eq!(dofigen.builders.len(), 0);
+            assert_eq_sorted!(
+                dofigen.stage.arg,
+                HashMap::from([("FOO".to_string(), "bar baz".to_string())])
+            );
+        }
+    }
+
+    mod label {
+        use super::*;
+
+        #[test]
+
+        fn all_formats() {
+            // See: https://docs.docker.com/reference/dockerfile/#label
+            // LABEL "com.example.vendor"="ACME Incorporated"
+            // LABEL com.example.label-with-value="foo"
+            // LABEL version="1.0"
+            // LABEL description="This text illustrates \
+            // that label-values can span multiple lines."
+
+            let dockerfile = DockerFile {
+						lines: vec![
+							DockerFileLine::Instruction(DockerFileInsctruction {
+								command: DockerFileCommand::FROM,
+								content: "ubuntu:25.04".to_string(),
+								options: vec![],
+							}),
+							DockerFileLine::Instruction(DockerFileInsctruction {
+								command: DockerFileCommand::LABEL,
+								content: "\"com.example.vendor\"=\"ACME Incorporated\"".to_string(),
+								options: vec![],
+							}),
+							DockerFileLine::Instruction(DockerFileInsctruction {
+								command: DockerFileCommand::LABEL,
+								content: "com.example.label-with-value=\"foo\"".to_string(),
+								options: vec![],
+							}),
+							DockerFileLine::Instruction(DockerFileInsctruction {
+								command: DockerFileCommand::LABEL,
+								content: "version=\"1.0\"".to_string(),
+								options: vec![],
+							}),
+							DockerFileLine::Instruction(DockerFileInsctruction {
+								command: DockerFileCommand::LABEL,
+								content: "description=\"This text illustrates \\\nthat label-values can span multiple lines.\"".to_string(),
+								options: vec![],
+							}),
+						],
+					};
+
+            let result = Dofigen::from_dockerfile(dockerfile, None);
+
+            assert!(result.is_ok());
+            let dofigen = result.unwrap();
+
+            assert_eq!(dofigen.ignore.len(), 0);
+            assert_eq!(dofigen.builders.len(), 0);
+            assert_eq_sorted!(
+                dofigen.stage.label,
+                HashMap::from([
+                    (
+                        "com.example.vendor".to_string(),
+                        "ACME Incorporated".to_string()
+                    ),
+                    (
+                        "com.example.label-with-value".to_string(),
+                        "foo".to_string()
+                    ),
+                    ("version".to_string(), "1.0".to_string()),
+                    (
+                        "description".to_string(),
+                        "This text illustrates \nthat label-values can span multiple lines."
+                            .to_string()
+                    )
+                ])
+            );
         }
     }
 }
