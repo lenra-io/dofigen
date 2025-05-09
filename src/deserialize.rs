@@ -289,6 +289,15 @@ impl<T: FromStr> From<T> for ParsableStruct<T> {
 }
 
 #[cfg(feature = "permissive")]
+impl<T: FromStr> FromStr for ParsableStruct<T> {
+    type Err = <T as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(ParsableStruct(s.parse()?))
+    }
+}
+
+#[cfg(feature = "permissive")]
 impl<T> Default for OneOrMany<T>
 where
     T: Sized,
