@@ -42,9 +42,9 @@ const DOCKERFILE_LINE_REGEX: &str = concat!(
     r"(?:",
     // TODO: manage more complex heredocs: https://docs.docker.com/reference/dockerfile/#here-documents
     r#"<<-?(?:EOF|"EOF")\r?\n(?<eof_content>(?:.|\r?\n)+)(?:EOF|"EOF")"#,
-    r"|(?<content>(?:.|",
+    r"|(?<content>(?:",
     escaped_newline!(),
-    r")+)",
+    r"|.)+)",
     r")",
     // Blank lines
     r"|[^\S\r\n]*",
@@ -257,10 +257,10 @@ impl FromStr for DockerFile {
         let mut lines = vec![];
         let regex = Regex::new(DOCKERFILE_LINE_REGEX).expect("Failed to compile regex");
         let option_content_regex = Regex::new(option_regex!()).expect("Failed to compile regex");
+        println!("Regex: /{}/", regex);
 
         for m in regex.find_iter(string) {
             let m = m.as_str();
-            println!("Match: {}", m);
             let captures = regex.captures(m).unwrap();
             if let Some(command) = captures.name("command") {
                 let command = command.as_str();
@@ -496,7 +496,7 @@ ARG arg3=3
             .unwrap();
 
             let lines = dockerfile.lines;
-            assert_eq!(lines.len(), 4);
+            assert_eq!(lines.len(), 3);
 
             assert_eq_sorted!(
                 lines[0],
