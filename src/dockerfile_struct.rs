@@ -1,6 +1,7 @@
 use std::{str::FromStr, vec};
 
 use regex::Regex;
+use serde::Deserialize;
 
 use crate::{generator::*, Error};
 
@@ -41,9 +42,9 @@ const DOCKERFILE_LINE_REGEX: &str = concat!(
     r"(?:",
     // TODO: manage more complex heredocs: https://docs.docker.com/reference/dockerfile/#here-documents
     r#"<<-?(?:EOF|"EOF")\r?\n(?<eof_content>(?:.|\r?\n)+)(?:EOF|"EOF")"#,
-    r"|(?<content>(?:.|",
+    r"|(?<content>(?:",
     escaped_newline!(),
-    r")+)",
+    r"|.)+)",
     r")",
     // Blank lines
     r"|[^\S\r\n]*",
@@ -53,13 +54,82 @@ const DOCKERFILE_LINE_REGEX: &str = concat!(
     r")(?:\r?\n|$)",
 );
 
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub enum DockerFileCommand {
+    FROM,
+    ARG,
+    LABEL,
+    // Deprecated
+    MAINTAINER,
+    RUN,
+    COPY,
+    ADD,
+    WORKDIR,
+    ENV,
+    EXPOSE,
+    USER,
+    VOLUME,
+    HEALTHCHECK,
+    CMD,
+    ENTRYPOINT,
+    Unknown(String),
+}
+
+impl ToString for DockerFileCommand {
+    fn to_string(&self) -> String {
+        match self {
+            DockerFileCommand::FROM => "FROM".to_string(),
+            DockerFileCommand::LABEL => "LABEL".to_string(),
+            DockerFileCommand::MAINTAINER => "MAINTAINER".to_string(),
+            DockerFileCommand::ARG => "ARG".to_string(),
+            DockerFileCommand::RUN => "RUN".to_string(),
+            DockerFileCommand::COPY => "COPY".to_string(),
+            DockerFileCommand::ADD => "ADD".to_string(),
+            DockerFileCommand::WORKDIR => "WORKDIR".to_string(),
+            DockerFileCommand::ENV => "ENV".to_string(),
+            DockerFileCommand::EXPOSE => "EXPOSE".to_string(),
+            DockerFileCommand::USER => "USER".to_string(),
+            DockerFileCommand::VOLUME => "VOLUME".to_string(),
+            DockerFileCommand::HEALTHCHECK => "HEALTHCHECK".to_string(),
+            DockerFileCommand::CMD => "CMD".to_string(),
+            DockerFileCommand::ENTRYPOINT => "ENTRYPOINT".to_string(),
+            DockerFileCommand::Unknown(command) => command.clone(),
+        }
+    }
+}
+
+impl FromStr for DockerFileCommand {
+    type Err = Error;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string.to_uppercase().as_str() {
+            "FROM" => Ok(DockerFileCommand::FROM),
+            "ARG" => Ok(DockerFileCommand::ARG),
+            "LABEL" => Ok(DockerFileCommand::LABEL),
+            "MAINTAINER" => Ok(DockerFileCommand::MAINTAINER),
+            "RUN" => Ok(DockerFileCommand::RUN),
+            "COPY" => Ok(DockerFileCommand::COPY),
+            "ADD" => Ok(DockerFileCommand::ADD),
+            "WORKDIR" => Ok(DockerFileCommand::WORKDIR),
+            "ENV" => Ok(DockerFileCommand::ENV),
+            "EXPOSE" => Ok(DockerFileCommand::EXPOSE),
+            "USER" => Ok(DockerFileCommand::USER),
+            "VOLUME" => Ok(DockerFileCommand::VOLUME),
+            "HEALTHCHECK" => Ok(DockerFileCommand::HEALTHCHECK),
+            "CMD" => Ok(DockerFileCommand::CMD),
+            "ENTRYPOINT" => Ok(DockerFileCommand::ENTRYPOINT),
+            _ => Ok(DockerFileCommand::Unknown(string.into())),
+        }
+    }
+}
+
 pub struct DockerFile {
     pub lines: Vec<DockerFileLine>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DockerFileLine {
-    Instruction(DockerfileInsctruction),
+    Instruction(DockerFileInsctruction),
     Comment(String),
     Empty,
 }
@@ -81,8 +151,8 @@ pub trait DockerfileContent {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DockerfileInsctruction {
-    pub command: String,
+pub struct DockerFileInsctruction {
+    pub command: DockerFileCommand,
     pub content: String,
     pub options: Vec<InstructionOption>,
 }
@@ -130,14 +200,14 @@ impl DockerfileContent for DockerFileLine {
     }
 }
 
-impl DockerfileContent for DockerfileInsctruction {
+impl DockerfileContent for DockerFileInsctruction {
     fn generate_content(&self) -> String {
         let separator = if !self.options.is_empty() || self.content.contains("\\\n") {
             LINE_SEPARATOR
         } else {
             " "
         };
-        let mut content = vec![self.command.clone()];
+        let mut content = vec![self.command.to_string()];
         for option in &self.options {
             content.push(option.generate_content());
         }
@@ -185,10 +255,10 @@ impl FromStr for DockerFile {
         let mut lines = vec![];
         let regex = Regex::new(DOCKERFILE_LINE_REGEX).expect("Failed to compile regex");
         let option_content_regex = Regex::new(option_regex!()).expect("Failed to compile regex");
+        println!("Regex: /{}/", regex);
 
-        regex.find_iter(string).for_each(|m| {
+        for m in regex.find_iter(string) {
             let m = m.as_str();
-            println!("Match: {}", m);
             let captures = regex.captures(m).unwrap();
             if let Some(command) = captures.name("command") {
                 let command = command.as_str();
@@ -222,8 +292,8 @@ impl FromStr for DockerFile {
                     })
                     .unwrap_or_default();
 
-                lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: command.to_string(),
+                lines.push(DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: command.parse()?,
                     content,
                     options,
                 }));
@@ -232,7 +302,7 @@ impl FromStr for DockerFile {
             } else if let Some(comment) = captures.name("comment") {
                 lines.push(DockerFileLine::Comment(comment.as_str().to_string()));
             }
-        });
+        }
         Ok(Self { lines })
     }
 }
@@ -297,8 +367,8 @@ mod test {
 
         #[test]
         fn instruction() {
-            let instruction = DockerfileInsctruction {
-                command: "RUN".into(),
+            let instruction = DockerFileInsctruction {
+                command: DockerFileCommand::RUN,
                 content: "echo 'Hello, World!'".into(),
                 options: vec![
                     InstructionOption::Flag("arg1".into()),
@@ -371,44 +441,83 @@ COPY --from=builder /hello-world /hello-world
             let lines = dockerfile.lines;
             assert_eq!(lines.len(), 6);
 
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[0],
-                DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "FROM".to_string(),
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::FROM,
                     content: "alpine:3.11 as builder".to_string(),
                     options: vec![]
                 })
             );
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[1],
-                DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".to_string(),
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::RUN,
                     content: "echo \"hello world\" > /hello-world".to_string(),
                     options: vec![]
                 })
             );
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[2],
                 DockerFileLine::Comment("This is a comment".to_string())
             );
             assert_eq!(lines[3], DockerFileLine::Empty);
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[4],
-                DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "FROM".to_string(),
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::FROM,
                     content: "scratch".to_string(),
                     options: vec![]
                 })
             );
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[5],
-                DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "COPY".to_string(),
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::COPY,
                     content: "/hello-world /hello-world".to_string(),
                     options: vec![InstructionOption::WithValue(
                         "from".to_string(),
                         "builder".to_string()
                     )]
+                })
+            );
+        }
+
+        #[test]
+        fn args() {
+            let dockerfile: DockerFile = r#"FROM alpine:3.11 as builder
+ARG arg1 \
+    arg2=value2
+ARG arg3=3
+"#
+            .parse()
+            .unwrap();
+
+            let lines = dockerfile.lines;
+            assert_eq!(lines.len(), 3);
+
+            assert_eq_sorted!(
+                lines[0],
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::FROM,
+                    content: "alpine:3.11 as builder".to_string(),
+                    options: vec![]
+                })
+            );
+            assert_eq_sorted!(
+                lines[1],
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::ARG,
+                    content: "arg1 \\\n    arg2=value2".to_string(),
+                    options: vec![]
+                })
+            );
+            assert_eq_sorted!(
+                lines[2],
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::ARG,
+                    content: "arg3=3".to_string(),
+                    options: vec![]
                 })
             );
         }
