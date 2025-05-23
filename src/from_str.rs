@@ -49,7 +49,7 @@ macro_rules! impl_parsable_patch {
 impl_parsable_patch!(ImageName, ImageNamePatch, s, {
     let regex = Regex::new(r"^(?:(?<host>[^:\/.]+(?:\.[^:\/.]+)+)(?::(?<port>\d{1,5}))?\/)?(?<path>[a-zA-Z0-9-]{1,63}(?:\/[a-zA-Z0-9-]{1,63})*)(?:(?<version_char>[:@])(?<version_value>[a-zA-Z0-9_.:-]{1,128}))?$").unwrap();
     let Some(captures) = regex.captures(s) else {
-        return Err(Error::custom("Not matching image name pattern"));
+        return Err(Error::custom(format!("String '{}' is not matching image name pattern", s)));
     };
     Ok(ImageNamePatch {
         host: Some(captures.name("host").map(|m| m.as_str().into())),
