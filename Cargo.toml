@@ -36,7 +36,7 @@ serde_json = { version = "1.0.138", optional = true }
 thiserror = "2.0"
 clap = { version = "4.5", features = ["derive"], optional = true }
 schemars = { version = "0.8.21", optional = true, features = ["url"] }
-regex = "1.10.6"
+regex = "1.11.1"
 url = { version = "2.5.4", features = ["serde"] }
 struct-patch = { version = "=0.8.6", default-features = false, features = ["option", "merge"] }
 reqwest = { version = "0.12.15", default-features = false, features = ["json", "blocking", "rustls-tls-native-roots"] }
