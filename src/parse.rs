@@ -3,7 +3,8 @@ use regex::Regex;
 
 use crate::{
     DockerFile, DockerFileCommand, DockerFileInsctruction, DockerFileLine, DockerIgnore,
-    DockerIgnoreLine, Dofigen, Error, FromContextPatch, LintMessage, MessageLevel, Result, Stage,
+    DockerIgnoreLine, Dofigen, Error, FromContextPatch, LintMessage, MessageLevel, Result, Run,
+    Stage, User,
 };
 use std::collections::HashMap;
 
@@ -41,6 +42,7 @@ impl Dofigen {
 
         let mut current_stage_name: Option<String> = None;
         let mut current_stage: Option<Stage> = None;
+        let mut current_root: Option<Run> = None;
         let mut last_inscruction: Option<DockerFileInsctruction> = None;
         let mut builders: HashMap<String, Stage> = HashMap::new();
 
@@ -51,20 +53,26 @@ impl Dofigen {
                     .unwrap_or("Unnamed stage".to_string());
                 match instruction.command {
                     DockerFileCommand::FROM => {
+                        add_root(&mut current_stage, &mut current_root)?;
+                        current_root = None;
+
                         if let Some(previous_stage) = current_stage {
                             builders.insert(
                                 current_stage_name.unwrap_or(format!("builder-{}", builders.len())),
                                 previous_stage,
                             );
                         }
-                        let mut parts = instruction.content.split(" as ");
-                        let from_name = parts
-                            .next()
-                            .ok_or(Error::Custom(format!(
-                                "No content FROM found in line {:?}",
-                                line
-                            )))?
-                            .to_string();
+
+                        let from = instruction.content.clone();
+                        let pos = from.to_lowercase().find(" as ");
+                        let (from_name, name) = if let Some(pos) = pos {
+                            let (from, name) = from.split_at(pos);
+                            let name = name[4..].trim();
+                            (from.to_string(), name.to_string())
+                        } else {
+                            (from, "runtime".to_string())
+                        };
+                        current_stage_name = Some(name);
                         let from: FromContextPatch = if from_name == "scratch" {
                             FromContextPatch::FromContext(None)
                         } else if builders.contains_key(&from_name) {
@@ -72,11 +80,6 @@ impl Dofigen {
                         } else {
                             FromContextPatch::FromImage(from_name.parse()?)
                         };
-                        current_stage_name = instruction
-                            .content
-                            .split(" as ")
-                            .last()
-                            .map(|s| s.to_string());
 
                         current_stage = Some(Stage {
                             from: from.into(),
@@ -115,6 +118,48 @@ impl Dofigen {
                             instruction.content.clone(),
                         )?);
                     }
+                    DockerFileCommand::MAINTAINER => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
+                    DockerFileCommand::RUN => {
+                        let run = if let Some(run) = current_root.as_mut() {
+                            run
+                        } else {
+                            let stage = get_stage(&mut current_stage, &instruction)?;
+                            &mut stage.run
+                        };
+                        if !run.is_empty() {
+                            todo!("Many RUN instructions are not managed yet");
+                        } else {
+                            if !instruction.options.is_empty() {
+                                todo!("RUN options are not managed yet");
+                            }
+                            if instruction.content.starts_with("<<EOF") {
+                                let mut lines = instruction
+                                    .content
+                                    .lines()
+                                    .map(str::to_string)
+                                    .collect::<Vec<_>>();
+                                lines.remove(0);
+                                lines.remove(lines.len() - 1);
+                                run.run.append(&mut lines);
+                            } else {
+                                todo!(
+                                    "Not heredoc RUN is not managed yet: {:?}",
+                                    instruction.content
+                                );
+                            }
+                        }
+                    }
+                    DockerFileCommand::COPY => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
+                    DockerFileCommand::ADD => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
+                    DockerFileCommand::WORKDIR => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
                     DockerFileCommand::ENV => {
                         let stage = get_stage(&mut current_stage, &instruction)?;
                         messages.extend(add_entries(
@@ -123,10 +168,48 @@ impl Dofigen {
                             instruction.content.clone(),
                         )?);
                     }
-                    c => {
-                        return Err(Error::Custom(format!(
-                            "Unsupported instruction: {c:?} in line: {line:?}"
-                        )));
+                    DockerFileCommand::EXPOSE => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
+                    DockerFileCommand::USER => {
+                        let stage = get_stage(&mut current_stage, &instruction)?;
+                        let user = if let Some((user, group)) = instruction.content.split_once(":")
+                        {
+                            User {
+                                user: user.to_string(),
+                                group: Some(group.to_string()),
+                            }
+                        } else {
+                            User {
+                                user: instruction.content.clone(),
+                                group: None,
+                            }
+                        };
+                        if user.user == "0" {
+                            current_root = Some(Run::default());
+                        } else {
+                            stage.user = Some(user);
+                            add_root(&mut current_stage, &mut current_root)?;
+                            current_root = None;
+                        }
+                    }
+                    DockerFileCommand::VOLUME => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
+                    DockerFileCommand::SHELL => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
+                    DockerFileCommand::HEALTHCHECK => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
+                    DockerFileCommand::CMD => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
+                    DockerFileCommand::ENTRYPOINT => {
+                        todo!("{:?} instruction is not managed yet", instruction.command)
+                    }
+                    DockerFileCommand::Unknown(command) => {
+                        todo!("Unknown instruction {:?} is not managed yet", command)
                     }
                 }
                 last_inscruction = Some(instruction);
@@ -136,6 +219,8 @@ impl Dofigen {
         if !builders.is_empty() {
             dofigen.builders = builders;
         }
+
+        add_root(&mut current_stage, &mut current_root)?;
 
         dofigen.stage =
             current_stage.ok_or(Error::Custom("No FROM instruction found".to_string()))?;
@@ -154,6 +239,15 @@ impl Dofigen {
 
         Ok(dofigen.into())
     }
+}
+
+fn add_root<'a>(stage: &'a mut Option<Stage>, root: &'a mut Option<Run>) -> Result<()> {
+    if let Some(stage) = stage {
+        if let Some(root) = root {
+            stage.root = Some(root.clone());
+        }
+    }
+    Ok(())
 }
 
 fn get_stage<'a>(
@@ -256,7 +350,6 @@ mod tests {
                 Some(dockerignore),
             );
 
-            assert!(result.is_ok());
             let dofigen = result.unwrap();
 
             assert_eq!(dofigen.ignore.len(), 2);
@@ -285,7 +378,6 @@ mod tests {
                 Some(dockerignore),
             );
 
-            assert!(result.is_ok());
             let dofigen = result.unwrap();
 
             assert_eq!(dofigen.ignore.len(), 4);
@@ -313,7 +405,6 @@ mod tests {
 
             let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
 
-            assert!(result.is_ok());
             let dofigen = result.unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
@@ -339,7 +430,7 @@ mod tests {
                     }),
                     DockerFileLine::Instruction(DockerFileInsctruction {
                         command: DockerFileCommand::FROM,
-                        content: "scratch".to_string(),
+                        content: "scratch AS runtime".to_string(),
                         options: vec![],
                     }),
                 ],
@@ -349,7 +440,6 @@ mod tests {
 
             let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
 
-            assert!(result.is_ok());
             let dofigen = result.unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
@@ -404,7 +494,6 @@ mod tests {
 
             let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
 
-            assert!(result.is_ok());
             let dofigen = result.unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
@@ -435,7 +524,6 @@ mod tests {
 
             let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
 
-            assert!(result.is_ok());
             let dofigen = result.unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
@@ -470,7 +558,6 @@ mod tests {
 
             let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
 
-            assert!(result.is_ok());
             let dofigen = result.unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
@@ -527,7 +614,6 @@ mod tests {
 
             let result = Dofigen::from_dockerfile(dockerfile, None);
 
-            assert!(result.is_ok());
             let dofigen = result.unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
@@ -553,4 +639,136 @@ mod tests {
             );
         }
     }
+
+//     mod from_string {
+//         use crate::DofigenContext;
+
+//         use super::*;
+
+//         #[test]
+//         fn php_dockerfile() {
+//             let dockerfile_content = r#"# syntax=docker/dockerfile:1.11
+// # This file is generated by Dofigen v0.0.0
+// # See https://github.com/lenra-io/dofigen
+
+// # get-composer
+// FROM composer:latest AS get-composer
+
+// # install-deps
+// FROM php:8.3-fpm-alpine AS install-deps
+// USER 0:0
+// RUN <<EOF
+// apt-get update
+// apk add --no-cache --update ca-certificates dcron curl git supervisor tar unzip nginx libpng-dev libxml2-dev libzip-dev icu-dev mysql-client
+// EOF
+
+// # install-php-ext
+// FROM install-deps AS install-php-ext
+// USER 0:0
+// RUN <<EOF
+// docker-php-ext-configure zip
+// docker-php-ext-install bcmath gd intl pdo_mysql zip
+// EOF
+
+// # runtime
+// FROM install-php-ext AS runtime
+// WORKDIR /
+// COPY \
+//     --from=get-composer \
+//     --chown=www-data \
+//     --link \
+//     "/usr/bin/composer" "/bin/"
+// ADD \
+//     --chown=www-data \
+//     --link \
+//     "https://github.com/pelican-dev/panel.git" "/tmp/pelican"
+// USER www-data
+// RUN <<EOF
+// cd /tmp/pelican
+// cp .env.example .env
+// mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache
+// chmod 777 -R bootstrap storage
+// composer install --no-dev --optimize-autoloader
+// rm -rf .env bootstrap/cache/*.php
+// mkdir -p /app/storage/logs/
+// chown -R nginx:nginx .
+// rm /usr/local/etc/php-fpm.conf
+// echo "* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1" >> /var/spool/cron/crontabs/root
+// mkdir -p /var/run/php /var/run/nginx
+// mv .github/docker/default.conf /etc/nginx/http.d/default.conf
+// mv .github/docker/supervisord.conf /etc/supervisord.conf
+// EOF
+// "#;
+
+//             let yaml = r#"builders:
+//   install-deps:
+//     fromImage: php:8.3-fpm-alpine
+//     root:
+//       run:
+//       - apt-get update
+//       - >-
+//         apk add --no-cache --update
+//         ca-certificates
+//         dcron
+//         curl
+//         git
+//         supervisor
+//         tar
+//         unzip
+//         nginx
+//         libpng-dev
+//         libxml2-dev
+//         libzip-dev
+//         icu-dev
+//         mysql-client
+//   install-php-ext:
+//     fromBuilder: install-deps
+//     root:
+//       run:
+//       # - docker-php-ext-configure gd --with-freetype --with-jpeg
+//       # - docker-php-ext-install -j$(nproc) gd zip intl curl mbstring mysqli
+//         - docker-php-ext-configure zip
+//         - docker-php-ext-install bcmath gd intl pdo_mysql zip
+//   get-composer:
+//     name: composer
+//     fromImage: composer:latest
+// fromBuilder: install-php-ext
+// workdir: /
+// user: www-data
+// copy:
+// - fromBuilder: get-composer
+//   paths: "/usr/bin/composer"
+//   target: "/bin/"
+// - repo: 'https://github.com/pelican-dev/panel.git'
+//   target: '/tmp/pelican'
+// run:
+//   - cd /tmp/pelican
+//   - cp .env.example .env
+//   - mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache
+//   - chmod 777 -R bootstrap storage
+//   - composer install --no-dev --optimize-autoloader
+//   - rm -rf .env bootstrap/cache/*.php
+//   - mkdir -p /app/storage/logs/
+//   - chown -R nginx:nginx .
+//   - rm /usr/local/etc/php-fpm.conf
+//   - echo "* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1" >> /var/spool/cron/crontabs/root
+//   - mkdir -p /var/run/php /var/run/nginx
+//   - mv .github/docker/default.conf /etc/nginx/http.d/default.conf
+//   - mv .github/docker/supervisord.conf /etc/supervisord.conf
+// "#;
+
+//             let dockerfile: DockerFile = dockerfile_content.parse().unwrap();
+
+//             let result = Dofigen::from_dockerfile(dockerfile, None);
+
+//             let dofigen_from_dockerfile = result.unwrap();
+
+//             let dofigen_from_string: Dofigen = DofigenContext::new()
+//                 .parse_from_string(yaml)
+//                 .map_err(Error::from)
+//                 .unwrap();
+
+//             assert_eq_sorted!(dofigen_from_dockerfile, dofigen_from_string);
+//         }
+//     }
 }

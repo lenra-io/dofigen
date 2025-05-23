@@ -5,6 +5,18 @@ use serde::Deserialize;
 
 use crate::{generator::*, Error};
 
+macro_rules! simple_whitespace {
+    () => {
+        r"[\f ]"
+    };
+}
+
+// macro_rules! some_whitespace {
+//     () => {
+//         concat!(simple_whitespace!(), "*")
+//     };
+// }
+
 macro_rules! escaped_newline {
     () => {
         r"\\\r?\n"
@@ -13,7 +25,7 @@ macro_rules! escaped_newline {
 
 macro_rules! whitespace_or_escaped_newline {
     () => {
-        concat!(r"[^\S\r\n]|", escaped_newline!())
+        concat!(simple_whitespace!(), "|", escaped_newline!())
     };
 }
 macro_rules! whitespace_regex {
@@ -30,6 +42,37 @@ macro_rules! option_regex {
         )
     };
 }
+// macro_rules! base_command {
+//     () => {
+//         concat!(
+//             r"(?<command>[A-Z]+)",
+//             whitespace_regex!(),
+//             r"(?<options>",
+//             option_regex!(),
+//             r"*)",
+//         )
+//     };
+// }
+// const DOCKERFILE_LINE_REGEX: &str = concat!(
+//     r"^",
+//     some_whitespace!(),
+//     r"(?:",
+//     // Instruction
+//     base_command!(),
+//     r"(?:",
+//     // TODO: manage more complex heredocs: https://docs.docker.com/reference/dockerfile/#here-documents
+//     r#"heredoc<(?<heredoc_ref>\d+)>"#,
+//     r"|(?<content>(?:",
+//     escaped_newline!(),
+//     r"|.)+)",
+//     r")",
+//     // Comments
+//     r"|",
+//     r"# ?(?<comment>.+)",
+//     // Empty lines
+//     r")(?:\r?\n|$)",
+// );
+
 const DOCKERFILE_LINE_REGEX: &str = concat!(
     r"(?:",
     // Instruction
@@ -125,6 +168,7 @@ impl FromStr for DockerFileCommand {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct DockerFile {
     pub lines: Vec<DockerFileLine>,
 }
@@ -170,6 +214,11 @@ pub enum InstructionOption {
 pub struct InstructionOptionOption {
     pub name: String,
     pub value: Option<String>,
+}
+
+struct Heredoc {
+    name: String,
+    content: String,
 }
 
 impl InstructionOptionOption {
@@ -253,23 +302,83 @@ impl DockerfileContent for InstructionOptionOption {
 impl FromStr for DockerFile {
     type Err = Error;
 
-    fn from_str(string: &str) -> Result<Self, Self::Err> {
+    fn from_str(file_content: &str) -> Result<Self, Self::Err> {
+        let mut heredocs: Vec<Heredoc> = vec![];
+        let mut file_content = file_content.to_string();
+        while let Some(pos) = file_content.find("<<") {
+            log::debug!("Found heredoc at position: {}", pos);
+            let subcontent = &file_content[pos..];
+            let len = subcontent.find('\n').expect("Heredoc must have a newline");
+            log::debug!("Heredoc line length: {}", len);
+            let line_end = pos + len;
+            let content_start = line_end + 1;
+            let line = file_content[pos..line_end].to_string();
+            log::debug!("Heredoc line: {}", line);
+            let ignore_leading = "-".eq(file_content[pos + 2..pos + 3].to_string().as_str());
+            let name_start = if ignore_leading { 3 } else { 2 };
+            let name_end = line.find(" ").unwrap_or(line.len());
+            let name = line[name_start..name_end].to_string();
+            let name = if name.starts_with('"') {
+                name[1..name.len() - 1].to_string()
+            } else {
+                name
+            };
+            log::debug!("Heredoc name: {}", name);
+            let subcontent = &file_content[content_start..];
+            let len = subcontent
+                .find(format!("\n{}\n", name).as_str())
+                .expect(format!("Heredoc end not found for name '{}'", name).as_str());
+            let content_end = content_start + len;
+            let heredoc_block_end = content_end + name.len() + 2;
+            let heredoc_content = file_content[content_start..content_end].to_string();
+            let heredoc_content = if ignore_leading {
+                heredoc_content
+                    .lines()
+                    .map(|line| line.trim_start())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            } else {
+                heredoc_content
+            };
+            log::debug!("Heredoc content: {}", heredoc_content);
+            let heredoc_id = heredocs.len();
+            file_content = format!(
+                "{}heredoc<{}>{}{}",
+                &file_content[..pos],
+                heredoc_id,
+                &file_content[pos + name_end..content_start],
+                &file_content[heredoc_block_end..]
+            );
+            heredocs.push(Heredoc {
+                name,
+                content: heredoc_content,
+            });
+        }
+        log::debug!("Final content: {}", file_content);
         let mut lines = vec![];
         let regex = Regex::new(DOCKERFILE_LINE_REGEX).expect("Failed to compile regex");
+        log::debug!("Regex: {}", regex);
         let option_content_regex = Regex::new(option_regex!()).expect("Failed to compile regex");
-        println!("Regex: /{}/", regex);
 
-        for m in regex.find_iter(string) {
+        let file_content = file_content.as_str();
+
+        for m in regex.find_iter(file_content) {
             let m = m.as_str();
             let captures = regex.captures(m).unwrap();
             if let Some(command) = captures.name("command") {
                 let command = command.as_str();
                 let content = captures
                     .name("content")
-                    .or_else(|| captures.name("eof_content"))
-                    .map(|c| c.as_str())
-                    .unwrap_or_default()
-                    .to_string();
+                    .map(|c| c.as_str().to_string())
+                    .or_else(|| {
+                        captures.name("heredoc_ref").map(|c| {
+                            let id = c.as_str().parse::<usize>().unwrap();
+                            let heredoc = heredocs.get(id).expect("Heredoc not found");
+                            log::debug!("Heredoc id: {} => {}", id, heredoc.name);
+                            heredoc.content.clone()
+                        })
+                    })
+                    .expect("Content not found");
                 let options = captures
                     .name("options")
                     .map(|o| {
@@ -523,5 +632,217 @@ ARG arg3=3
                 })
             );
         }
+
+        //         mod full_file {
+        //             use super::*;
+
+        //             #[test]
+        //             fn php_dockerfile() {
+        //                 let dockerfile: DockerFile = r#"# syntax=docker/dockerfile:1.11
+        // # This file is generated by Dofigen v0.0.0
+        // # See https://github.com/lenra-io/dofigen
+
+        // # get-composer
+        // FROM composer:latest AS get-composer
+
+        // # install-deps
+        // FROM php:8.3-fpm-alpine AS install-deps
+        // USER 0:0
+        // RUN <<EOF
+        // apt-get update
+        // apk add --no-cache --update ca-certificates dcron curl git supervisor tar unzip nginx libpng-dev libxml2-dev libzip-dev icu-dev mysql-client
+        // EOF
+
+        // # install-php-ext
+        // FROM install-deps AS install-php-ext
+        // USER 0:0
+        // RUN <<EOF
+        // docker-php-ext-configure zip
+        // docker-php-ext-install bcmath gd intl pdo_mysql zip
+        // EOF
+
+        // # runtime
+        // FROM install-php-ext AS runtime
+        // WORKDIR /
+        // COPY \
+        //     --from=get-composer \
+        //     --chown=www-data \
+        //     --link \
+        //     "/usr/bin/composer" "/bin/"
+        // ADD \
+        //     --chown=www-data \
+        //     --link \
+        //     "https://github.com/pelican-dev/panel.git" "/tmp/pelican"
+        // USER www-data
+        // RUN <<EOF
+        // cd /tmp/pelican
+        // cp .env.example .env
+        // mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache
+        // chmod 777 -R bootstrap storage
+        // composer install --no-dev --optimize-autoloader
+        // rm -rf .env bootstrap/cache/*.php
+        // mkdir -p /app/storage/logs/
+        // chown -R nginx:nginx .
+        // rm /usr/local/etc/php-fpm.conf
+        // echo "* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1" >> /var/spool/cron/crontabs/root
+        // mkdir -p /var/run/php /var/run/nginx
+        // mv .github/docker/default.conf /etc/nginx/http.d/default.conf
+        // mv .github/docker/supervisord.conf /etc/supervisord.conf
+        // EOF
+        // "#.parse().unwrap();
+
+        //                 let lines = dockerfile.lines;
+        //                 let mut line = 0;
+
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Comment("syntax=docker/dockerfile:1.11".to_string())
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Comment("This file is generated by Dofigen v0.0.0".to_string())
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Comment("See https://github.com/lenra-io/dofigen".to_string())
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(lines[line], DockerFileLine::Empty);
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Comment("get-composer".to_string())
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::FROM,
+        //                         content: "composer:latest AS get-composer".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(lines[line], DockerFileLine::Empty);
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Comment("install-deps".to_string())
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::FROM,
+        //                         content: "php:8.3-fpm-alpine AS install-deps".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::USER,
+        //                         content: "0:0".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::RUN,
+        //                         content: "apt-get update\napk add --no-cache --update ca-certificates dcron curl git supervisor tar unzip nginx libpng-dev libxml2-dev libzip-dev icu-dev mysql-client".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(lines[line], DockerFileLine::Empty);
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Comment("install-php-ext".to_string())
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::FROM,
+        //                         content: "install-deps".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::USER,
+        //                         content: "0:0".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::RUN,
+        //                         content: "docker-php-ext-configure zip".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::RUN,
+        //                         content: "docker-php-ext-install bcmath gd intl pdo_mysql zip".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(lines[line], DockerFileLine::Empty);
+        //                 line += 1;
+        //                 assert_eq_sorted!(lines[line], DockerFileLine::Comment("runtime".to_string()));
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::FROM,
+        //                         content: "install-php-ext".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::WORKDIR,
+        //                         content: "/".to_string(),
+        //                         options: vec![]
+        //                     })
+        //                 );
+        //                 line += 1;
+        //                 assert_eq_sorted!(
+        //                     lines[line],
+        //                     DockerFileLine::Instruction(DockerFileInsctruction {
+        //                         command: DockerFileCommand::COPY,
+        //                         content: "/usr/bin/composer /bin/".to_string(),
+        //                         options: vec![
+        //                             InstructionOption::WithValue(
+        //                                 "from".to_string(),
+        //                                 "get-composer".to_string()
+        //                             ),
+        //                             InstructionOption::WithValue(
+        //                                 "chown".to_string(),
+        //                                 "www-data".to_string()
+        //                             ),
+        //                             InstructionOption::Flag("link".to_string())
+        //                         ]
+        //                     })
+        //                 );
+        //             }
+        //         }
     }
 }
