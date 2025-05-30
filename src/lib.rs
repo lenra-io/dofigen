@@ -30,6 +30,8 @@ mod generator;
 mod json_schema;
 mod linter;
 pub mod lock;
+#[cfg(feature = "permissive")]
+mod parse;
 #[cfg(feature = "json_schema")]
 use schemars::gen::*;
 pub use {

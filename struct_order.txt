@@ -1,0 +1,19 @@
+Global Arg (pas géré)
+
+Stage +:
+	From
+	Arg
+	Label
+	Env
+	Workdir
+	Copy/Add
+	Root: USER 0
+		Run
+	user
+	Run
+
+Volume
+Expose
+Healthcheck
+entrypoint
+cmd
