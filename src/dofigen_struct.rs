@@ -1202,6 +1202,48 @@ mod test {
             }
 
             #[test]
+            fn copy_from_yaml() {
+                let yaml_data = r#"
+paths: 
+  - file1.txt
+  - file2.txt
+target: destination/
+chown:
+  user: root
+  group: root
+chmod: "755"
+link: true
+fromImage:
+  path: my-image
+"#;
+
+                let copy_resource: CopyResourcePatch = serde_yaml::from_str(yaml_data).unwrap();
+                let copy_resource: CopyResource = copy_resource.into();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResource::Copy(Copy {
+                        paths: vec!["file1.txt".into(), "file2.txt".into()].into(),
+                        options: CopyOptions {
+                            target: Some("destination/".into()),
+                            chown: Some(User {
+                                user: "root".into(),
+                                group: Some("root".into())
+                            }),
+                            chmod: Some("755".into()),
+                            link: Some(true),
+                        },
+                        from: FromContext::FromImage(ImageName {
+                            path: "my-image".into(),
+                            ..Default::default()
+                        }),
+                        exclude: vec![].into(),
+                        parents: None,
+                    })
+                );
+            }
+
+            #[test]
             fn copy_simple() {
                 let json_data = r#"{
     "paths": ["file1.txt"]
@@ -1386,6 +1428,63 @@ mod test {
                         checksum: Some("sha256:abcdef123456".into()),
                         unpack: Some(false),
                     })
+                );
+            }
+
+            #[test]
+            fn copy_in_dofigen() {
+                let yaml_data = r#"
+copy:
+- fromContext: get-composer
+  paths: "/usr/bin/composer"
+  target: "/bin/"
+  chown: test
+  link: true
+- repo: 'https://github.com/pelican-dev/panel.git'
+  target: '/tmp/pelican'
+  chown: test
+  link: true
+"#;
+
+                let dofigen: DofigenPatch = serde_yaml::from_str(yaml_data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
+
+                assert_eq_sorted!(
+                    dofigen,
+                    Dofigen {
+                        stage: Stage {
+                            copy: vec![
+                                CopyResource::Copy(Copy {
+                                    from: FromContext::FromContext(Some("get-composer".into())),
+                                    paths: vec!["/usr/bin/composer".into()].into(),
+                                    options: CopyOptions {
+                                        target: Some("/bin/".into()),
+                                        chown: Some(User {
+                                            user: "test".into(),
+                                            group: None
+                                        }),
+                                        link: Some(true),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                }),
+                                CopyResource::AddGitRepo(AddGitRepo {
+                                    repo: "https://github.com/pelican-dev/panel.git".into(),
+                                    options: CopyOptions {
+                                        target: Some("/tmp/pelican".into()),
+                                        chown: Some(User {
+                                            user: "test".into(),
+                                            group: None
+                                        }),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
                 );
             }
         }

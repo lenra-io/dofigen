@@ -1,10 +1,12 @@
 use colored::{Color, Colorize};
 use regex::Regex;
+use struct_patch::{Merge, Patch};
 
 use crate::{
-    DockerFile, DockerFileCommand, DockerFileInsctruction, DockerFileLine, DockerIgnore,
-    DockerIgnoreLine, Dofigen, Error, FromContextPatch, LintMessage, MessageLevel, Result, Run,
-    Stage, User,
+    AddPatch, Copy, CopyOptions, CopyOptionsPatch, CopyResourcePatch, DockerFile,
+    DockerFileCommand, DockerFileInsctruction, DockerFileLine, DockerIgnore, DockerIgnoreLine,
+    Dofigen, Error, FromContext, FromContextPatch, ImageNamePatch, LintMessage, MessageLevel,
+    Result, Run, Stage, User, UserPatch,
 };
 use std::collections::HashMap;
 
@@ -152,13 +154,137 @@ impl Dofigen {
                         }
                     }
                     DockerFileCommand::COPY => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        let stage = get_stage(&mut current_stage, &instruction)?;
+                        // TODO: manege heredocs
+                        let copy = instruction.content.parse::<CopyResourcePatch>()?;
+                        let mut copy: Copy = if let CopyResourcePatch::Copy(copy) = copy {
+                            copy.into()
+                        } else {
+                            return Err(Error::Custom(
+                                "COPY instruction content must be a CopyResourcePatch".to_string(),
+                            ));
+                        };
+                        let target = copy.options.target.ok_or(Error::Custom(
+                            "COPY instruction must have at least one source and a target"
+                                .to_string(),
+                        ))?;
+                        let (options, exclude, not_managed_options) =
+                            parse_copy_options(&instruction.options)?;
+
+                        let mut options: CopyOptions = options.into();
+
+                        options.target = Some(target);
+                        copy.exclude = exclude;
+
+                        for option in not_managed_options.iter() {
+                            match option {
+                                crate::InstructionOption::Flag(name) => match name.as_str() {
+                                    "parents" => copy.parents = Some(true),
+                                    _ => unreachable!("Unknown COPY flag option: {name}"),
+                                },
+                                crate::InstructionOption::WithValue(name, value) => {
+                                    match name.as_str() {
+                                        "parents" => copy.parents = Some(true),
+                                        "from" => {
+                                            if builders.contains_key(value) {
+                                                copy.from = FromContext::FromBuilder(value.clone());
+                                            } else if value == "scratch" {
+                                                copy.from = FromContext::FromContext(None);
+                                            } else {
+                                                if let Ok(image) = value.parse::<ImageNamePatch>() {
+                                                    copy.from =
+                                                        FromContext::FromImage(image.into());
+                                                } else {
+                                                    copy.from = FromContext::FromContext(Some(
+                                                        value.clone(),
+                                                    ));
+                                                }
+                                            }
+                                        }
+                                        _ => unreachable!("Unknown COPY option: {name}"),
+                                    }
+                                }
+                                crate::InstructionOption::WithOptions(
+                                    name,
+                                    instruction_option_options,
+                                ) => todo!("Unknown COPY option {name} with sub options: {instruction_option_options:?}"),
+                            }
+                        }
+                        copy.options = options;
+                        stage.copy.push(crate::CopyResource::Copy(copy));
                     }
                     DockerFileCommand::ADD => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        let stage = get_stage(&mut current_stage, &instruction)?;
+                        let (options, exclude, not_managed_options) =
+                            parse_copy_options(&instruction.options)?;
+                        let add_options = CopyResourcePatch::Unknown(crate::UnknownPatch {
+                            options: Some(options),
+                            exclude: Some(exclude.into_patch()),
+                        });
+
+                        let copy_resource = instruction.content.parse::<CopyResourcePatch>()?;
+                        let copy_resource = if let CopyResourcePatch::AddGitRepo(add_git) =
+                            &copy_resource
+                        {
+                            let mut add_git = add_git.clone();
+                            println!("add_git: {add_git:?}");
+                            for option in not_managed_options.iter() {
+                                match option {
+                                crate::InstructionOption::Flag(name) => match name.as_str() {
+                                    _ => unreachable!("Unknown ADD flag option: {name}"),
+                                },
+                                crate::InstructionOption::WithValue(name, value) => {
+                                    match name.as_str() {
+                                        "keep-git-dir" => {
+                                            add_git.keep_git_dir = Some(Some(value.parse().map_err(Error::from)?));
+                                        }
+                                        _ => unreachable!("Unknown ADD option: {name}"),
+                                    }
+                                }
+                                crate::InstructionOption::WithOptions(
+                                    name,
+                                    instruction_option_options,
+                                ) => todo!("Unknown ADD option {name} with sub options: {instruction_option_options:?}"),
+                            }
+                            }
+                            copy_resource
+                        } else {
+                            let mut add = instruction.content.parse::<AddPatch>()?;
+
+                            for option in not_managed_options.iter() {
+                                match option {
+                                crate::InstructionOption::Flag(name) => match name.as_str() {
+                                    _ => unreachable!("Unknown ADD flag option: {name}"),
+                                },
+                                crate::InstructionOption::WithValue(name, value) => {
+                                    match name.as_str() {
+                                        "checksum" => {
+                                            add.checksum = Some(Some(value.clone()));
+                                        }
+                                        _ => unreachable!("Unknown ADD option: {name}"),
+                                    }
+                                }
+                                crate::InstructionOption::WithOptions(
+                                    name,
+                                    instruction_option_options,
+                                ) => todo!("Unknown ADD option {name} with sub options: {instruction_option_options:?}"),
+                            }
+                            }
+                            CopyResourcePatch::Add(add)
+                        };
+                        let copy_resource = copy_resource.merge(add_options);
+
+                        stage.copy.push(copy_resource.into());
                     }
                     DockerFileCommand::WORKDIR => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        let stage = get_stage(&mut current_stage, &instruction)?;
+                        if stage.workdir.is_none() {
+                            stage.workdir = Some(instruction.content.clone());
+                        } else {
+                            todo!(
+                                "Many WORKDIR instructions in the same stage are not managed yet"
+                            );
+                        }
                     }
                     DockerFileCommand::ENV => {
                         let stage = get_stage(&mut current_stage, &instruction)?;
@@ -239,6 +365,31 @@ impl Dofigen {
 
         Ok(dofigen.into())
     }
+}
+
+fn parse_copy_options(
+    options: &[crate::InstructionOption],
+) -> Result<(CopyOptionsPatch, Vec<String>, Vec<crate::InstructionOption>)> {
+    let mut copy_options = CopyOptionsPatch::default();
+    let mut exclude = vec![];
+    let mut not_managed_options = vec![];
+    for option in options {
+        match option {
+            crate::InstructionOption::Flag(name) => match name.as_str() {
+                "link" => copy_options.link = Some(Some(true)),
+                _ => not_managed_options.push(option.clone()),
+            },
+            crate::InstructionOption::WithValue(name, value) => match name.as_str() {
+                "link" => copy_options.link = Some(Some(value.parse().map_err(Error::from)?)),
+                "chown" => copy_options.chown = Some(Some(value.parse::<UserPatch>()?.into())),
+                "chmod" => copy_options.chmod = Some(Some(value.clone())),
+                "exclude" => exclude.push(value.clone()),
+                _ => not_managed_options.push(option.clone()),
+            },
+            crate::InstructionOption::WithOptions(_, _) => not_managed_options.push(option.clone()),
+        }
+    }
+    Ok((copy_options, exclude, not_managed_options))
 }
 
 fn add_root<'a>(stage: &'a mut Option<Stage>, root: &'a mut Option<Run>) -> Result<()> {
@@ -640,135 +791,278 @@ mod tests {
         }
     }
 
-    //     mod from_string {
-    //         use crate::DofigenContext;
+    mod from_string {
+        use crate::{AddGitRepo, CopyResource, DofigenContext, ImageVersion};
 
-    //         use super::*;
+        use super::*;
 
-    //         #[test]
-    //         fn php_dockerfile() {
-    //             let dockerfile_content = r#"# syntax=docker/dockerfile:1.11
-    // # This file is generated by Dofigen v0.0.0
-    // # See https://github.com/lenra-io/dofigen
+        #[test]
+        #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
+        fn php_dockerfile() {
+            let dockerfile_content = r#"# syntax=docker/dockerfile:1.11
+# This file is generated by Dofigen v0.0.0
+# See https://github.com/lenra-io/dofigen
 
-    // # get-composer
-    // FROM composer:latest AS get-composer
+# get-composer
+FROM composer:latest AS get-composer
 
-    // # install-deps
-    // FROM php:8.3-fpm-alpine AS install-deps
-    // USER 0:0
-    // RUN <<EOF
-    // apt-get update
-    // apk add --no-cache --update ca-certificates dcron curl git supervisor tar unzip nginx libpng-dev libxml2-dev libzip-dev icu-dev mysql-client
-    // EOF
+# install-deps
+FROM php:8.3-fpm-alpine AS install-deps
+USER 0:0
+RUN <<EOF
+apt-get update
+apk add --no-cache --update ca-certificates dcron curl git supervisor tar unzip nginx libpng-dev libxml2-dev libzip-dev icu-dev mysql-client
+EOF
 
-    // # install-php-ext
-    // FROM install-deps AS install-php-ext
-    // USER 0:0
-    // RUN <<EOF
-    // docker-php-ext-configure zip
-    // docker-php-ext-install bcmath gd intl pdo_mysql zip
-    // EOF
+# install-php-ext
+FROM install-deps AS install-php-ext
+USER 0:0
+RUN <<EOF
+docker-php-ext-configure zip
+docker-php-ext-install bcmath gd intl pdo_mysql zip
+EOF
 
-    // # runtime
-    // FROM install-php-ext AS runtime
-    // WORKDIR /
-    // COPY \
-    //     --from=get-composer \
-    //     --chown=www-data \
-    //     --link \
-    //     "/usr/bin/composer" "/bin/"
-    // ADD \
-    //     --chown=www-data \
-    //     --link \
-    //     "https://github.com/pelican-dev/panel.git" "/tmp/pelican"
-    // USER www-data
-    // RUN <<EOF
-    // cd /tmp/pelican
-    // cp .env.example .env
-    // mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache
-    // chmod 777 -R bootstrap storage
-    // composer install --no-dev --optimize-autoloader
-    // rm -rf .env bootstrap/cache/*.php
-    // mkdir -p /app/storage/logs/
-    // chown -R nginx:nginx .
-    // rm /usr/local/etc/php-fpm.conf
-    // echo "* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1" >> /var/spool/cron/crontabs/root
-    // mkdir -p /var/run/php /var/run/nginx
-    // mv .github/docker/default.conf /etc/nginx/http.d/default.conf
-    // mv .github/docker/supervisord.conf /etc/supervisord.conf
-    // EOF
-    // "#;
+# runtime
+FROM install-php-ext AS runtime
+WORKDIR /
+COPY \
+    --from=get-composer \
+    --chown=www-data \
+    --link \
+    "/usr/bin/composer" "/bin/"
+ADD \
+    --chown=www-data \
+    --link \
+    "https://github.com/pelican-dev/panel.git" "/tmp/pelican"
+USER www-data
+RUN <<EOF
+cd /tmp/pelican
+cp .env.example .env
+mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache
+chmod 777 -R bootstrap storage
+composer install --no-dev --optimize-autoloader
+rm -rf .env bootstrap/cache/*.php
+mkdir -p /app/storage/logs/
+chown -R nginx:nginx .
+rm /usr/local/etc/php-fpm.conf
+echo "* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1" >> /var/spool/cron/crontabs/root
+mkdir -p /var/run/php /var/run/nginx
+mv .github/docker/default.conf /etc/nginx/http.d/default.conf
+mv .github/docker/supervisord.conf /etc/supervisord.conf
+EOF
+"#;
 
-    //             let yaml = r#"builders:
-    //   install-deps:
-    //     fromImage: php:8.3-fpm-alpine
-    //     root:
-    //       run:
-    //       - apt-get update
-    //       - >-
-    //         apk add --no-cache --update
-    //         ca-certificates
-    //         dcron
-    //         curl
-    //         git
-    //         supervisor
-    //         tar
-    //         unzip
-    //         nginx
-    //         libpng-dev
-    //         libxml2-dev
-    //         libzip-dev
-    //         icu-dev
-    //         mysql-client
-    //   install-php-ext:
-    //     fromBuilder: install-deps
-    //     root:
-    //       run:
-    //       # - docker-php-ext-configure gd --with-freetype --with-jpeg
-    //       # - docker-php-ext-install -j$(nproc) gd zip intl curl mbstring mysqli
-    //         - docker-php-ext-configure zip
-    //         - docker-php-ext-install bcmath gd intl pdo_mysql zip
-    //   get-composer:
-    //     name: composer
-    //     fromImage: composer:latest
-    // fromBuilder: install-php-ext
-    // workdir: /
-    // user: www-data
-    // copy:
-    // - fromBuilder: get-composer
-    //   paths: "/usr/bin/composer"
-    //   target: "/bin/"
-    // - repo: 'https://github.com/pelican-dev/panel.git'
-    //   target: '/tmp/pelican'
-    // run:
-    //   - cd /tmp/pelican
-    //   - cp .env.example .env
-    //   - mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache
-    //   - chmod 777 -R bootstrap storage
-    //   - composer install --no-dev --optimize-autoloader
-    //   - rm -rf .env bootstrap/cache/*.php
-    //   - mkdir -p /app/storage/logs/
-    //   - chown -R nginx:nginx .
-    //   - rm /usr/local/etc/php-fpm.conf
-    //   - echo "* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1" >> /var/spool/cron/crontabs/root
-    //   - mkdir -p /var/run/php /var/run/nginx
-    //   - mv .github/docker/default.conf /etc/nginx/http.d/default.conf
-    //   - mv .github/docker/supervisord.conf /etc/supervisord.conf
-    // "#;
+            let yaml = r#"builders:
+  install-deps:
+    fromImage: php:8.3-fpm-alpine
+    root:
+      run:
+      - apt-get update
+      - >-
+        apk add --no-cache --update
+        ca-certificates
+        dcron
+        curl
+        git
+        supervisor
+        tar
+        unzip
+        nginx
+        libpng-dev
+        libxml2-dev
+        libzip-dev
+        icu-dev
+        mysql-client
+  install-php-ext:
+    fromBuilder: install-deps
+    root:
+      run:
+      # - docker-php-ext-configure gd --with-freetype --with-jpeg
+      # - docker-php-ext-install -j$(nproc) gd zip intl curl mbstring mysqli
+        - docker-php-ext-configure zip
+        - docker-php-ext-install bcmath gd intl pdo_mysql zip
+  get-composer:
+    name: composer
+    fromImage: composer:latest
+fromBuilder: install-php-ext
+workdir: /
+user: www-data
+copy:
+- fromBuilder: get-composer
+  paths: "/usr/bin/composer"
+  target: "/bin/"
+  chown: www-data
+- repo: 'https://github.com/pelican-dev/panel.git'
+  target: '/tmp/pelican'
+  chown: www-data
+run:
+  - cd /tmp/pelican
+  - cp .env.example .env
+  - mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache
+  - chmod 777 -R bootstrap storage
+  - composer install --no-dev --optimize-autoloader
+  - rm -rf .env bootstrap/cache/*.php
+  - mkdir -p /app/storage/logs/
+  - chown -R nginx:nginx .
+  - rm /usr/local/etc/php-fpm.conf
+  - echo "* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1" >> /var/spool/cron/crontabs/root
+  - mkdir -p /var/run/php /var/run/nginx
+  - mv .github/docker/default.conf /etc/nginx/http.d/default.conf
+  - mv .github/docker/supervisord.conf /etc/supervisord.conf
+"#;
 
-    //             let dockerfile: DockerFile = dockerfile_content.parse().unwrap();
+            let dockerfile: DockerFile = dockerfile_content.parse().unwrap();
 
-    //             let result = Dofigen::from_dockerfile(dockerfile, None);
+            let result = Dofigen::from_dockerfile(dockerfile, None);
 
-    //             let dofigen_from_dockerfile = result.unwrap();
+            let dofigen_from_dockerfile = result.unwrap();
 
-    //             let dofigen_from_string: Dofigen = DofigenContext::new()
-    //                 .parse_from_string(yaml)
-    //                 .map_err(Error::from)
-    //                 .unwrap();
+            assert_eq_sorted!(dofigen_from_dockerfile, Dofigen {
+                builders: HashMap::from([
+                    ("get-composer".to_string(), Stage {
+                        from: FromContext::FromImage(
+                            ImageName {
+                                path: "composer".to_string(),
+                                version: Some(
+                                    ImageVersion::Tag(
+                                        "latest".to_string(),
+                                    ),
+                                ),
+                ..Default::default()
+                            },
+                        ),
+                ..Default::default()
+                    }),
+                    ("install-deps".to_string(), Stage {
+                        from: FromContext::FromImage(
+                            ImageName {
+                                path: "php".to_string(),
+                                version: Some(
+                                    ImageVersion::Tag(
+                                        "8.3-fpm-alpine".to_string(),
+                                    ),
+                                ),
+                ..Default::default()
+                            },
+                        ),
+                        root: Some(
+                            Run {
+                                run: vec![
+                                    "apt-get update".to_string(),
+                                    "apk add --no-cache --update ca-certificates dcron curl git supervisor tar unzip nginx libpng-dev libxml2-dev libzip-dev icu-dev mysql-client".to_string(),
+                                ],
+                ..Default::default()
+                            },
+                        ),
+                ..Default::default()
+                    }),
+                    ("install-php-ext".to_string(), Stage {
+                        from: FromContext::FromBuilder(
+                            "install-deps".to_string(),
+                        ),
+                        root: Some(
+                            Run {
+                                run: vec![
+                                    "docker-php-ext-configure zip".to_string(),
+                                    "docker-php-ext-install bcmath gd intl pdo_mysql zip".to_string(),
+                                ],
+                ..Default::default()
+                            },
+                        ),
+                ..Default::default()
+                    })
+                    ]),
+                stage: Stage {
+                    from: FromContext::FromBuilder(
+                        "install-php-ext".to_string(),
+                    ),
+                    user: Some(
+                        User {
+                            user: "www-data".to_string(),
+                            group: None,
+                        },
+                    ),
+                    workdir: Some(
+                        "/".to_string(),
+                    ),
+                    copy: vec![
+                        CopyResource::Copy(
+                            Copy {
+                                from: FromContext::FromBuilder(
+                                    "get-composer".to_string(),
+                                ),
+                                paths: vec![
+                                    "/usr/bin/composer".to_string(),
+                                ],
+                                options: CopyOptions {
+                                   target: Some(
+                                       "/bin/".to_string(),
+                                   ),
+                                   chown: Some(
+                                       User {
+                                           user: "www-data".to_string(),
+                                           group: None,
+                                       },
+                                   ),
+                                   link: Some(
+                                       true,
+                                   ),
+                                    ..Default::default()
+                                },
+                                ..Default::default()
+                            },
+                        ),
+                        CopyResource::AddGitRepo(
+                            AddGitRepo {
+                                repo: "https://github.com/pelican-dev/panel.git".to_string(),
+                                options: CopyOptions {
+                                   target: Some(
+                                       "/tmp/pelican".to_string(),
+                                   ),
+                                   chown: Some(
+                                       User {
+                                           user: "www-data".to_string(),
+                                           group: None,
+                                       },
+                                   ),
+                                   link: Some(
+                                       true,
+                                   ),
+                ..Default::default()
+                                },
+                ..Default::default()
+                            },
+                        ),
+                    ],
+                    run: Run {
+                        run: vec![
+                            "cd /tmp/pelican".to_string(),
+                            "cp .env.example .env".to_string(),
+                            "mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache".to_string(),
+                            "chmod 777 -R bootstrap storage".to_string(),
+                            "composer install --no-dev --optimize-autoloader".to_string(),
+                            "rm -rf .env bootstrap/cache/*.php".to_string(),
+                            "mkdir -p /app/storage/logs/".to_string(),
+                            "chown -R nginx:nginx .".to_string(),
+                            "rm /usr/local/etc/php-fpm.conf".to_string(),
+                            "echo \"* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1\" >> /var/spool/cron/crontabs/root".to_string(),
+                            "mkdir -p /var/run/php /var/run/nginx".to_string(),
+                            "mv .github/docker/default.conf /etc/nginx/http.d/default.conf".to_string(),
+                            "mv .github/docker/supervisord.conf /etc/supervisord.conf".to_string(),
+                        ],
+                ..Default::default()
+                    },
+                                ..Default::default()
+                },
+                ..Default::default()
+            });
 
-    //             assert_eq_sorted!(dofigen_from_dockerfile, dofigen_from_string);
-    //         }
-    //     }
+            // let dofigen_from_string: Dofigen = DofigenContext::new()
+            //     .parse_from_string(yaml)
+            //     .map_err(Error::from)
+            //     .unwrap();
+
+            // assert_eq_sorted!(dofigen_from_dockerfile, dofigen_from_string);
+        }
+    }
 }
