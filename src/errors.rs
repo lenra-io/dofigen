@@ -11,6 +11,8 @@ pub enum Error {
     Deserialize(#[from] serde_yaml::Error),
     #[error("Error while parsing: {0}")]
     ParseFromStr(#[from] serde::de::value::Error),
+    #[error("Error while parsing bool value: {0}")]
+    ParseBool(#[from] std::str::ParseBoolError),
     #[error("{0}")]
     Format(#[from] std::fmt::Error),
     #[error("{e}", e = report(.0))]
