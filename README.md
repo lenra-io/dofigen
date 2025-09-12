@@ -59,7 +59,7 @@ Install Dofigen using one of the following options.
 You can run Dofigen directly from its Docker image with the following command:
 
 ```bash
-docker run --rm -it -v $(pwd):/app lenra/dofigen --help
+docker run --rm -it -v $(pwd):/app -u $UID lenra/dofigen --help
 ```
 
 #### Arch Linux
