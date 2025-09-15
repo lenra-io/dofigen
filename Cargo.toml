@@ -37,7 +37,7 @@ thiserror = "2.0"
 clap = { version = "4.5", features = ["derive"], optional = true }
 schemars = { version = "0.8.21", optional = true, features = ["url"] }
 regex = "1.11.2"
-url = { version = "2.5.4", features = ["serde"] }
+url = { version = "2.5.7", features = ["serde"] }
 struct-patch = { version = "=0.10.4", default-features = false, features = ["option", "merge"] }
 reqwest = { version = "0.12.23", default-features = false, features = ["json", "blocking", "rustls-tls-native-roots"] }
 relative-path = "2.0.1"
