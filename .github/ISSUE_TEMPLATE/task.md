@@ -2,7 +2,8 @@
 name: Task
 about: Create a new task. Technical task should be small enought to be done by only
   one person in a reasonable time.
-title: "[Task] "
+title: ""
+type: Task
 labels: enhancement
 assignees: ''
 
