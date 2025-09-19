@@ -1,6 +1,5 @@
 name: Bug Report
 description: Send a bug report
-title: ""
 type: Bug
 labels: ["bug", "triage"]
 assignees:
