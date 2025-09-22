@@ -724,7 +724,8 @@ fn shells_in_dockerfile() {
 shell: 
   - bash
   - "-c"
-run: echo "Hello World !"
+run:
+  - echo "Hello World !"
 "#;
     let dofigen: Dofigen = DofigenContext::new()
         .parse_from_string(yaml)
