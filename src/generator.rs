@@ -781,11 +781,24 @@ impl DockerfileGenerator for Run {
             ));
         }
 
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+        let mut lines = vec![];
+
+        // Shell
+        if let Some(shell) = &self.shell {
+            lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+                command: "SHELL".into(),
+                content: shell.clone(),
+                options: vec![],
+            }));
+        }
+
+        lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
             command: "RUN".into(),
             content,
             options,
-        })])
+        }));
+
+        Ok(lines)
     }
 }
 
