@@ -229,6 +229,17 @@
       ],
       "nullable": true
     },
+    "shell": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/VecPatch<String>"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "nullable": true
+    },
     "user": {
       "anyOf": [
         {
@@ -1159,6 +1170,17 @@
             }
           ],
           "nullable": true
+        },
+        "shell": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VecPatch<String>"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "nullable": true
         }
       }
     },
@@ -1294,6 +1316,17 @@
           "nullable": true
         },
         "run": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/VecPatch<String>"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "nullable": true
+        },
+        "shell": {
           "anyOf": [
             {
               "$ref": "#/definitions/VecPatch<String>"

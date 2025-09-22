@@ -201,6 +201,12 @@ pub struct Run {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub run: Vec<String>,
 
+    /// The shell to use for the RUN command
+    /// See https://docs.docker.com/reference/dockerfile/#shell
+    #[patch(name = "VecPatch<String>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub shell: Vec<String>,
+
     /// The cache definitions during the run
     /// See https://docs.docker.com/reference/dockerfile/#run---mounttypecache
     #[cfg_attr(

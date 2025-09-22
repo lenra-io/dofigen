@@ -107,6 +107,7 @@ This represents a run command.
 | Field | Type | Description |
 | --- | --- | --- |
 | `run` | string or string[] | The commands to run. |
+| `shell` | string or string[] | The shell to use for the RUN command. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#shell). |
 | `cache` | [Cache](#cache)[] | The cache definitions during the run. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#run---mounttypecache). |
 | `bind` | [Bind](#bind)[] | The file system bindings during the run. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#run---mounttypebind). |
 
