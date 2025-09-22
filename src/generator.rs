@@ -784,10 +784,10 @@ impl DockerfileGenerator for Run {
         let mut lines = vec![];
 
         // Shell
-        if let Some(shell) = &self.shell {
+        if !self.shell.is_empty() {
             lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
                 command: "SHELL".into(),
-                content: shell.clone(),
+                content: string_vec_into(self.shell.to_vec()),
                 options: vec![],
             }));
         }
