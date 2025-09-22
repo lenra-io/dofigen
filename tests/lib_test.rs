@@ -732,7 +732,7 @@ run: echo "Hello World !"
         .unwrap();
     let mut generation_context = GenerationContext::from(dofigen);
     let dockerfile: String = generation_context.generate_dockerfile().unwrap();
-    
+
     assert_eq_sorted!(
         dockerfile,
         r#"# syntax=docker/dockerfile:1.11
