@@ -1,5 +1,63 @@
-use crate::deserialize::*;
-use crate::dofigen_struct::*;
+let parts: Vec<&str> = s.split(" ").collect();
+if parts.len() < 3 {
+    let target = parts.last().cloned();
+    let paths = if parts.len() > 1 {
+        parts[..parts.len() - 1].to_vec()
+    } else {
+        parts.clone()
+    };
+
+    Ok(Self {
+        paths: Some(paths.into_patch()),
+        options: Some(CopyOptionsPatch {
+            target: Some(target.map(|s| s.to_string())),
+            chmod: Some(None),
+            chown: Some(None),
+            link: Some(None),
+        }),
+        from: Some(FromContextPatch::default()),
+        exclude: Some(VecPatch::default()),
+        parents: Some(None),
+    })
+} else {
+    let target = parts.last().cloned();
+    let paths = if parts.len() > 1 {
+        parts[..parts.len() - 1].to_vec()
+    } else {
+        parts.clone()
+    };
+
+    let from_context = if let Some(context_part) = parts.first() {
+        if context_part.contains('@') {
+            let context_parts: Vec<&str> = context_part.split('@').collect();
+            let context_type = context_parts[0];
+            let context_name = context_parts[1];
+
+            match context_type {
+                "builder" => FromContextPatch::FromBuilder(context_name.to_string()),
+                "image" => FromContextPatch::FromImage(ImageNamePatch::from_str(context_name).unwrap().into()),
+                _ => FromContextPatch::FromContext(Some(context_name.to_string())),
+            }
+        } else {
+            FromContextPatch::default()
+        }
+    } else {
+        FromContextPatch::default()
+    };
+
+    Ok(Self {
+        paths: Some(paths.into_patch()),
+        options: Some(CopyOptionsPatch {
+            target: Some(target.map(|s| s.to_string())),
+            chmod: Some(None),
+            chown: Some(None),
+            link: Some(None),
+        }),
+        from: Some(from_context),
+        exclude: Some(VecPatch::default()),
+        parents: Some(None),
+    })
+}
 use regex::Regex;
 use serde::de::{value::Error, Error as DeError};
 use std::str::FromStr;
