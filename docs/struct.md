@@ -72,7 +72,52 @@ Here is an example of a simple patch that extends a base YAML file and specifies
 - fromImage: alpine
 ```
 
-This example demonstrates how to use the `extend` and `fromImage` fields to create a patch that builds upon an existing configuration and specifies a base image for the operations defined in the patch.
+## Map Patches
+
+Map patches in Dofigen allow you to modify key-value pairs in YAML maps. Here's how to specify map patches in the YAML structure:
+
+```yaml
+# Add or update a key-value pair
+key: value
+
+# Remove a key-value pair
+key: null
+```
+
+### Example
+
+Here's an example of a map patch that adds a new key-value pair and removes an existing one:
+
+```yaml
+# Add a new key-value pair
+new_key: new_value
+
+# Remove an existing key-value pair
+old_key: null
+```
+
+## Map Operations
+
+The patch system supports several types of map operations:
+
+- **Add**: Add new key-value pairs to the map
+- **Update**: Modify existing key-value pairs
+- **Remove**: Delete key-value pairs from the map
+
+### Example
+
+Here's an example of each type of map operation:
+
+```yaml
+# Add a new key-value pair
+new_key: new_value
+
+# Update an existing key-value pair
+existing_key: updated_value
+
+# Remove a key-value pair
+old_key: null
+```
 
 ## Stage
 
