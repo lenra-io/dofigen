@@ -120,6 +120,143 @@ existing_key: updated_value
 old_key: null
 ```
 
+## Complex Patches in YAML Structure
+
+### Examples of Nested Patches
+
+#### Example 1: Nested Map Patch
+
+**Original YAML:**
+
+```yaml
+config:
+  database:
+    host: localhost
+    port: 5432
+  logging:
+    level: info
+```
+
+**Patch YAML:**
+
+```yaml
+config:
+  database:
+    port: 3306
+  logging:
+    level: debug
+```
+
+**Resulting YAML:**
+
+```yaml
+config:
+  database:
+    host: localhost
+    port: 3306
+  logging:
+    level: debug
+```
+
+#### Example 2: Nested Array Patch
+
+**Original YAML:**
+
+```yaml
+users:
+  - name: Alice
+    roles:
+      - admin
+      - user
+  - name: Bob
+    roles:
+      - user
+```
+
+**Patch YAML:**
+
+```yaml
+users:
+  0:
+    roles:
+      +:
+        - manager
+  1:
+    roles:
+      0: guest
+```
+
+**Resulting YAML:**
+
+```yaml
+users:
+  - name: Alice
+    roles:
+      - admin
+      - user
+      - manager
+  - name: Bob
+    roles:
+      - guest
+```
+
+#### Example 3: Complex Nested Structure Patch
+
+**Original YAML:**
+
+```yaml
+services:
+  web:
+    image: nginx
+    ports:
+      - 80:80
+    volumes:
+      - /data/web
+  db:
+    image: postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - /data/db
+```
+
+**Patch YAML:**
+
+```yaml
+services:
+  web:
+    ports:
+      0: 8080:80
+    volumes:
+      +:
+        - /logs/web
+  db:
+    image: mysql
+    ports:
+      0: 3306:3306
+    volumes:
+      0: /data/mysql
+```
+
+**Resulting YAML:**
+
+```yaml
+services:
+  web:
+    image: nginx
+    ports:
+      - 8080:80
+    volumes:
+      - /data/web
+      - /logs/web
+  db:
+    image: mysql
+    ports:
+      - 3306:3306
+    volumes:
+      - /data/mysql
+```
+
 ### Visual Representation
 
 ```mermaid
@@ -419,3 +556,164 @@ It can be parsed from string.
 | --- | --- | --- |
 | `port` | int | The port number. |
 | `protocol` | "tcp" or "udp" | The protocol of the port. |
+## Healthcheck
+
+This represents the Dockerfile healthcheck instruction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `cmd` | string | The test command to run. |
+| `interval` | string | The time between running the check (ms|s|m|h). |
+| `timeout` | string | The time to wait before considering the check to have hung (ms|s|m|h). |
+| `startPeriod` | string | The time to wait for the container to start before starting health-retries countdown (ms|s|m|h). |
+| `retries` | int | The number of consecutive failures needed to consider a container as unhealthy. |
+
+### Example
+
+Here's an example of a healthcheck definition:
+
+```yaml
+healthcheck:
+  cmd: curl -f http://localhost/health || exit 1
+  interval: 30s
+  timeout: 10s
+  startPeriod: 5s
+  retries: 3
+```
+
+## Complex Patches in YAML Structure
+
+### Examples of Nested Patches
+
+#### Example 1: Nested Map Patch
+
+**Original YAML:**
+
+```yaml
+config:
+  database:
+    host: localhost
+    port: 5432
+  logging:
+    level: info
+```
+
+**Patch YAML:**
+
+```yaml
+config:
+  database:
+    port: 3306
+  logging:
+    level: debug
+```
+
+**Resulting YAML:**
+
+```yaml
+config:
+  database:
+    host: localhost
+    port: 3306
+  logging:
+    level: debug
+```
+
+#### Example 2: Nested Array Patch
+
+**Original YAML:**
+
+```yaml
+users:
+  - name: Alice
+    roles:
+      - admin
+      - user
+  - name: Bob
+    roles:
+      - user
+```
+
+**Patch YAML:**
+
+```yaml
+users:
+  0:
+    roles:
+      +:
+        - manager
+  1:
+    roles:
+      0: guest
+```
+
+**Resulting YAML:**
+
+```yaml
+users:
+  - name: Alice
+    roles:
+      - admin
+      - user
+      - manager
+  - name: Bob
+    roles:
+      - guest
+```
+
+#### Example 3: Complex Nested Structure Patch
+
+**Original YAML:**
+
+```yaml
+services:
+  web:
+    image: nginx
+    ports:
+      - 80:80
+    volumes:
+      - /data/web
+  db:
+    image: postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - /data/db
+```
+
+**Patch YAML:**
+
+```yaml
+services:
+  web:
+    ports:
+      0: 8080:80
+    volumes:
+      +:
+        - /logs/web
+  db:
+    image: mysql
+    ports:
+      0: 3306:3306
+    volumes:
+      0: /data/mysql
+```
+
+**Resulting YAML:**
+
+```yaml
+services:
+  web:
+    image: nginx
+    ports:
+      - 8080:80
+    volumes:
+      - /data/web
+      - /logs/web
+  db:
+    image: mysql
+    ports:
+      - 3306:3306
+    volumes:
+      - /data/mysql
+```
