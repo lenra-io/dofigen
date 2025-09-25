@@ -120,6 +120,17 @@ existing_key: updated_value
 old_key: null
 ```
 
+### Visual Representation
+
+```mermaid
+flowchart LR
+    A[Original Map] -->|Add| B[New Key-Value Pair]
+    A -->|Update| C[Updated Key-Value Pair]
+    A -->|Remove| D[Removed Key-Value Pair]
+```
+
+This diagram shows the three basic operations on a map: adding, updating, and removing key-value pairs.
+
 ## Map Patch Examples
 
 ### Example 1: Basic Map Patch
