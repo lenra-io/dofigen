@@ -109,6 +109,7 @@ The patch system supports several types of map operations:
 Here's an example of each type of map operation:
 
 ```yaml
+
 # Add a new key-value pair
 new_key: new_value
 
@@ -118,6 +119,101 @@ existing_key: updated_value
 # Remove a key-value pair
 old_key: null
 ```
+
+## Map Patch Examples
+
+### Example 1: Basic Map Patch
+
+**Before:**
+```yaml
+config:
+  debug: false
+  timeout: 30
+```
+
+**Patch:**
+```yaml
+config:
+  debug: true
+  timeout: 60
+```
+
+**After:**
+```yaml
+config:
+  debug: true
+  timeout: 60
+```
+
+### Example 2: Adding and Removing Key-Value Pairs
+
+**Before:**
+```yaml
+settings:
+  theme: dark
+  notifications: enabled
+```
+
+**Patch:**
+```yaml
+settings:
+  theme: light
+  notifications: null
+  language: en
+```
+
+**After:**
+```yaml
+settings:
+  theme: light
+  language: en
+```
+
+### Example 3: Complex Map Patch
+
+**Before:**
+```yaml
+services:
+  web:
+    image: nginx
+    ports:
+      - 80
+  db:
+    image: postgres
+    ports:
+      - 5432
+```
+
+**Patch:**
+```yaml
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - 80
+      - 443
+  cache:
+    image: redis
+    ports:
+      - 6379
+  db: null
+```
+
+**After:**
+```yaml
+services:
+  web:
+    image: nginx:latest
+    ports:
+      - 80
+      - 443
+  cache:
+    image: redis
+    ports:
+      - 6379
+```
+
+These examples demonstrate how map patches can be used to modify YAML structures effectively.
 
 ## Stage
 
