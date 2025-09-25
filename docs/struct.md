@@ -51,6 +51,29 @@ This let you extend a struct from local or remote files.
 | --- | --- | --- |
 | `extend` | string or string[] | The files to extend. |
 
+## Patch Structure
+
+The basic structure of a patch in Dofigen consists of several key fields that define how the patch should be applied to the target YAML structure. Here are the essential fields and their purposes:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `extend` | string or string[] | Specifies the files to extend. This can be a single file path or an array of file paths. |
+| `fromImage` | string | Indicates the base image to use for the patch. This field is used to specify the source image for operations like copying files or mounting caches. |
+
+### Example
+
+Here is an example of a simple patch that extends a base YAML file and specifies a base image:
+
+```yaml
+# Extend the base configuration from another file
+- extend: base.yml
+
+# Specify the base image for the patch
+- fromImage: alpine
+```
+
+This example demonstrates how to use the `extend` and `fromImage` fields to create a patch that builds upon an existing configuration and specifies a base image for the operations defined in the patch.
+
 ## Stage
 
 This represents a Dockerfile stage.
