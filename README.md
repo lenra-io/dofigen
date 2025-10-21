@@ -138,7 +138,7 @@ dofigen --help
 
 The structure of the Dofigen descriptor was created to be simpler than the Dockerfile.
 
-The JSON Schema of the Dofigen descriptor is available [here](./docs/dofigen.schema.json).
+The structure description is detailed [here](./docs/struct.md).
 
 Here is an example to generate the Dofigen Dockerfile:
 
