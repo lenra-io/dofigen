@@ -628,10 +628,9 @@ mod test {
             dependencies = lint_session.get_stage_recursive_dependencies("builder3".into());
             assert_eq_sorted!(dependencies, Vec::<String>::new());
 
-            let mut builders = lint_session.get_sorted_builders();
-            builders.sort();
+            let builders = lint_session.get_sorted_builders();
 
-            assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
+            assert_eq_sorted!(builders, vec!["builder3", "builder2", "builder1",]);
 
             assert_eq_sorted!(lint_session.messages, vec![]);
         }

@@ -470,7 +470,9 @@ impl DockerfileGenerator for Dofigen {
             DOCKERFILE_VERSION
         ))];
 
-        for name in context.lint_session.get_sorted_builders() {
+        let builder_names = context.lint_session.get_sorted_builders();
+
+        for name in builder_names {
             context.push_state(GenerationContextState {
                 stage_name: Some(name.clone()),
                 ..Default::default()
