@@ -754,23 +754,29 @@ fn builders_dependencies() {
     let yaml = r#"
 builders:
   install:
-    fromImage: oven/bun
+    fromImage:
+      path: oven/bun
     workdir: /app/
     # Copy project
     bind:
-      - package.json
+      - source: package.json
+        target: package.json
     # Install dependencies
     run:
       - bun install --production  --frozen-lockfile --verbose
     cache:
-      - /root/.bun/install/cache
+      - target: /root/.bun/install/cache
   build:
-    fromImage: oven/bun
+    fromImage:
+      path: oven/bun
     workdir: /app/apps/workflows
     copy:
-      - . /app/
+      - paths:
+          - .
+        target: /app/
       - fromBuilder: install
-        source: /app/node_modules
+        paths:
+          - /app/node_modules
         target: /app/node_modules
     env:
       NODE_ENV: production
@@ -778,47 +784,62 @@ builders:
       - bun build --compile --target bun  --sourcemap --format=cjs src/index.ts --outfile=app --external '@libsql/*' --external libsql
 
   docker:
-    fromImage: oven/bun
+    fromImage:
+      path: oven/bun
     workdir: /app/apps/workflows
     copy:
-      - . /app/
+      - paths:
+          - .
+        target: /app/
     run:
       - bun run src/build-docker.ts
 
   libsql:
-    fromImage: oven/bun
+    fromImage:
+      path: oven/bun
     workdir: /app/
     copy:
       - fromBuilder: docker
-        source: /app/apps/build-docker/package.json
+        paths:
+          - /app/apps/build-docker/package.json
         target: /app/package.json
     run:
       - bun install
 
   ca-certs:
-    fromImage: debian:bullseye-slim
-    run: 
+    fromImage: 
+      path: debian
+      tag: bullseye-slim
+    run:
       - apt update && apt install -y ca-certificates && update-ca-certificates
 
-fromImage: debian:bullseye-slim
+fromImage:
+  path: debian
+  tag: bullseye-slim
 workdir: /app/
 copy:
   - fromBuilder: build
-    source: /app/apps/workflows/app
+    paths:
+      - /app/apps/workflows/app
     target: /app/apps/workflows/
     chmod: "555"
   - fromBuilder: libsql
-    source: /app/node_modules
+    paths:
+      - /app/node_modules
     target: /app/packages/db/node_modules
   - fromBuilder: libsql
-    source: /app/node_modules
+    paths:
+      - /app/node_modules
     target: /app/node_modules
   - fromBuilder: ca-certs
-    source: /etc/ssl/certs/ca-certificates.crt
+    paths:
+      - /etc/ssl/certs/ca-certificates.crt
     target: /etc/ssl/certs/
-expose: 3000
-entrypoint: /app/apps/workflows/app
-  "#;
+expose:
+  - port: 3000
+entrypoint:
+  - /app/apps/workflows/app
+"#;
     let dofigen: Dofigen = DofigenContext::new()
         .parse_from_string(yaml)
         .map_err(Error::from)
