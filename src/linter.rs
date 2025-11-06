@@ -338,7 +338,7 @@ impl LintSession {
     }
 
     pub fn get_sorted_builders(&mut self) -> Vec<String> {
-        let mut stages: Vec<(String, Vec<String>)> = self
+        let mut stages: HashMap<String, Vec<String>> = self
             .stage_infos
             .clone()
             .keys()
@@ -350,20 +350,37 @@ impl LintSession {
             })
             .collect();
 
-        stages.sort_by(|(a_stage, a_deps), (b_stage, b_deps)| {
-            if a_deps.contains(b_stage) {
-                return std::cmp::Ordering::Greater;
-            }
-            if b_deps.contains(a_stage) {
-                return std::cmp::Ordering::Less;
-            }
-            a_stage.cmp(b_stage)
-        });
+        let mut sorted: Vec<String> = vec![];
 
-        stages
+        loop {
+            let mut part: Vec<String> = stages
+                .extract_if(|_name, deps| deps.is_empty())
+                .map(|(name, _deps)| name)
+                .collect();
+
+            if part.is_empty() {
+                // TODO: log circular dependency
+                break;
+            }
+
+            part.sort();
+
+            for name in part.iter() {
+                for deps in stages.values_mut() {
+                    deps.retain(|dep| dep != name);
+                }
+            }
+
+            sorted.append(&mut part);
+
+            if stages.is_empty() {
+                break;
+            }
+        }
+
+        sorted
             .into_iter()
-            .map(|(stage, _)| stage)
-            .filter(|name| *name != "runtime")
+            .filter(|name| name != "runtime")
             .collect()
     }
 
@@ -628,10 +645,9 @@ mod test {
             dependencies = lint_session.get_stage_recursive_dependencies("builder3".into());
             assert_eq_sorted!(dependencies, Vec::<String>::new());
 
-            let mut builders = lint_session.get_sorted_builders();
-            builders.sort();
+            let builders = lint_session.get_sorted_builders();
 
-            assert_eq_sorted!(builders, vec!["builder1", "builder2", "builder3"]);
+            assert_eq_sorted!(builders, vec!["builder3", "builder2", "builder1",]);
 
             assert_eq_sorted!(lint_session.messages, vec![]);
         }
@@ -763,8 +779,7 @@ mod test {
 
             let mut lint_session = LintSession::analyze(&dofigen);
 
-            let mut builders = lint_session.get_sorted_builders();
-            builders.sort();
+            let builders = lint_session.get_sorted_builders();
 
             assert_eq_sorted!(builders, Vec::<String>::new());
 
