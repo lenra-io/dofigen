@@ -373,7 +373,7 @@ impl LintSession {
 
             sorted.append(&mut part.clone());
 
-            if stages.len() == 0 {
+            if stages.is_empty() {
                 break;
             }
         }
