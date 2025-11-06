@@ -358,7 +358,7 @@ impl LintSession {
                 .map(|(name, _deps)| name)
                 .collect();
 
-            if part.len() == 0 {
+            if part.is_empty() {
                 // TODO: log circular dependency
                 break;
             }
