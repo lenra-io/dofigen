@@ -371,7 +371,7 @@ impl LintSession {
                 }
             }
 
-            sorted.append(&mut part.clone());
+            sorted.append(&mut part);
 
             if stages.is_empty() {
                 break;
