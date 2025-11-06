@@ -354,7 +354,7 @@ impl LintSession {
 
         loop {
             let mut part: Vec<String> = stages
-                .extract_if(|_name, deps| deps.len() == 0)
+                .extract_if(|_name, deps| deps.is_empty())
                 .map(|(name, _deps)| name)
                 .collect();
 
