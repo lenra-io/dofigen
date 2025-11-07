@@ -872,6 +872,12 @@ When patching arrays, Dofigen follows specific rules to ensure the integrity of 
 - **Remove Elements**: Elements can be removed from an array by specifying the index of the element to be removed.
 - **Replace Elements**: Existing elements can be replaced by specifying the index of the element to be replaced and the new value.
 
+### Array Patch Rules
+
+- **Add Elements**: You can add new elements to an array by specifying the position where the element should be inserted.
+- **Remove Elements**: Elements can be removed from an array by specifying the index of the element to be removed.
+- **Replace Elements**: Existing elements can be replaced by specifying the index of the element to be replaced and the new value.
+
 ### Array Patch Examples
 
 Here are some examples of how to patch arrays in Dofigen YAML files:
