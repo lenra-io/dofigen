@@ -617,6 +617,10 @@ Possible fields are:
 
 The `fromImage` field specifies the base image for a resource in Dofigen. It is used to define the starting point for Dockerfile generation, allowing you to build upon an existing image. This field is crucial for creating Dockerfiles that extend from specific base images, ensuring consistency and reusability across your Docker builds.
 
+### Patching and Overriding
+
+The `fromImage` field can be patched or overridden when extending other YAML files. This allows you to change the base image in an extended file, providing flexibility in your Dockerfile generation process. For example, you can override the base image in a specific stage of your Dockerfile to use a different version or variant of an image.
+
 ### Base Image Specification
 
 To use the `fromImage` field, you need to specify the image name and optionally a tag or digest. Here is an example of how to use it in a Dofigen file:
