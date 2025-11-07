@@ -8,7 +8,69 @@ Patches in Dofigen support several types of operations:
 
 These operations allow for precise control over the data structure, enabling targeted modifications that maintain the integrity of the configuration while allowing for flexibility and scalability.
 
-### Usage Example
+### Map Patching
+
+Map patching in Dofigen allows for precise modifications to key-value pairs within YAML structures. This process involves adding, removing, or updating key-value pairs in a map. The patching system ensures that changes are applied in a controlled manner, maintaining the integrity of the data structure.
+
+#### Adding Key-Value Pairs
+
+To add a new key-value pair to a map, you can use the following YAML syntax:
+
+```yaml
+map:
+  +key: value
+```
+
+This will add the key `key` with the value `value` to the map.
+
+#### Removing Key-Value Pairs
+
+To remove a key-value pair from a map, you can use the following YAML syntax:
+
+```yaml
+map:
+  -key: null
+```
+
+This will remove the key `key` from the map.
+
+#### Updating Key-Value Pairs
+
+To update the value of an existing key in a map, you can use the following YAML syntax:
+
+```yaml
+map:
+  key: new_value
+```
+
+This will update the value of the key `key` to `new_value`.
+
+### Example
+
+Here is an example of a YAML structure before and after applying map patches:
+
+**Before:**
+
+```yaml
+config:
+  version: 1.0
+  settings:
+    theme: dark
+    language: en
+```
+
+**After Applying Patches:**
+
+```yaml
+config:
+  version: 2.0
+  settings:
+    theme: light
+    +new_setting: enabled
+    -language: null
+```
+
+In this example, the version is updated, the theme is changed, a new setting is added, and the language setting is removed.
 
 Here's a practical example of creating and applying a patch to a data structure:
 
