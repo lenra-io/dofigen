@@ -1512,6 +1512,12 @@ This will replace the value of the key `key` with `new_value`.
 - **Remove Key-Value Pairs**: Key-value pairs can be removed from a map by specifying the key to be removed.
 - **Replace Key-Value Pairs**: Existing key-value pairs can be replaced by specifying the key and the new value.
 
+### Map Patch Rules
+
+- **Add Key-Value Pairs**: You can add new key-value pairs to a map by specifying the key and the value.
+- **Remove Key-Value Pairs**: Key-value pairs can be removed from a map by specifying the key to be removed.
+- **Replace Key-Value Pairs**: Existing key-value pairs can be replaced by specifying the key and the new value.
+
 ### Map Patch Examples
 
 ```yaml
