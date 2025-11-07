@@ -1,5 +1,48 @@
-# Dofigen struct reference
+### Patch Operations
 
+Patches in Dofigen support several types of operations:
+
+- **Insert**: Adds new data to the structure.
+- **Delete**: Removes existing data from the structure.
+- **Update**: Modifies the values of existing data.
+
+These operations allow for precise control over the data structure, enabling targeted modifications that maintain the integrity of the configuration while allowing for flexibility and scalability.
+
+### Usage Example
+
+Here's a practical example of creating and applying a patch to a data structure:
+
+#### Before Patch
+```yaml
+# Base YAML structure
+config:
+  version: 1.0
+  settings:
+    theme: dark
+    language: en
+```
+
+#### Patch
+```yaml
+# Patch to apply
+config:
+  settings:
+    theme: light
+    new_setting: enabled
+```
+
+#### After Patch
+```yaml
+# Resulting YAML structure after applying the patch
+config:
+  version: 1.0
+  settings:
+    theme: light
+    language: en
+    new_setting: enabled
+```
+
+## Dofigen
 
 This is the reference for the Dofigen configuration file structure.
 
