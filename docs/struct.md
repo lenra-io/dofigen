@@ -956,6 +956,24 @@ map:
   key: new_value
 ```
 
+
+
+Here are some examples of how to patch maps in Dofigen YAML files:
+
+```yaml
+# Add a key-value pair to a map
+map:
+  +key: value
+
+# Remove a key-value pair from a map
+map:
+  key: null
+
+# Replace a key-value pair in a map
+map:
+  key: new_value
+```
+
 ### Special Considerations
 
 - **Nested Maps**: When patching nested maps, you can specify the path to the key-value pair you want to modify.
