@@ -1,5 +1,519 @@
-### Patch Operations
+This let you extend a struct from local or remote files.
 
+
+The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
+
+
+The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `extend` | string or string[] | The files to extend. |
+
+
+### Usage Examples
+
+
+Basic extension:
+
+```yaml
+struct:
+  extend: "base.yaml"
+```
+
+Extending multiple files:
+
+```yaml
+struct:
+  extend:
+    - "base.yaml"
+    - "additional.yaml"
+```
+
+### Extension Process
+
+1. **Reference**: The `extend` field specifies the files to be extended.
+2. **Merge**: The referenced files are merged into the current file. If there are conflicts, the values in the current file take precedence.
+3. **Apply**: The merged configuration is applied to the struct, allowing you to build upon the base configurations defined in the extended files.
+
+
+## Extend
+
+The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
+
+### Usage Examples
+
+Basic extension:
+
+```yaml
+struct:
+  extend: "base.yaml"
+```
+
+Extending multiple files:
+
+```yaml
+struct:
+  extend:
+    - "base.yaml"
+    - "additional.yaml"
+```
+
+### Extension Process
+
+1. **Reference**: The `extend` field specifies the files to be extended.
+2. **Merge**: The referenced files are merged into the current file. If there are conflicts, the values in the current file take precedence.
+3. **Apply**: The merged configuration is applied to the struct, allowing you to build upon the base configurations defined in the extended files.
+
+
+### How the `extend` Field References Other YAML Files
+
+The `extend` field can reference both local and remote YAML files. Local files are specified using relative or absolute paths, while remote files are specified using URLs. The `extend` field can accept a single file path or an array of file paths, allowing you to extend from multiple files.
+
+
+### Syntax Examples
+
+
+#### Local File Extension
+
+```yaml
+struct:
+  extend: "path/to/local/file.yaml"
+```
+
+
+#### Remote File Extension
+
+```yaml
+struct:
+  extend: "https://example.com/path/to/remote/file.yaml"
+```
+
+
+#### Multiple File Extension
+
+```yaml
+struct:
+  extend:
+    - "path/to/local/file.yaml"
+    - "https://example.com/path/to/remote/file.yaml"
+```
+
+
+## Stage
+
+This represents a Dockerfile stage.
+
+
+It extends the [Run](#run) structure.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `from...` | [FromContext](#fromcontext) | The base of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#from). |
+| `label` | map<string, string> | Add metadata to an image. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#label) |
+| `user` | [User](#user) | The user and group of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#user). |
+| `workdir` | string | The working directory of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#workdir). |
+| `arg` | map<string, string> | The build args that can be used in the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#arg). |
+| `env` | map<string, string> | The environment variables of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#env). |
+| `copy` | [CopyResource](#copyresource) or [CopyResource](#copyresource)[] | The copy instructions of the stage. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#copy) and [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#add). |
+| `root` | [Run](#run) | The run instructions of the stage as root user. |
+
+
+## FromContext
+
+
+This represents a context origin.
+
+
+Possible fields are:
+
+
+- `fromImage` ([ImageName](#imagename)) : A Docker image.
+
+- `fromBuilder` (string) : A builder from the same Dofigen file.
+
+- `fromContext`: (string) : A Docker build context. See https://docs.docker.com/reference/cli/docker/buildx/build/#build-context
+
+
+## FromImage
+
+
+The `fromImage` field specifies the base image for a resource in Dofigen. It is used to define the starting point for Dockerfile generation, allowing you to build upon an existing image. This field is crucial for creating Dockerfiles that extend from specific base images, ensuring consistency and reusability across your Docker builds.
+
+
+### Usage
+
+
+To use the `fromImage` field, you need to specify the image name and optionally a tag or digest. Here is an example of how to use it in a Dofigen file:
+
+
+```yaml
+fromImage: nginx:latest
+```
+
+
+### Importance in Dockerfile Generation
+
+
+The `fromImage` field is essential in the Dockerfile generation process as it determines the base layer of your Docker image. It allows you to leverage existing images, reducing the amount of work needed to create a new image from scratch. By specifying a base image, you can ensure that your Dockerfile starts with a known and stable environment, making it easier to manage dependencies and configurations.
+
+
+## User
+
+
+This represents user and group definition.
+
+
+It can be parsed from string.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | string | The user name or ID. |
+| `group` | string | The group name or ID. |
+
+
+## CopyResource
+
+
+This represents the COPY/ADD instructions in a Dockerfile.
+
+
+It can be one of the following objects:
+
+
+- [Copy](#copy) : A copy instruction.
+
+- [CopyContent](#copycontent) : A copy instruction from file content.
+
+- [Add](#add) : An add instruction.
+
+- [AddGitRepo](#addgitrepo) : An add instruction from a git repository.
+
+
+## Run
+
+
+This represents a run command.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `run` | string or string[] | The commands to run. |
+| `cache` | [Cache](#cache)[] | The cache definitions during the run. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#run---mounttypecache). |
+| `bind` | [Bind](#bind)[] | The file system bindings during the run. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#run---mounttypebind). |
+
+
+## Cache
+
+
+This represents a cache definition during a run.
+
+
+It can be parsed from string.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | The id of the cache. This is used to share the cache between different stages. |
+| `target` | string | The target path of the cache. |
+| `readonly` | boolean | Defines if the cache is readonly. |
+| `sharing` | "shared" or "private" or "locked" | The sharing strategy of the cache. |
+| `from...` | [FromContext](#fromcontext) | The base of the cache mount. |
+| `source` | string | Subpath in the from to mount. |
+| `chmod` | string or integer | The permissions of the cache. |
+| `chown` | [User](#user) | The user and group that own the cache. |
+
+
+## Bind
+
+
+This represents file system binding during a run.
+
+
+It can be parsed from string.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `target` | string | The target path of the bind. |
+| `from...` | [FromContext](#fromcontext) | The base of the cache mount. |
+| `source` | string | Subpath in the from to mount. |
+| `readwrite` | boolean | Defines if the bind is read and write. |
+
+
+
+
+## Healthcheck
+
+
+This represents the Dockerfile healthcheck instruction.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `cmd` | string | The test command to run. |
+| `interval` | string | The time between running the check (ms|s|m|h). |
+| `timeout` | string | The time to wait before considering the check to have hung (ms|s|m|h). |
+| `startPeriod` | string | The time to wait for the container to start before starting health-retries countdown (ms|s|m|h). |
+| `retries` | int | The number of consecutive failures needed to consider a container as unhealthy. |
+
+
+## ImageName
+
+
+This represents a Docker image name.
+
+
+It can be parsed from string.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `host` | string | The host of the image registry. |
+| `port` | int | The port of the image registry. |
+| `path` | string | The path of the image repository. |
+
+
+The version of the image can also be set with one of the following fields:
+
+
+- `tag` : The tag of the image.
+
+- `digest` : The digest of the image.
+
+
+## Copy
+
+
+This represents the COPY instruction in a Dockerfile.
+
+
+It extends the [CopyOptions](#copyoptions) structure.
+
+
+Can be parsed from string.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `from...` | [FromContext](#fromcontext) | The origin of the copy. See https://docs.docker.com/reference/dockerfile/#copy---from |
+| `paths` | string[] | The paths to copy. |
+
+
+## CopyContent
+
+
+This represents the COPY instruction in a Dockerfile based on file content.
+
+
+It extends the [CopyOptions](#copyoptions) structure, but the target field is required.
+
+
+Can be parsed from string.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `content` | string | Content of the file to copy. |
+| `substitute` | boolean | If true, replace variables in the content at build time. Default is true. |
+
+
+## AddGitRepo
+
+
+This represents the ADD instruction in a Dockerfile specific for Git repositories.
+
+
+It extends the [CopyOptions](#copyoptions) structure.
+
+
+Can be parsed from string.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `repo` | string | The URL of the Git repository. |
+| `keepGitDir` | boolean | Keep the git directory. See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir |
+
+
+## Add
+
+
+This represents the ADD instruction in a Dockerfile for files from URLs or to uncompress an archive.
+
+
+It extends the [CopyOptions](#copyoptions) structure.
+
+
+Can be parsed from string.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `files` | string[] | The source files to add. |
+| `checksum` | string | The checksum of the files. See https://docs.docker.com/reference/dockerfile/#add---checksum |
+
+
+## CopyOptions
+
+
+This represents the options of a COPY/ADD instructions.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `target` | string | The target path of the copied files. |
+| `chown` | [User](#user) | The user and group that own the copied files. See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod |
+| `chmod` | string or integer | The permissions of the copied files. See https://docs.docker.com/reference/dockerfile/#copy---chown---chmod |
+| `link` | boolean | Use of the link flag. See https://docs.docker.com/reference/dockerfile/#copy---link |
+
+
+## Port
+
+
+This represents a port definition.
+
+
+It can be parsed from string.
+
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `port` | int | The port number. |
+| `protocol` | "tcp" or "udp" | The protocol of the port. |
+
+
+## Extend
+
+
+The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
+
+
+### Usage Examples
+
+
+Basic extension:
+
+```yaml
+struct:
+  extend: "base.yaml"
+```
+
+Extending multiple files:
+
+```yaml
+struct:
+  extend:
+    - "base.yaml"
+    - "additional.yaml"
+```
+
+
+### Extension Process
+
+
+1. **Reference**: The `extend` field specifies the files to be extended.
+2. **Merge**: The referenced files are merged into the current file. If there are conflicts, the values in the current file take precedence.
+3. **Apply**: The merged configuration is applied to the struct, allowing you to build upon the base configurations defined in the extended files.
+
+
+### How the `extend` Field References Other YAML Files
+
+
+The `extend` field can reference both local and remote YAML files. Local files are specified using relative or absolute paths, while remote files are specified using URLs. The `extend` field can accept a single file path or an array of file paths, allowing you to extend from multiple files.
+
+
+### Syntax Examples
+
+
+#### Local File Extension
+
+```yaml
+struct:
+  extend: "path/to/local/file.yaml"
+```
+
+
+#### Remote File Extension
+
+```yaml
+struct:
+  extend: "https://example.com/path/to/remote/file.yaml"
+```
+
+
+#### Multiple File Extension
+
+```yaml
+struct:
+  extend:
+    - "path/to/local/file.yaml"
+    - "https://example.com/path/to/remote/file.yaml"
+```
+
+
+### Practical Examples
+
+
+#### Example 1: Extending a Base Configuration
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+  user: "nginx"
+  workdir: "/usr/share/nginx/html"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  env:
+    NGINX_VERSION: "1.21.6"
+```
+
+
+#### Example 2: Overriding Specific Fields
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+  user: "nginx"
+  workdir: "/usr/share/nginx/html"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  fromImage: "nginx:alpine"
+  user: "root"
+```
+
+
+#### Example 3: Handling Complex Structures
+
+```yaml
+# base.yaml
+struct:
+  env:
+    - NGINX_VERSION: "1.21.6"
+    - APP_ENV: "production"
+  copy:
+    - source: "./config"
+      target: "/etc/nginx/conf.d"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  env:
+    - NGINX_VERSION: "1.22.0"
+    - APP_ENV: "staging"
+  copy:
+    - source: "./custom-config"
+      target: "/etc/nginx/conf.d"
+```
 Patches in Dofigen support several types of operations:
 
 - **Insert**: Adds new data to the structure.
