@@ -271,6 +271,22 @@ Possible fields are:
 - `fromBuilder` (string) : A builder from the same Dofigen file.
 - `fromContext`: (string) : A Docker build context. See https://docs.docker.com/reference/cli/docker/buildx/build/#build-context
 
+## FromImage
+
+The `fromImage` field specifies the base image for a resource in Dofigen. It is used to define the starting point for Dockerfile generation, allowing you to build upon an existing image. This field is crucial for creating Dockerfiles that extend from specific base images, ensuring consistency and reusability across your Docker builds.
+
+### Usage
+
+To use the `fromImage` field, you need to specify the image name and optionally a tag or digest. Here is an example of how to use it in a Dofigen file:
+
+```yaml
+fromImage: nginx:latest
+```
+
+### Importance in Dockerfile Generation
+
+The `fromImage` field is essential in the Dockerfile generation process as it determines the base layer of your Docker image. It allows you to leverage existing images, reducing the amount of work needed to create a new image from scratch. By specifying a base image, you can ensure that your Dockerfile starts with a known and stable environment, making it easier to manage dependencies and configurations.
+
 ## User
 
 This represents user and group definition.
