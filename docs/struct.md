@@ -637,6 +637,10 @@ These operations allow for precise control over the data structure, enabling tar
 
 Map patching in Dofigen allows for precise modifications to key-value pairs within YAML structures. This process involves adding, removing, or updating key-value pairs in a map. The patching system ensures that changes are applied in a controlled manner, maintaining the integrity of the data structure.
 
+### Map Patch Behavior
+
+Map patching in Dofigen YAML files allows you to modify key-value pairs in a map by adding, removing, or replacing them. This is particularly useful for managing configurations that involve dictionaries or objects, such as environment variables or settings.
+
 #### Adding Key-Value Pairs
 
 To add a new key-value pair to a map, you can use the following YAML syntax:
