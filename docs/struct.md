@@ -185,6 +185,8 @@ This let you extend a struct from local or remote files.
 
 The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
 
+The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
+
 
 | Field | Type | Description |
 | --- | --- | --- |
