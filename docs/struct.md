@@ -23,6 +23,40 @@ Patches in Dofigen support several types of operations:
 
 These operations allow for precise control over the data structure, enabling targeted modifications that maintain the integrity of the configuration while allowing for flexibility and scalability.
 
+### Merge Strategy
+
+Dofigen uses a strategic approach to resolve conflicts when multiple patches are applied to the same data structure. The strategy prioritizes the most recent patch, ensuring that the final configuration reflects the latest changes.
+
+### Usage Example
+
+Here is an example of how a patch is created and applied to a data structure:
+
+```yaml
+# Original data structure
+struct:
+  name: "example"
+  version: "1.0"
+
+# Patch to apply
+patch:
+  version: "2.0"
+  new_field: "added"
+
+# Resulting data structure after applying the patch
+struct:
+  name: "example"
+  version: "2.0"
+  new_field: "added"
+```
+
+Patches in Dofigen support several types of operations:
+
+- **Insert**: Adds new data to the structure.
+- **Delete**: Removes existing data from the structure.
+- **Update**: Modifies the values of existing data.
+
+These operations allow for precise control over the data structure, enabling targeted modifications that maintain the integrity of the configuration while allowing for flexibility and scalability.
+
 
 
 Dofigen uses a strategic approach to resolve conflicts when multiple patches are applied to the same data structure. The strategy prioritizes the most recent patch, ensuring that the final configuration reflects the latest changes.
