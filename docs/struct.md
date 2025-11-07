@@ -94,6 +94,33 @@ struct:
 
 The `extend` field can reference both local and remote YAML files. Local files are specified using relative or absolute paths, while remote files are specified using URLs. The `extend` field can accept a single file path or an array of file paths, allowing you to extend from multiple files.
 
+### Syntax Examples
+
+#### Local File Extension
+
+```yaml
+struct:
+  extend: "path/to/local/file.yaml"
+```
+
+#### Remote File Extension
+
+```yaml
+struct:
+  extend: "https://example.com/path/to/remote/file.yaml"
+```
+
+#### Multiple File Extension
+
+```yaml
+struct:
+  extend:
+    - "path/to/local/file.yaml"
+    - "https://example.com/path/to/remote/file.yaml"
+```
+
+The `extend` field can reference both local and remote YAML files. Local files are specified using relative or absolute paths, while remote files are specified using URLs. The `extend` field can accept a single file path or an array of file paths, allowing you to extend from multiple files.
+
 
 ### Syntax Examples
 
