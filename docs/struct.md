@@ -978,3 +978,20 @@ It can be parsed from string.
 | --- | --- | --- |
 | `port` | int | The port number. |
 | `protocol` | "tcp" or "udp" | The protocol of the port. |
+## Patch Operations
+
+Patches in Dofigen support several types of operations:
+
+- **Insert**: Adds new data to the structure.
+- **Delete**: Removes existing data from the structure.
+- **Update**: Modifies the values of existing data.
+
+These operations allow for precise control over the data structure, enabling targeted modifications that maintain the integrity of the configuration while allowing for flexibility and scalability.
+
+### Merge Strategy
+
+Dofigen uses a strategic approach to resolve conflicts when multiple patches are applied to the same data structure. The merge strategy prioritizes the most recent patch, ensuring that the final configuration reflects the latest changes. This approach maintains data integrity and allows for flexible updates without overwriting critical information. By applying patches in a controlled manner, Dofigen ensures that the configuration remains consistent and up-to-date.
+
+### Map Patching
+
+
