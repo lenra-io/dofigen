@@ -294,6 +294,35 @@ struct:
   fromImage: "nginx@sha256:abc123..."
 ```
 
+### Practical Examples
+
+#### Example 1: Basic Usage
+
+```yaml
+struct:
+  fromImage: "nginx:latest"
+```
+
+#### Example 2: Overriding the Base Image
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  fromImage: "nginx:alpine"
+```
+
+#### Example 3: Using a Specific Digest
+
+```yaml
+struct:
+  fromImage: "nginx@sha256:abc123..."
+```
+
 To use the `fromImage` field, you need to specify the image name and optionally a tag or digest. Here is an example of how to use it in a Dofigen file:
 
 ```yaml
