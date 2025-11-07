@@ -633,7 +633,7 @@ Patches in Dofigen support several types of operations:
 
 These operations allow for precise control over the data structure, enabling targeted modifications that maintain the integrity of the configuration while allowing for flexibility and scalability.
 
-### Map Patching
+## Map Patching
 
 Map patching in Dofigen allows for precise modifications to key-value pairs within YAML structures. This process involves adding, removing, or updating key-value pairs in a map. The patching system ensures that changes are applied in a controlled manner, maintaining the integrity of the data structure.
 
@@ -649,6 +649,15 @@ To add a new key-value pair to a map, you can use the following YAML syntax:
 map:
   +key: value
 ```
+
+### Special Considerations
+
+When patching maps in Dofigen, there are several special considerations to keep in mind:
+
+- **Nested Maps**: When patching nested maps, you can specify the path to the key-value pair you want to modify.
+- **Conflicting Keys**: Dofigen allows conflicting keys in maps, but you should ensure that the configuration logic can handle them appropriately.
+- **Empty Arrays**: When patching an empty array, you can add elements directly without specifying positions.
+- **Duplicate Elements**: Dofigen allows duplicate elements in arrays, but you should ensure that the configuration logic can handle duplicates appropriately.
 
 This will add the key `key` with the value `value` to the map.
 
