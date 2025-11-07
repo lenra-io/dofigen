@@ -1,4 +1,105 @@
-This let you extend a struct from local or remote files.
+### Extension Process
+
+1. **Reference**: The `extend` field specifies the files to be extended.
+2. **Merge**: The referenced files are merged into the current file. If there are conflicts, the values in the current file take precedence.
+3. **Apply**: The merged configuration is applied to the struct, allowing you to build upon the base configurations defined in the extended files.
+
+
+
+### How the `extend` Field References Other YAML Files
+
+The `extend` field can reference both local and remote YAML files. Local files are specified using relative or absolute paths, while remote files are specified using URLs. The `extend` field can accept a single file path or an array of file paths, allowing you to extend from multiple files.
+
+
+### Syntax Examples
+
+
+#### Local File Extension
+
+```yaml
+struct:
+  extend: "path/to/local/file.yaml"
+```
+
+
+#### Remote File Extension
+
+```yaml
+struct:
+  extend: "https://example.com/path/to/remote/file.yaml"
+```
+
+
+#### Multiple File Extension
+
+```yaml
+struct:
+  extend:
+    - "path/to/local/file.yaml"
+    - "https://example.com/path/to/remote/file.yaml"
+```
+
+
+### Practical Examples
+
+
+#### Example 1: Extending a Base Configuration
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+  user: "nginx"
+  workdir: "/usr/share/nginx/html"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  env:
+    NGINX_VERSION: "1.21.6"
+```
+
+
+#### Example 2: Overriding Specific Fields
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+  user: "nginx"
+  workdir: "/usr/share/nginx/html"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  fromImage: "nginx:alpine"
+  user: "root"
+```
+
+
+#### Example 3: Handling Complex Structures
+
+```yaml
+# base.yaml
+struct:
+  env:
+    - NGINX_VERSION: "1.21.6"
+    - APP_ENV: "production"
+  copy:
+    - source: "./config"
+      target: "/etc/nginx/conf.d"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  env:
+    - NGINX_VERSION: "1.22.0"
+    - APP_ENV: "staging"
+  copy:
+    - source: "./custom-config"
+      target: "/etc/nginx/conf.d"
+```
+
 
 
 The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
