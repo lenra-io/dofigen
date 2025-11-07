@@ -904,3 +904,24 @@ array:
 ### Map Patching
 
 
+## Array Patching
+
+This represents the patching of arrays in Dofigen YAML files.
+
+### Array Patch Examples
+
+Here are some examples of how to patch arrays in Dofigen YAML files:
+
+```yaml
+# Add an element to an array
+array:
+  +: "new_element"
+
+# Remove an element from an array
+array:
+  2: null
+
+# Replace an element in an array
+array:
+  1: "updated_element"
+```
