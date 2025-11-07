@@ -259,6 +259,72 @@ struct:
 2. **Merge**: The referenced files are merged into the current file. If there are conflicts, the values in the current file take precedence.
 3. **Apply**: The merged configuration is applied to the struct, allowing you to build upon the base configurations defined in the extended files.
 
+### Practical Examples
+
+#### Example 1: Extending a Base Configuration
+
+```yaml
+
+# base.yaml
+
+struct:
+  fromImage: "nginx:latest"
+  user: "nginx"
+  workdir: "/usr/share/nginx/html"
+
+# main.yaml
+
+struct:
+  extend: "base.yaml"
+  env:
+    NGINX_VERSION: "1.21.6"
+```
+
+#### Example 2: Overriding Specific Fields
+
+```yaml
+
+# base.yaml
+
+struct:
+  fromImage: "nginx:latest"
+  user: "nginx"
+  workdir: "/usr/share/nginx/html"
+
+# main.yaml
+
+struct:
+  extend: "base.yaml"
+  fromImage: "nginx:alpine"
+  user: "root"
+```
+
+#### Example 3: Handling Complex Structures
+
+```yaml
+
+# base.yaml
+
+struct:
+  env:
+    - NGINX_VERSION: "1.21.6"
+    - APP_ENV: "production"
+  copy:
+    - source: "./config"
+      target: "/etc/nginx/conf.d"
+
+# main.yaml
+
+struct:
+  extend: "base.yaml"
+  env:
+    - NGINX_VERSION: "1.22.0"
+    - APP_ENV: "staging"
+  copy:
+    - source: "./custom-config"
+      target: "/etc/nginx/conf.d"
+```
+
 
 ## Extend
 
