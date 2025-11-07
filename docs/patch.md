@@ -99,6 +99,35 @@ context:
   - /lib
 ```
 
+#### Remplacement complet explicite (`_`)
+
+Lorsque vous utilisez la syntaxe de map pour les opérations avancées, vous pouvez utiliser `_` pour remplacer explicitement tout le tableau.
+
+**Base:**
+```yaml
+run:
+  - echo "old1"
+  - echo "old2"
+```
+
+**Patch:**
+```yaml
+extend: base.yml
+run:
+  _:
+    - echo "new1"
+    - echo "new2"
+```
+
+**Résultat:**
+```yaml
+run:
+  - echo "new1"
+  - echo "new2"
+```
+
+**Note:** Cette opération ne peut pas être combinée avec d'autres opérations sur le même tableau.
+
 #### Ajout à la fin du tableau (`+`)
 
 **Base:**
