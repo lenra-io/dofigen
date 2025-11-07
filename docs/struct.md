@@ -1,4 +1,183 @@
-## Port
+## Extend
+
+The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
+
+### Usage Examples
+
+Basic extension:
+
+```yaml
+struct:
+  extend: "base.yaml"
+```
+
+Extending multiple files:
+
+```yaml
+struct:
+  extend:
+    - "base.yaml"
+    - "additional.yaml"
+```
+
+### Extension Process
+
+1. **Reference**: The `extend` field specifies the files to be extended.
+2. **Merge**: The referenced files are merged into the current file. If there are conflicts, the values in the current file take precedence.
+3. **Apply**: The merged configuration is applied to the struct, allowing you to build upon the base configurations defined in the extended files.
+
+### How the `extend` Field References Other YAML Files
+
+The `extend` field can reference both local and remote YAML files. Local files are specified using relative or absolute paths, while remote files are specified using URLs. The `extend` field can accept a single file path or an array of file paths, allowing you to extend from multiple files.
+
+### Syntax Examples
+
+#### Local File Extension
+
+```yaml
+struct:
+  extend: "path/to/local/file.yaml"
+```
+
+#### Remote File Extension
+
+```yaml
+struct:
+  extend: "https://example.com/path/to/remote/file.yaml"
+```
+
+#### Multiple File Extension
+
+```yaml
+struct:
+  extend:
+    - "path/to/local/file.yaml"
+    - "https://example.com/path/to/remote/file.yaml"
+```
+
+### Practical Examples
+
+#### Example 1: Extending a Base Configuration
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+  user: "nginx"
+  workdir: "/usr/share/nginx/html"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  env:
+    NGINX_VERSION: "1.21.6"
+```
+
+#### Example 2: Overriding Specific Fields
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+  user: "nginx"
+  workdir: "/usr/share/nginx/html"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  fromImage: "nginx:alpine"
+  user: "root"
+```
+
+#### Example 3: Handling Complex Structures
+
+```yaml
+# base.yaml
+struct:
+  env:
+    - NGINX_VERSION: "1.21.6"
+    - APP_ENV: "production"
+  copy:
+    - source: "./config"
+      target: "/etc/nginx/conf.d"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  env:
+    - NGINX_VERSION: "1.22.0"
+    - APP_ENV: "staging"
+  copy:
+    - source: "./custom-config"
+      target: "/etc/nginx/conf.d"
+```
+
+## Array Patching
+
+This represents the patching of arrays in Dofigen YAML files.
+
+### Array Patch Behavior
+
+Array patching in Dofigen YAML files allows you to modify elements in an array by adding, removing, or replacing them. This is particularly useful for managing configurations that involve lists or sequences, such as environment variables or settings.
+
+#### Adding Elements
+
+To add a new element to an array, you can use the following YAML syntax:
+
+```yaml
+array:
+  +: "new_element"
+```
+
+#### Removing Elements
+
+To remove an element from an array, you can use the following YAML syntax:
+
+```yaml
+array:
+  2: null
+```
+
+#### Replacing Elements
+
+To replace an element in an array, you can use the following YAML syntax:
+
+```yaml
+array:
+  1: "updated_element"
+```
+
+### Array Patch Rules
+
+Array patching in Dofigen follows specific rules and behaviors:
+
+- **Adding Elements**: Elements are added to the end of the array by default.
+- **Removing Elements**: Elements are removed by specifying their index and setting the value to `null`.
+- **Replacing Elements**: Elements are replaced by specifying their index and providing the new value.
+
+### Array Patch Examples
+
+Here are some examples of how to patch arrays in Dofigen YAML files:
+
+```yaml
+# Add an element to an array
+array:
+  +: "new_element"
+
+# Remove an element from an array
+array:
+  2: null
+
+# Replace an element in an array
+array:
+  1: "updated_element"
+```
+
+### Special Considerations
+
+- **Empty Arrays**: When patching an empty array, you can add elements directly without specifying positions.
+- **Duplicate Elements**: Dofigen allows duplicate elements in arrays, but you should ensure that the configuration logic can handle duplicates appropriately.
+
 
 This represents a port definition.
 
