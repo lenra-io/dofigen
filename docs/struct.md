@@ -860,23 +860,7 @@ In this example, the patch updates the `name` field, modifies the `theme` and `n
 
 ## Array Patching
 
-Array patching in Dofigen YAML files allows you to modify arrays (lists) by adding, removing, or replacing elements. This is particularly useful for managing configurations that involve lists of items, such as environment variables, command arguments, or network ports.
-
-### Array Patch Behavior
-
-When patching arrays, Dofigen follows specific rules to ensure the integrity of the data structure. The patching operations are applied in a specific order to maintain consistency and avoid conflicts.
-
-### Array Patch Rules
-
-- **Add Elements**: You can add new elements to an array by specifying the position where the element should be inserted.
-- **Remove Elements**: Elements can be removed from an array by specifying the index of the element to be removed.
-- **Replace Elements**: Existing elements can be replaced by specifying the index of the element to be replaced and the new value.
-
-### Array Patch Rules
-
-- **Add Elements**: You can add new elements to an array by specifying the position where the element should be inserted.
-- **Remove Elements**: Elements can be removed from an array by specifying the index of the element to be removed.
-- **Replace Elements**: Existing elements can be replaced by specifying the index of the element to be replaced and the new value.
+This represents the patching of arrays in Dofigen YAML files.
 
 ### Array Patch Examples
 
@@ -900,6 +884,80 @@ array:
 
 - **Empty Arrays**: When patching an empty array, you can add elements directly without specifying positions.
 - **Duplicate Elements**: Dofigen allows duplicate elements in arrays, but you should ensure that the configuration logic can handle duplicates appropriately.
+
+
+
+## Map Patching
+
+Map patching in Dofigen allows for precise modifications to key-value pairs within YAML structures. This process involves adding, removing, or updating key-value pairs in a map. The patching system ensures that changes are applied in a controlled manner, maintaining the integrity of the data structure.
+
+#### Adding Key-Value Pairs
+
+To add a new key-value pair to a map, you can use the following YAML syntax:
+
+```yaml
+map:
+  +key: value
+```
+
+This will add the key `key` with the value `value` to the map.
+
+#### Removing Key-Value Pairs
+
+To remove a key-value pair from a map, you can use the following YAML syntax:
+
+```yaml
+map:
+  key: null
+```
+
+This will remove the key `key` from the map.
+
+#### Replacing Key-Value Pairs
+
+To replace a key-value pair in a map, you can use the following YAML syntax:
+
+```yaml
+map:
+  key: new_value
+```
+
+This will replace the value of the key `key` with `new_value`.
+
+### Map Patch Behavior
+
+Map patching in Dofigen YAML files allows you to modify key-value pairs in a map by adding, removing, or replacing them. This is particularly useful for managing configurations that involve dictionaries or objects, such as environment variables or settings.
+
+### Map Patch Rules
+
+- **Add Key-Value Pairs**: You can add new key-value pairs to a map by specifying the key and the value.
+- **Remove Key-Value Pairs**: Key-value pairs can be removed from a map by specifying the key to be removed.
+- **Replace Key-Value Pairs**: Existing key-value pairs can be replaced by specifying the key and the new value.
+
+### Map Patch Examples
+
+Here are some examples of how to patch maps in Dofigen YAML files:
+
+```yaml
+# Add a key-value pair to a map
+map:
+  +key: value
+
+# Remove a key-value pair from a map
+map:
+  key: null
+
+# Replace a key-value pair in a map
+map:
+  key: new_value
+```
+
+### Special Considerations
+
+- **Nested Maps**: When patching nested maps, you can specify the path to the key-value pair you want to modify.
+- **Conflicting Keys**: Dofigen allows conflicting keys in maps, but you should ensure that the configuration logic can handle them appropriately.
+
+
 
 ### Map Patching
 
