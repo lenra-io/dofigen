@@ -1589,3 +1589,101 @@ struct:
 ```
 
 
+
+The `fromImage` field specifies the base image for a resource in Dofigen. It is used to define the starting point for Dockerfile generation, allowing you to build upon an existing image. This field is crucial for creating Dockerfiles that extend from specific base images, ensuring consistency and reusability across your Docker builds.
+
+### Purpose and Usage
+
+The `fromImage` field is essential in the Dockerfile generation process as it determines the base layer of your Docker image. It allows you to leverage existing images, reducing the amount of work needed to create a new image from scratch. By specifying a base image, you can ensure that your Dockerfile starts with a known and stable environment, making it easier to manage dependencies and configurations.
+
+### Base Image Specification
+
+To use the `fromImage` field, you need to specify the image name and optionally a tag or digest. Here is an example of how to use it in a Dofigen file:
+
+```yaml
+fromImage: nginx:latest
+```
+
+### Patching and Overriding
+
+The `fromImage` field can be patched or overridden when extending other YAML files. This allows you to change the base image in an extended file, providing flexibility in your Dockerfile generation process. For example, you can override the base image in a specific stage of your Dockerfile to use a different version or variant of an image.
+
+### Practical Examples
+
+#### Example 1: Basic Usage
+
+```yaml
+struct:
+  fromImage: "nginx:latest"
+```
+
+#### Example 2: Overriding the Base Image
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  fromImage: "nginx:alpine"
+```
+
+#### Example 3: Using a Specific Digest
+
+```yaml
+struct:
+  fromImage: "nginx@sha256:abc123..."
+```
+
+
+
+The `fromImage` field specifies the base image for a resource in Dofigen. It is used to define the starting point for Dockerfile generation, allowing you to build upon an existing image. This field is crucial for creating Dockerfiles that extend from specific base images, ensuring consistency and reusability across your Docker builds.
+
+### Purpose and Usage
+
+The `fromImage` field is essential in the Dockerfile generation process as it determines the base layer of your Docker image. It allows you to leverage existing images, reducing the amount of work needed to create a new image from scratch. By specifying a base image, you can ensure that your Dockerfile starts with a known and stable environment, making it easier to manage dependencies and configurations.
+
+### Base Image Specification
+
+To use the `fromImage` field, you need to specify the image name and optionally a tag or digest. Here is an example of how to use it in a Dofigen file:
+
+```yaml
+fromImage: nginx:latest
+```
+
+### Patching and Overriding
+
+The `fromImage` field can be patched or overridden when extending other YAML files. This allows you to change the base image in an extended file, providing flexibility in your Dockerfile generation process. For example, you can override the base image in a specific stage of your Dockerfile to use a different version or variant of an image.
+
+### Practical Examples
+
+#### Example 1: Basic Usage
+
+```yaml
+struct:
+  fromImage: "nginx:latest"
+```
+
+#### Example 2: Overriding the Base Image
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  fromImage: "nginx:alpine"
+```
+
+#### Example 3: Using a Specific Digest
+
+```yaml
+struct:
+  fromImage: "nginx@sha256:abc123..."
+```
+
+
