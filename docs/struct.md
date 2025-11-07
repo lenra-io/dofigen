@@ -1,4 +1,52 @@
-### Extension Process
+## Port
+
+This represents a port definition.
+
+It can be parsed from string.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `port` | int | The port number. |
+| `protocol` | "tcp" or "udp" | The protocol of the port. |
+
+## Patches
+
+Patches in Dofigen represent changes to data structures when extending YAML files. They allow you to modify existing configurations without duplicating them, providing flexibility in your Dockerfile generation process.
+
+### Patch Operations
+
+Patches can handle several types of operations:
+
+- **Insert**: Add new elements to data structures
+- **Delete**: Remove existing elements from data structures
+- **Update**: Modify existing elements in data structures
+
+### Merge Strategy
+
+Dofigen uses a strategic approach to resolve conflicts when multiple patches are applied to the same data structure. The strategy prioritizes the most recent patch, ensuring that the final configuration reflects the latest changes.
+
+### Usage Example
+
+Here is an example of how a patch is created and applied to a data structure:
+
+```yaml
+# Original data structure
+struct:
+  name: "example"
+  version: "1.0"
+
+# Patch to apply
+patch:
+  version: "2.0"
+  new_field: "added"
+
+# Resulting data structure after applying the patch
+struct:
+  name: "example"
+  version: "2.0"
+  new_field: "added"
+```
+
 
 1. **Reference**: The `extend` field specifies the files to be extended.
 2. **Merge**: The referenced files are merged into the current file. If there are conflicts, the values in the current file take precedence.
