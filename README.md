@@ -194,6 +194,8 @@ extend:
 user: 1001
 ```
 
+For more details on how the YAML structure patching works when extending files, including advanced array and map operations, see the [YAML Patch System Documentation](./docs/patch.md).
+
 ### The lock file
 
 Dofigen generates a lock file to keep the version of the Dofigen descriptor used to generate the Dockerfile.
