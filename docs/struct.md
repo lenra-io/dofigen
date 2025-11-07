@@ -3,6 +3,16 @@ This let you extend a struct from local or remote files.
 
 The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
 
+### How the `extend` Field Affects Structure and Data
+
+When you use the `extend` field, the referenced YAML files are merged into the current file. If there are conflicts, the values in the current file take precedence. This merging process affects the structure and data of the extended file in the following ways:
+
+- **Field Merging**: Simple fields are merged, with the current file's values overriding those from the extended files.
+- **Array Handling**: Arrays are concatenated. If the current file has an array field, the values from the extended files are appended to it.
+- **Map Handling**: Maps are merged, with the current file's key-value pairs overriding those from the extended files. If a key exists in both the current file and the extended file, the value from the current file is used.
+
+This merging process ensures that the extended file retains the structure and data from the referenced files while allowing for customization and extension.
+
 
 The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
 
