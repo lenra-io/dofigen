@@ -261,6 +261,45 @@ To use the `fromImage` field, you need to specify the image name and optionally 
 fromImage: nginx:latest
 ```
 
+### Patching and Overriding
+
+The `fromImage` field can be patched or overridden when extending other YAML files. This allows you to change the base image in an extended file, providing flexibility in your Dockerfile generation process. For example, you can override the base image in a specific stage of your Dockerfile to use a different version or variant of an image.
+
+### Practical Examples
+
+#### Example 1: Basic Usage
+
+```yaml
+struct:
+  fromImage: "nginx:latest"
+```
+
+#### Example 2: Overriding the Base Image
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  fromImage: "nginx:alpine"
+```
+
+#### Example 3: Using a Specific Digest
+
+```yaml
+struct:
+  fromImage: "nginx@sha256:abc123..."
+```
+
+To use the `fromImage` field, you need to specify the image name and optionally a tag or digest. Here is an example of how to use it in a Dofigen file:
+
+```yaml
+fromImage: nginx:latest
+```
+
 ### Valid Image Name Formats
 
 The `fromImage` field accepts various formats for specifying base images:
