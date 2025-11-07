@@ -41,6 +41,16 @@ The YAML patch system in Dofigen allows for extending and modifying YAML structu
 
 A patch in Dofigen represents a set of changes to be applied to a data structure. Patches can include operations such as adding new fields, removing existing fields, or modifying the values of existing fields. This allows for flexible and controlled modifications to YAML configurations without duplicating entire configurations. Patches are applied sequentially, with each patch operation modifying the data structure incrementally. This approach ensures that changes are made in a predictable and manageable way, making it easier to maintain and update configurations over time.
 
+### Patch Operations
+
+Patches in Dofigen support several types of operations:
+
+- **Insert**: Adds new data to the structure.
+- **Delete**: Removes existing data from the structure.
+- **Update**: Modifies the values of existing data.
+
+These operations allow for precise control over the data structure, enabling targeted modifications that maintain the integrity of the configuration while allowing for flexibility and scalability.
+
 
 ## Dofigen
 
