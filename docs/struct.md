@@ -37,6 +37,10 @@ For example, some objects can be parsed from string and all arrays can be parsed
 
 The YAML patch system in Dofigen allows for extending and modifying YAML structures by applying patches. This system is useful for reusing and modifying configurations without duplicating them.
 
+## Patches
+
+A patch in Dofigen represents a set of changes to be applied to a data structure. Patches can include operations such as adding new fields, removing existing fields, or modifying the values of existing fields. This allows for flexible and controlled modifications to YAML configurations without duplicating entire configurations. Patches are applied sequentially, with each patch operation modifying the data structure incrementally. This approach ensures that changes are made in a predictable and manageable way, making it easier to maintain and update configurations over time.
+
 
 ## Dofigen
 
