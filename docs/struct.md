@@ -253,6 +253,25 @@ Possible fields are:
 
 The `fromImage` field specifies the base image for a resource in Dofigen. It is used to define the starting point for Dockerfile generation, allowing you to build upon an existing image. This field is crucial for creating Dockerfiles that extend from specific base images, ensuring consistency and reusability across your Docker builds.
 
+### Base Image Specification
+
+To use the `fromImage` field, you need to specify the image name and optionally a tag or digest. Here is an example of how to use it in a Dofigen file:
+
+```yaml
+fromImage: nginx:latest
+```
+
+### Valid Image Name Formats
+
+The `fromImage` field accepts various formats for specifying base images:
+
+- **Simple Image Name**: `nginx`
+- **Image with Tag**: `nginx:latest`
+- **Image with Digest**: `nginx@sha256:abc123...`
+- **Full Image Reference**: `registry.example.com:5000/nginx:latest`
+
+These formats allow you to precisely specify the base image for your Dockerfile generation process.
+
 
 ### Usage
 
