@@ -858,6 +858,43 @@ struct:
 
 In this example, the patch updates the `name` field, modifies the `theme` and `notifications` settings, and adds a new `new_feature` field. The `version` field remains unchanged as it was not included in the patch.
 
+## Array Patching
+
+Array patching in Dofigen YAML files allows you to modify arrays (lists) by adding, removing, or replacing elements. This is particularly useful for managing configurations that involve lists of items, such as environment variables, command arguments, or network ports.
+
+### Array Patch Behavior
+
+When patching arrays, Dofigen follows specific rules to ensure the integrity of the data structure. The patching operations are applied in a specific order to maintain consistency and avoid conflicts.
+
+### Array Patch Rules
+
+- **Add Elements**: You can add new elements to an array by specifying the position where the element should be inserted.
+- **Remove Elements**: Elements can be removed from an array by specifying the index of the element to be removed.
+- **Replace Elements**: Existing elements can be replaced by specifying the index of the element to be replaced and the new value.
+
+### Array Patch Examples
+
+Here are some examples of how to patch arrays in Dofigen YAML files:
+
+```yaml
+# Add an element to an array
+array:
+  +: "new_element"
+
+# Remove an element from an array
+array:
+  2: null
+
+# Replace an element in an array
+array:
+  1: "updated_element"
+```
+
+### Special Considerations
+
+- **Empty Arrays**: When patching an empty array, you can add elements directly without specifying positions.
+- **Duplicate Elements**: Dofigen allows duplicate elements in arrays, but you should ensure that the configuration logic can handle duplicates appropriately.
+
 ### Map Patching
 
 
