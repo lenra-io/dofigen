@@ -179,7 +179,15 @@ array:
 - **Duplicate Elements**: Dofigen allows duplicate elements in arrays, but you should ensure that the configuration logic can handle duplicates appropriately.
 
 
-This represents a port definition.
+### Array Patch Rules
+
+Array patching in Dofigen follows specific rules and behaviors:
+
+- **Adding Elements**: Elements are added to the end of the array by default.
+- **Removing Elements**: Elements are removed by specifying their index and setting the value to `null`.
+- **Replacing Elements**: Elements are replaced by specifying their index and providing the new value.
+
+
 
 It can be parsed from string.
 
