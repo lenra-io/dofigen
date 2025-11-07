@@ -121,12 +121,35 @@ It extends the [Extend](#extend) and [Stage](#stage) structures.
 
 This let you extend a struct from local or remote files.
 
+The `extend` field allows you to reference and extend other YAML files, enabling you to reuse and modify configurations without duplicating them. This is particularly useful for maintaining consistency across multiple Dockerfile stages or for sharing common configurations between different projects.
+
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `extend` | string or string[] | The files to extend. |
 
 
+### Usage Examples
+
+Basic extension:
+```yaml
+struct:
+  extend: "base.yaml"
+```
+
+Extending multiple files:
+```yaml
+struct:
+  extend:
+    - "base.yaml"
+    - "additional.yaml"
+```
+
+### Extension Process
+
+1. **Reference**: The `extend` field specifies the YAML files to be extended.
+2. **Merge**: The referenced files are merged into the current file. If there are conflicts, the values in the current file take precedence.
+3. **Apply**: The merged configuration is applied to the struct, allowing you to build upon the base configurations defined in the extended files.
 ## Stage
 
 
