@@ -15,13 +15,15 @@ Patches in Dofigen represent changes to data structures when extending YAML file
 
 ### Patch Operations
 
-Patches can handle several types of operations:
+Patches in Dofigen support several types of operations:
 
-- **Insert**: Add new elements to data structures
-- **Delete**: Remove existing elements from data structures
-- **Update**: Modify existing elements in data structures
+- **Insert**: Adds new data to the structure.
+- **Delete**: Removes existing data from the structure.
+- **Update**: Modifies the values of existing data.
 
-### Merge Strategy
+These operations allow for precise control over the data structure, enabling targeted modifications that maintain the integrity of the configuration while allowing for flexibility and scalability.
+
+
 
 Dofigen uses a strategic approach to resolve conflicts when multiple patches are applied to the same data structure. The strategy prioritizes the most recent patch, ensuring that the final configuration reflects the latest changes.
 
