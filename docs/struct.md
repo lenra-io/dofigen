@@ -1014,3 +1014,121 @@ array:
 array:
   1: "updated_element"
 ```
+## Map Patching
+
+Map patching in Dofigen allows for precise modifications to key-value pairs within YAML structures. This process involves adding, removing, or updating key-value pairs in a map. The patching system ensures that changes are applied in a controlled manner, maintaining the integrity of the data structure.
+
+### Map Patch Behavior
+
+Map patching in Dofigen YAML files allows you to modify key-value pairs in a map by adding, removing, or replacing them. This is particularly useful for managing configurations that involve dictionaries or objects, such as environment variables or settings.
+
+#### Adding Key-Value Pairs
+
+To add a new key-value pair to a map, you can use the following YAML syntax:
+
+```yaml
+map:
+  +key: value
+```
+
+This will add the key `key` with the value `value` to the map.
+
+#### Removing Key-Value Pairs
+
+To remove a key-value pair from a map, you can use the following YAML syntax:
+
+```yaml
+map:
+  key: null
+```
+
+This will remove the key `key` from the map.
+
+#### Replacing Key-Value Pairs
+
+To replace a key-value pair in a map, you can use the following YAML syntax:
+
+```yaml
+map:
+  key: new_value
+```
+
+This will replace the value of the key `key` with `new_value`.
+
+### Map Patch Rules
+
+- **Add Key-Value Pairs**: You can add new key-value pairs to a map by specifying the key and the value.
+- **Remove Key-Value Pairs**: Key-value pairs can be removed from a map by specifying the key to be removed.
+- **Replace Key-Value Pairs**: Existing key-value pairs can be replaced by specifying the key and the new value.
+
+### Map Patch Examples
+
+```yaml
+# Add a key-value pair
+map:
+  +new_key: new_value
+
+# Remove a key-value pair
+map:
+  old_key: null
+
+# Replace a key-value pair
+map:
+  existing_key: updated_value
+```
+
+### Special Considerations
+
+- **Nested Maps**: When patching nested maps, ensure that the keys are correctly specified with dot notation for nested structures.
+- **Conflicting Keys**: If there are conflicting keys, the last patch operation will take precedence.
+
+## FromImage Field
+
+The `fromImage` field specifies the base image for a resource in Dofigen. It is used to define the starting point for Dockerfile generation, allowing you to build upon an existing image. This field is crucial for creating Dockerfiles that extend from specific base images, ensuring consistency and reusability across your Docker builds.
+
+### Purpose and Usage
+
+The `fromImage` field is essential in the Dockerfile generation process as it determines the base layer of your Docker image. It allows you to leverage existing images, reducing the amount of work needed to create a new image from scratch. By specifying a base image, you can ensure that your Dockerfile starts with a known and stable environment, making it easier to manage dependencies and configurations.
+
+### Base Image Specification
+
+To use the `fromImage` field, you need to specify the image name and optionally a tag or digest. Here is an example of how to use it in a Dofigen file:
+
+```yaml
+fromImage: nginx:latest
+```
+
+### Patching and Overriding
+
+The `fromImage` field can be patched or overridden when extending other YAML files. This allows you to change the base image in an extended file, providing flexibility in your Dockerfile generation process. For example, you can override the base image in a specific stage of your Dockerfile to use a different version or variant of an image.
+
+### Practical Examples
+
+#### Example 1: Basic Usage
+
+```yaml
+struct:
+  fromImage: "nginx:latest"
+```
+
+#### Example 2: Overriding the Base Image
+
+```yaml
+# base.yaml
+struct:
+  fromImage: "nginx:latest"
+
+# main.yaml
+struct:
+  extend: "base.yaml"
+  fromImage: "nginx:alpine"
+```
+
+#### Example 3: Using a Specific Digest
+
+```yaml
+struct:
+  fromImage: "nginx@sha256:abc123..."
+```
+
+
