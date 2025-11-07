@@ -992,6 +992,39 @@ These operations allow for precise control over the data structure, enabling tar
 
 Dofigen uses a strategic approach to resolve conflicts when multiple patches are applied to the same data structure. The merge strategy prioritizes the most recent patch, ensuring that the final configuration reflects the latest changes. This approach maintains data integrity and allows for flexible updates without overwriting critical information. By applying patches in a controlled manner, Dofigen ensures that the configuration remains consistent and up-to-date.
 
+### Usage Example
+
+Here's an example of how patches are created and applied to a data structure:
+
+```yaml
+# Base data structure
+base:
+  name: "Base Configuration"
+  version: "1.0"
+  settings:
+    theme: "dark"
+    notifications: true
+
+# Patch to apply
+patch:
+  name: "Updated Configuration"
+  settings:
+    theme: "light"
+    notifications: false
+    new_feature: true
+
+# Result after applying the patch
+result:
+  name: "Updated Configuration"
+  version: "1.0"
+  settings:
+    theme: "light"
+    notifications: false
+    new_feature: true
+```
+
+In this example, the patch updates the `name` field, modifies the `theme` and `notifications` settings, and adds a new `new_feature` field. The `version` field remains unchanged as it was not included in the patch.
+
 ### Map Patching
 
 
