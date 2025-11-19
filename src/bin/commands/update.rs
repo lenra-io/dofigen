@@ -6,8 +6,8 @@ use super::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile
 use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use dofigen_lib::{
-    lock::{Lock, LockFile},
     Error, Result,
+    lock::{Lock, LockFile},
 };
 
 #[derive(Args, Debug, Default, Clone)]

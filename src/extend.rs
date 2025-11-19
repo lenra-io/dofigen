@@ -1,10 +1,10 @@
 #[cfg(feature = "permissive")]
 use crate::OneOrMany;
-use crate::{dofigen_struct::*, DofigenContext, Error, Result};
+use crate::{DofigenContext, Error, Result, dofigen_struct::*};
 use relative_path::RelativePath;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
-use serde::{de::DeserializeOwned, Deserialize};
+use serde::{Deserialize, de::DeserializeOwned};
 use std::iter;
 use struct_patch::Merge;
 

@@ -2,8 +2,8 @@ use crate::errors::Error;
 
 use crate::lock::DEFAULT_PORT;
 use crate::{
-    dockerfile_struct::*, dofigen_struct::*, LintMessage, LintSession, Result, DOCKERFILE_VERSION,
-    FILE_HEADER_COMMENTS,
+    DOCKERFILE_VERSION, FILE_HEADER_COMMENTS, LintMessage, LintSession, Result,
+    dockerfile_struct::*, dofigen_struct::*,
 };
 
 pub const LINE_SEPARATOR: &str = " \\\n    ";
@@ -1158,7 +1158,7 @@ mod test {
     mod label {
         use std::collections::HashMap;
 
-        use crate::{lock::Lock, DofigenContext};
+        use crate::{DofigenContext, lock::Lock};
 
         use super::*;
 

@@ -201,7 +201,10 @@ Usage: dofigen <COMMAND>"#,
 
         let output = str::from_utf8(&output.stderr).unwrap().to_string();
 
-        assert_eq_sorted!(output, "error: error sending request for url (http://localhost:1/not-existing.yml)\n\tCaused by: client error (Connect)\n\tCaused by: tcp connect error\n\tCaused by: Connection refused (os error 111)\n");
+        assert_eq_sorted!(
+            output,
+            "error: error sending request for url (http://localhost:1/not-existing.yml)\n\tCaused by: client error (Connect)\n\tCaused by: tcp connect error\n\tCaused by: Connection refused (os error 111)\n"
+        );
 
         temp.close().unwrap();
     }

@@ -31,7 +31,7 @@ mod json_schema;
 mod linter;
 pub mod lock;
 #[cfg(feature = "json_schema")]
-use schemars::gen::*;
+use schemars::r#gen::*;
 pub use {
     context::*, deserialize::*, dofigen_struct::*, errors::*, extend::*,
     generator::GenerationContext, linter::*,
@@ -183,7 +183,7 @@ pub fn generate_json_schema() -> String {
         s.option_nullable = true;
         s.option_add_null_type = true;
     });
-    let gen = settings.into_generator();
-    let schema = gen.into_root_schema_for::<Extend<DofigenPatch>>();
+    let r#gen = settings.into_generator();
+    let schema = r#gen.into_root_schema_for::<Extend<DofigenPatch>>();
     serde_json::to_string_pretty(&schema).unwrap()
 }

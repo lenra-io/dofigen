@@ -82,7 +82,7 @@ fn test_cases() {
 
 #[test]
 fn test_load_url() {
-    use httptest::{matchers::*, responders::*, Expectation, Server};
+    use httptest::{Expectation, Server, matchers::*, responders::*};
     use url::Url;
 
     let test_case_dir = PathBuf::from("tests/cases/");

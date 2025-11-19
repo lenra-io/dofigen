@@ -5,7 +5,7 @@
 use crate::*;
 pub use clap::Args;
 use commands::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile};
-use dofigen_lib::{generate_effective_content, lock::Lock, DofigenContext, Error, Result};
+use dofigen_lib::{DofigenContext, Error, Result, generate_effective_content, lock::Lock};
 
 use crate::CliCommand;
 
