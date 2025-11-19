@@ -4,8 +4,7 @@ use crate::dofigen_struct::*;
 
 const WARN_MESSAGE_FROM_CONTEXT: &str =
     "Prefer to use fromImage and fromBuilder instead of fromContext";
-const WARN_MESSAGE_FROM_CONTEXT_UNLESS: &str =
-    "(unless it's really from a build context: https://docs.docker.com/reference/cli/docker/buildx/build/#build-context)";
+const WARN_MESSAGE_FROM_CONTEXT_UNLESS: &str = "(unless it's really from a build context: https://docs.docker.com/reference/cli/docker/buildx/build/#build-context)";
 
 #[derive(Debug, Clone, PartialEq)]
 struct StageDependency {

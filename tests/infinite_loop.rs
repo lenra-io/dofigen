@@ -14,7 +14,10 @@ fn test_self_loop() {
 
     assert_eq_sorted!(
         error.to_string(),
-        format!("Circular dependency detected while loading resource File(\"{path}\") -> File(\"{path}\")", path = path.to_str().unwrap())
+        format!(
+            "Circular dependency detected while loading resource File(\"{path}\") -> File(\"{path}\")",
+            path = path.to_str().unwrap()
+        )
     );
 }
 
@@ -30,7 +33,10 @@ fn test_self_relative_loop() {
 
     assert_eq_sorted!(
         error.to_string(),
-        format!("Circular dependency detected while loading resource File(\"{path}\") -> File(\"{path}\")", path = path.to_str().unwrap())
+        format!(
+            "Circular dependency detected while loading resource File(\"{path}\") -> File(\"{path}\")",
+            path = path.to_str().unwrap()
+        )
     );
 }
 
@@ -46,7 +52,10 @@ fn test_self_relative_from_parent_loop() {
 
     assert_eq_sorted!(
         error.to_string(),
-        format!("Circular dependency detected while loading resource File(\"{path}\") -> File(\"{path}\")", path = path.to_str().unwrap())
+        format!(
+            "Circular dependency detected while loading resource File(\"{path}\") -> File(\"{path}\")",
+            path = path.to_str().unwrap()
+        )
     );
 }
 
@@ -66,7 +75,9 @@ fn test_a_b_loop() {
 
     assert_eq_sorted!(
         error.to_string(),
-        format!("Circular dependency detected while loading resource File(\"{a_path}\") -> File(\"{b_path}\") -> File(\"{a_path}\")")
+        format!(
+            "Circular dependency detected while loading resource File(\"{a_path}\") -> File(\"{b_path}\") -> File(\"{a_path}\")"
+        )
     );
 }
 
@@ -90,6 +101,8 @@ fn test_stack_size() {
 
     assert_eq_sorted!(
         error.to_string(),
-        format!("Max load stack size exceeded while loading resource File(\"{base_path}\") -> {stack_files}")
+        format!(
+            "Max load stack size exceeded while loading resource File(\"{base_path}\") -> {stack_files}"
+        )
     );
 }

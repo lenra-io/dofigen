@@ -2,8 +2,8 @@ use colored::{Color, Colorize};
 use serde::Deserialize;
 
 use crate::{
-    lock::{DockerTag, ResourceVersion, DEFAULT_NAMESPACE, DOCKER_HUB_HOST},
     Dofigen, DofigenPatch, Error, Extend, ImageName, ImageVersion, Resource, Result,
+    lock::{DEFAULT_NAMESPACE, DOCKER_HUB_HOST, DockerTag, ResourceVersion},
 };
 use std::{
     collections::{HashMap, HashSet},

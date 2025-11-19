@@ -1,7 +1,7 @@
-use crate::{dofigen_struct::*, Error};
+use crate::{Error, dofigen_struct::*};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de};
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, HashMap},
@@ -351,7 +351,7 @@ where
             VecDeepPatchCommand::Patch(pos, _) => {
                 return Err(Error::Custom(format!(
                     "VecPatch don't allow patching on {pos}: '{pos}<'"
-                )))
+                )));
             }
             VecDeepPatchCommand::InsertBefore(pos, v) => VecPatchCommand::InsertBefore(pos, v),
             VecDeepPatchCommand::InsertAfter(pos, v) => VecPatchCommand::InsertAfter(pos, v),
@@ -615,7 +615,10 @@ where
                         panic!("Position {} is out of bounds", pos);
                     }
                     if pos == last_modified_position {
-                        panic!("Cannot replace element at position {} after another modification on it", pos);
+                        panic!(
+                            "Cannot replace element at position {} after another modification on it",
+                            pos
+                        );
                     }
                     for i in current_position..=pos {
                         current_position = i;
@@ -731,7 +734,10 @@ where
                         panic!("Position {} is out of bounds", pos);
                     }
                     if pos == last_modified_position {
-                        panic!("Cannot replace element at position {} after another modification on it", pos);
+                        panic!(
+                            "Cannot replace element at position {} after another modification on it",
+                            pos
+                        );
                     }
                     for i in current_position..=pos {
                         current_position = i;

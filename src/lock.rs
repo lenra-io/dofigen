@@ -1,4 +1,4 @@
-use crate::{dofigen_struct::*, DofigenContext, Error, Result};
+use crate::{DofigenContext, Error, Result, dofigen_struct::*};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

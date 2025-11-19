@@ -1,7 +1,7 @@
 use crate::deserialize::*;
 use crate::dofigen_struct::*;
 use regex::Regex;
-use serde::de::{value::Error, Error as DeError};
+use serde::de::{Error as DeError, value::Error};
 use std::str::FromStr;
 use struct_patch::Patch;
 use url::Url;

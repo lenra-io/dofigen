@@ -1,6 +1,6 @@
 use crate::deserialize::*;
 ///! This module provides a custom implementation of `JsonSchema`.
-use schemars::{schema::*, JsonSchema};
+use schemars::{JsonSchema, SchemaGenerator, schema::*};
 #[cfg(feature = "permissive")]
 use std::str::FromStr;
 use struct_patch::Patch;
@@ -14,7 +14,7 @@ where
         format!("ParsableStruct<{}>", T::schema_name())
     }
 
-    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
         SchemaObject {
             metadata: Some(Box::new(Metadata {
                 title: Some(Self::schema_name()),
@@ -42,7 +42,7 @@ where
         format!("OneOrMany<{}>", T::schema_name())
     }
 
-    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
         let type_ref: Schema = generator.subschema_for::<T>();
         SchemaObject {
             metadata: Some(Box::new(Metadata {
@@ -77,7 +77,7 @@ where
         format!("VecPatch<{}>", T::schema_name())
     }
 
-    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
         let type_ref: Schema = generator.subschema_for::<T>();
         let array_schema: Schema = SchemaObject {
             array: Some(Box::new(ArrayValidation {
@@ -137,7 +137,7 @@ where
         format!("VecDeepPatch<{}>", P::schema_name())
     }
 
-    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
         let type_schema: Schema = generator.subschema_for::<P>();
         let array_schema: Schema = SchemaObject {
             array: Some(Box::new(ArrayValidation {
@@ -199,7 +199,7 @@ where
         format!("HashMapPatch<{}, {}>", K::schema_name(), V::schema_name())
     }
 
-    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
         SchemaObject {
             metadata: Some(Box::new(Metadata {
                 title: Some(Self::schema_name()),
@@ -233,7 +233,7 @@ where
         )
     }
 
-    fn json_schema(generator: &mut schemars::gen::SchemaGenerator) -> Schema {
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
         SchemaObject {
             metadata: Some(Box::new(Metadata {
                 title: Some(Self::schema_name()),

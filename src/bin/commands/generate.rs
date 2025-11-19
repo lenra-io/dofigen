@@ -7,8 +7,8 @@ use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use colored::{Color, Colorize};
 use dofigen_lib::{
-    lock::{Lock, LockFile},
     DofigenContext, Error, GenerationContext, MessageLevel, Result,
+    lock::{Lock, LockFile},
 };
 use std::{fs, path::PathBuf};
 
