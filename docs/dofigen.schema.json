@@ -1,6 +1,8 @@
 {
+  "$id": "https://json.schemastore.org/dofigen.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Dofigen",
+  "description": "Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format",
   "type": "object",
   "properties": {
     "arg": {
@@ -9,7 +11,7 @@
           "$ref": "#/definitions/HashMapPatch_string_string"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -20,7 +22,7 @@
           "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Bind"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -31,7 +33,7 @@
           "$ref": "#/definitions/HashMapDeepPatch_string_Stage"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -42,7 +44,7 @@
           "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Cache"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -53,7 +55,7 @@
           "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -64,7 +66,7 @@
           "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -75,7 +77,7 @@
           "$ref": "#/definitions/VecDeepPatch_ParsableStruct_CopyResourcePatch"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -86,7 +88,7 @@
           "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -97,7 +99,7 @@
           "$ref": "#/definitions/HashMapPatch_string_string"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -108,7 +110,7 @@
           "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Port"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -122,7 +124,7 @@
           "$ref": "#/definitions/Healthcheck"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -133,7 +135,7 @@
           "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -144,7 +146,7 @@
           "$ref": "#/definitions/NestedMap"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -155,7 +157,7 @@
           "$ref": "#/definitions/Run"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -166,7 +168,7 @@
           "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -177,7 +179,7 @@
           "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -188,7 +190,7 @@
           "$ref": "#/definitions/ParsableStruct_User"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -199,13 +201,16 @@
           "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
     },
     "workdir": {
-      "type": "string",
+      "type": [
+        "string",
+        "null"
+      ],
       "default": null,
       "nullable": true
     }
@@ -239,7 +244,10 @@
           "type": "object",
           "properties": {
             "fromContext": {
-              "type": "string",
+              "type": [
+                "string",
+                "null"
+              ],
               "nullable": true
             }
           },
@@ -257,12 +265,18 @@
       "type": "object",
       "properties": {
         "checksum": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "chmod": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
@@ -272,7 +286,7 @@
               "$ref": "#/definitions/User"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -283,18 +297,24 @@
               "$ref": "#/definitions/VecPatch_Resource"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
         },
         "link": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "target": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }
@@ -306,7 +326,10 @@
       "type": "object",
       "properties": {
         "chmod": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
@@ -316,7 +339,7 @@
               "$ref": "#/definitions/User"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -327,28 +350,40 @@
               "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
         },
         "keepGitDir": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "link": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "repo": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "target": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }
@@ -360,17 +395,26 @@
       "type": "object",
       "properties": {
         "readwrite": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "source": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "target": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }
@@ -404,7 +448,10 @@
               "type": "object",
               "properties": {
                 "fromContext": {
-                  "type": "string",
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "nullable": true
                 }
               },
@@ -422,7 +469,10 @@
       "type": "object",
       "properties": {
         "chmod": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
@@ -432,18 +482,24 @@
               "$ref": "#/definitions/User"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
         },
         "id": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "readonly": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
@@ -453,19 +509,25 @@
               "$ref": "#/definitions/CacheSharing"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ],
           "default": null
         },
         "source": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "target": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }
@@ -499,7 +561,10 @@
               "type": "object",
               "properties": {
                 "fromContext": {
-                  "type": "string",
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "nullable": true
                 }
               },
@@ -526,7 +591,10 @@
       "type": "object",
       "properties": {
         "chmod": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
@@ -536,7 +604,7 @@
               "$ref": "#/definitions/User"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -547,7 +615,7 @@
               "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -556,12 +624,18 @@
         "fromContext": true,
         "fromImage": true,
         "link": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "parents": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
@@ -571,13 +645,16 @@
               "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
         },
         "target": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }
@@ -612,7 +689,10 @@
               "type": "object",
               "properties": {
                 "fromContext": {
-                  "type": "string",
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "nullable": true
                 }
               },
@@ -630,7 +710,10 @@
       "type": "object",
       "properties": {
         "chmod": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
@@ -640,28 +723,40 @@
               "$ref": "#/definitions/User"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
         },
         "content": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "link": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "substitute": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "target": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }
@@ -697,7 +792,7 @@
               "$ref": "#/definitions/Stage"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -709,7 +804,10 @@
       "type": "object",
       "patternProperties": {
         "^.+$": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "nullable": true
         }
       }
@@ -719,30 +817,44 @@
       "type": "object",
       "properties": {
         "cmd": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "interval": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "retries": {
-          "type": "integer",
-          "format": "uint16",
+          "type": [
+            "integer",
+            "null"
+          ],
           "default": null,
           "maximum": 65535,
           "minimum": 0,
           "nullable": true
         },
         "start": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "timeout": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }
@@ -756,18 +868,26 @@
       "properties": {
         "digest": true,
         "host": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "path": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "port": {
-          "type": "integer",
-          "format": "uint16",
+          "type": [
+            "integer",
+            "null"
+          ],
           "default": null,
           "maximum": 65535,
           "minimum": 0,
@@ -822,7 +942,7 @@
           "$ref": "#/definitions/NestedMap"
         },
         {
-          "const": null,
+          "type": "null",
           "nullable": true
         }
       ]
@@ -912,8 +1032,10 @@
       "type": "object",
       "properties": {
         "port": {
-          "type": "integer",
-          "format": "uint16",
+          "type": [
+            "integer",
+            "null"
+          ],
           "default": null,
           "maximum": 65535,
           "minimum": 0,
@@ -925,7 +1047,7 @@
               "$ref": "#/definitions/PortProtocol"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ],
@@ -964,7 +1086,7 @@
               "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Bind"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -975,7 +1097,7 @@
               "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Cache"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -986,7 +1108,7 @@
               "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -997,7 +1119,7 @@
               "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1014,7 +1136,7 @@
               "$ref": "#/definitions/HashMapPatch_string_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1025,7 +1147,7 @@
               "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Bind"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1036,7 +1158,7 @@
               "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Cache"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1047,7 +1169,7 @@
               "$ref": "#/definitions/VecDeepPatch_ParsableStruct_CopyResourcePatch"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1058,7 +1180,7 @@
               "$ref": "#/definitions/HashMapPatch_string_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1069,7 +1191,7 @@
               "$ref": "#/definitions/NestedMap"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1080,7 +1202,7 @@
               "$ref": "#/definitions/Run"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1091,7 +1213,7 @@
               "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1102,7 +1224,7 @@
               "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1113,13 +1235,16 @@
               "$ref": "#/definitions/ParsableStruct_User"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
         },
         "workdir": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }
@@ -1153,7 +1278,10 @@
               "type": "object",
               "properties": {
                 "fromContext": {
-                  "type": "string",
+                  "type": [
+                    "string",
+                    "null"
+                  ],
                   "nullable": true
                 }
               },
@@ -1171,7 +1299,10 @@
       "type": "object",
       "properties": {
         "chmod": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
@@ -1181,7 +1312,7 @@
               "$ref": "#/definitions/User"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
@@ -1192,18 +1323,24 @@
               "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "const": null,
+              "type": "null",
               "nullable": true
             }
           ]
         },
         "link": {
-          "type": "boolean",
+          "type": [
+            "boolean",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "target": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }
@@ -1214,12 +1351,18 @@
       "type": "object",
       "properties": {
         "group": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         },
         "user": {
-          "type": "string",
+          "type": [
+            "string",
+            "null"
+          ],
           "default": null,
           "nullable": true
         }

@@ -179,14 +179,21 @@ pub fn generate_effective_content(dofigen: &Dofigen) -> Result<String> {
 /// This is useful to validate the structure and IDE autocompletion.
 #[cfg(feature = "json_schema")]
 pub fn generate_json_schema() -> String {
+    use std::ptr::null;
+
     use schemars::{
         generate::SchemaSettings,
-        transform::{AddNullable, Transform},
+        transform::{AddNullable, RestrictFormats, Transform},
     };
 
     let settings = SchemaSettings::draft07();
     let generator = settings.into_generator();
     let mut schema = generator.into_root_schema_for::<Extend<DofigenPatch>>();
-    AddNullable::default().transform(&mut schema);
+    let mut nullable = AddNullable::default();
+    nullable.add_const_null = false;
+    nullable.remove_null_type = false;
+    nullable.transform(&mut schema);
+    let mut restrcit_formats = RestrictFormats::default();
+    restrcit_formats.transform(&mut schema);
     serde_json::to_string_pretty(&schema).unwrap()
 }

@@ -18,7 +18,12 @@ use url::Url;
     feature = "json_schema",
     patch(
         attribute(derive(JsonSchema)),
-        attribute(schemars(title = "Dofigen", rename = "Dofigen"))
+        attribute(schemars(
+            title = "Dofigen",
+            rename = "Dofigen",
+            extend("$id" = "https://json.schemastore.org/dofigen.json"),
+            description = "Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format"
+        ))
     )
 )]
 pub struct Dofigen {
