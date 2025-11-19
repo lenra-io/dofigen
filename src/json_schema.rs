@@ -9,32 +9,22 @@ impl<T> JsonSchema for ParsableStruct<T>
 where
     T: Clone + JsonSchema + FromStr,
 {
-    fn schema_name() -> Cow<'static, str> {
+    fn schema_id() -> Cow<'static, str> {
         format!("ParsableStruct<{}>", T::schema_name()).into()
     }
 
-    fn json_schema(_generator: &mut SchemaGenerator) -> Schema {
+    fn schema_name() -> Cow<'static, str> {
+        format!("ParsableStruct_{}", T::schema_name()).into()
+    }
+
+    fn json_schema(generator: &mut SchemaGenerator) -> Schema {
         json_schema!({
+            "title": Self::schema_id(),
             "oneOf": [
-                { "$ref": format!("#/definitions/{}", T::schema_name()) },
-                { "type": "string" }
+                generator.subschema_for::<T>(),
+                generator.subschema_for::<String>(),
             ]
         })
-        // SchemaObject {
-        //     metadata: Some(Box::new(Metadata {
-        //         title: Some(Self::schema_name()),
-        //         ..Default::default()
-        //     })),
-        //     subschemas: Some(Box::new(SubschemaValidation {
-        //         one_of: Some(vec![
-        //             generator.subschema_for::<T>(),
-        //             String::json_schema(generator),
-        //         ]),
-        //         ..Default::default()
-        //     })),
-        //     ..Default::default()
-        // }
-        // .into()
     }
 }
 
@@ -43,43 +33,24 @@ impl<T> JsonSchema for OneOrMany<T>
 where
     T: Clone + JsonSchema,
 {
-    fn schema_name() -> Cow<'static, str> {
+    fn schema_id() -> Cow<'static, str> {
         format!("OneOrMany<{}>", T::schema_name()).into()
+    }
+    fn schema_name() -> Cow<'static, str> {
+        format!("OneOrMany_{}", T::schema_name()).into()
     }
 
     fn json_schema(generator: &mut SchemaGenerator) -> Schema {
         json_schema!({
+            "title": Self::schema_id(),
             "oneOf": [
-                { "$ref": format!("#/definitions/{}", T::schema_name()) },
+                generator.subschema_for::<T>(),
                 {
                     "type": "array",
-                    "items": { "$ref": format!("#/definitions/{}", T::schema_name()) }
+                    "items": generator.subschema_for::<T>()
                 }
             ]
         })
-        // let type_ref: Schema = generator.subschema_for::<T>();
-        // SchemaObject {
-        //     metadata: Some(Box::new(Metadata {
-        //         title: Some(Self::schema_name()),
-        //         ..Default::default()
-        //     })),
-        //     subschemas: Some(Box::new(SubschemaValidation {
-        //         one_of: Some(vec![
-        //             type_ref.clone(),
-        //             SchemaObject {
-        //                 array: Some(Box::new(ArrayValidation {
-        //                     items: Some(SingleOrVec::Single(Box::new(type_ref))),
-        //                     ..Default::default()
-        //                 })),
-        //                 ..Default::default()
-        //             }
-        //             .into(),
-        //         ]),
-        //         ..Default::default()
-        //     })),
-        //     ..Default::default()
-        // }
-        // .into()
     }
 }
 
@@ -87,78 +58,46 @@ impl<T> JsonSchema for VecPatch<T>
 where
     T: Clone + JsonSchema,
 {
-    fn schema_name() -> Cow<'static, str> {
+    fn schema_id() -> Cow<'static, str> {
         format!("VecPatch<{}>", T::schema_name()).into()
+    }
+    fn schema_name() -> Cow<'static, str> {
+        format!("VecPatch_{}", T::schema_name()).into()
     }
 
     fn json_schema(generator: &mut SchemaGenerator) -> Schema {
-        let t_ref = format!("#/definitions/{}", T::schema_name());
-        json_schema!({
-            "oneOf": [
-                { "$ref": t_ref },
-                {
-                    "type": "array",
-                    "items": { "$ref": t_ref }
-                },
-                {
-                    "type": "object",
-                    "patternProperties": {
-                        "^\\d+$": { "$ref": t_ref },
-                        "^\\+$": {
-                            "type": "array",
-                            "items": { "$ref": t_ref }
-                        }
-                    }
-                }
-            ]
-        })
-        // let type_ref: Schema = generator.subschema_for::<T>();
-        // let array_schema: Schema = SchemaObject {
-        //     array: Some(Box::new(ArrayValidation {
-        //         items: Some(SingleOrVec::Single(Box::new(type_ref.clone()))),
-        //         ..Default::default()
-        //     })),
-        //     ..Default::default()
-        // }
-        // .into();
+        let type_schema = generator.subschema_for::<T>();
+        let array_schema = json_schema!({
+            "type": "array",
+            "items": type_schema
+        });
+        let patterns_schema = json_schema!({
+            "type": "object",
+            "patternProperties": {
+                // ReplaceAll
+                r"_": array_schema,
+                // Replace
+                r"^\d+$": type_schema,
+                // InsertBefore
+                r"^\+\d+$": array_schema,
+                // InsertAfter
+                r"^\d+\+$": array_schema,
+                // Append
+                r"^\+$": array_schema,
+            }
+        });
 
-        // SchemaObject {
-        //     metadata: Some(Box::new(Metadata {
-        //         title: Some(Self::schema_name()),
-        //         ..Default::default()
-        //     })),
-        //     subschemas: Some(Box::new(SubschemaValidation {
-        //         one_of: Some(vec![
-        //             #[cfg(feature = "permissive")]
-        //             type_ref.clone(),
-        //             array_schema.clone(),
-        //             SchemaObject {
-        //                 object: Some(Box::new(ObjectValidation {
-        //                     pattern_properties: vec![
-        //                         // ReplaceAll
-        //                         (String::from(r"_"), array_schema.clone()),
-        //                         // Replace
-        //                         (String::from(r"^\d+$"), type_ref),
-        //                         // InsertBefore
-        //                         (String::from(r"^\+\d+$"), array_schema.clone()),
-        //                         // InsertAfter
-        //                         (String::from(r"^\d+\+$"), array_schema.clone()),
-        //                         // Append
-        //                         (String::from(r"^\+$"), array_schema),
-        //                     ]
-        //                     .into_iter()
-        //                     .collect(),
-        //                     ..Default::default()
-        //                 })),
-        //                 ..Default::default()
-        //             }
-        //             .into(),
-        //         ]),
-        //         ..Default::default()
-        //     })),
-        //     ..Default::default()
-        // }
-        // .into()
+        let one_of = vec![
+            #[cfg(feature = "permissive")]
+            type_schema,
+            array_schema,
+            patterns_schema,
+        ];
+
+        json_schema!({
+            "title": Self::schema_id(),
+            "oneOf": one_of
+        })
     }
 }
 
@@ -167,81 +106,48 @@ where
     T: Clone + Patch<P> + From<P>,
     P: Clone + JsonSchema,
 {
-    fn schema_name() -> Cow<'static, str> {
+    fn schema_id() -> Cow<'static, str> {
         format!("VecDeepPatch<{}>", P::schema_name()).into()
+    }
+    fn schema_name() -> Cow<'static, str> {
+        format!("VecDeepPatch_{}", P::schema_name()).into()
     }
 
     fn json_schema(generator: &mut SchemaGenerator) -> Schema {
-        let p_ref = format!("#/definitions/{}", P::schema_name());
+        let type_schema = generator.subschema_for::<P>();
+        let array_schema = json_schema!({
+            "type": "array",
+            "items": type_schema
+        });
+        let patterns_schema = json_schema!({
+            "type": "object",
+            "patternProperties": {
+                // ReplaceAll
+                r"_": array_schema,
+                // Replace
+                r"^\d+$": type_schema,
+                // Patch
+                r"^\d+<$": type_schema,
+                // InsertBefore
+                r"^\+\d+$": array_schema,
+                // InsertAfter
+                r"^\d+\+$": array_schema,
+                // Append
+                r"^\+$": array_schema,
+            }
+        });
+
+        let one_of = vec![
+            #[cfg(feature = "permissive")]
+            type_schema,
+            array_schema,
+            patterns_schema,
+        ];
+
         json_schema!({
-            "oneOf": [
-                { "$ref": p_ref },
-                {
-                    "type": "array",
-                    "items": { "$ref": p_ref }
-                },
-                {
-                    "type": "object",
-                    "patternProperties": {
-                        "^\\d+$": { "$ref": p_ref },
-                        "^\\+$": {
-                            "type": "array",
-                            "items": { "$ref": p_ref }
-                        }
-                    }
-                }
-            ]
+            "title": Self::schema_id(),
+            "oneOf": one_of
         })
-
-        // let type_schema: Schema = generator.subschema_for::<P>();
-        // let array_schema: Schema = SchemaObject {
-        //     array: Some(Box::new(ArrayValidation {
-        //         items: Some(SingleOrVec::Single(Box::new(type_schema.clone()))),
-        //         ..Default::default()
-        //     })),
-        //     ..Default::default()
-        // }
-        // .into();
-
-        // SchemaObject {
-        //     metadata: Some(Box::new(Metadata {
-        //         title: Some(Self::schema_name()),
-        //         ..Default::default()
-        //     })),
-        //     subschemas: Some(Box::new(SubschemaValidation {
-        //         one_of: Some(vec![
-        //             #[cfg(feature = "permissive")]
-        //             type_schema.clone(),
-        //             array_schema.clone(),
-        //             SchemaObject {
-        //                 object: Some(Box::new(ObjectValidation {
-        //                     pattern_properties: vec![
-        //                         // ReplaceAll
-        //                         (String::from(r"_"), array_schema.clone()),
-        //                         // Replace
-        //                         (String::from(r"^\d+$"), type_schema.clone()),
-        //                         // Patch
-        //                         (String::from(r"^\d+<$"), type_schema.clone()),
-        //                         // InsertBefore
-        //                         (String::from(r"^\+\d+$"), array_schema.clone()),
-        //                         // InsertAfter
-        //                         (String::from(r"^\d+\+$"), array_schema.clone()),
-        //                         // Append
-        //                         (String::from(r"^\+$"), array_schema),
-        //                     ]
-        //                     .into_iter()
-        //                     .collect(),
-        //                     ..Default::default()
-        //                 })),
-        //                 ..Default::default()
-        //             }
-        //             .into(),
-        //         ]),
-        //         ..Default::default()
-        //     })),
-        //     ..Default::default()
-        // }
-        // .into()
     }
 }
 
@@ -250,37 +156,21 @@ where
     K: Clone + Eq + std::hash::Hash + JsonSchema,
     V: Clone + JsonSchema,
 {
-    fn schema_name() -> Cow<'static, str> {
+    fn schema_id() -> Cow<'static, str> {
         format!("HashMapPatch<{}, {}>", K::schema_name(), V::schema_name()).into()
+    }
+    fn schema_name() -> Cow<'static, str> {
+        format!("HashMapPatch_{}_{}", K::schema_name(), V::schema_name()).into()
     }
 
     fn json_schema(generator: &mut SchemaGenerator) -> Schema {
-        let v_ref = format!("#/definitions/{}", V::schema_name());
-
         json_schema!({
+            "title": Self::schema_id(),
             "type": "object",
             "patternProperties": {
-                "^.+$": { "$ref": v_ref }
+                "^.+$": generator.subschema_for::<Option<V>>()
             }
         })
-
-        // SchemaObject {
-        //     metadata: Some(Box::new(Metadata {
-        //         title: Some(Self::schema_name()),
-        //         ..Default::default()
-        //     })),
-        //     object: Some(Box::new(ObjectValidation {
-        //         pattern_properties: vec![(
-        //             String::from(r"^.+$"),
-        //             generator.subschema_for::<Option<V>>(),
-        //         )]
-        //         .into_iter()
-        //         .collect(),
-        //         ..Default::default()
-        //     })),
-        //     ..Default::default()
-        // }
-        // .into()
     }
 }
 
@@ -289,7 +179,7 @@ where
     K: Clone + Eq + std::hash::Hash + JsonSchema,
     V: Clone + JsonSchema,
 {
-    fn schema_name() -> Cow<'static, str> {
+    fn schema_id() -> Cow<'static, str> {
         format!(
             "HashMapDeepPatch<{}, {}>",
             K::schema_name(),
@@ -297,32 +187,17 @@ where
         )
         .into()
     }
+    fn schema_name() -> Cow<'static, str> {
+        format!("HashMapDeepPatch_{}_{}", K::schema_name(), V::schema_name()).into()
+    }
 
     fn json_schema(generator: &mut SchemaGenerator) -> Schema {
-        let v_ref = format!("#/definitions/{}", V::schema_name());
         json_schema!({
+            "title": Self::schema_id(),
             "type": "object",
             "patternProperties": {
-                "^.+$": { "$ref": v_ref }
+                "^.+$": generator.subschema_for::<Option<V>>()
             }
         })
-
-        // SchemaObject {
-        //     metadata: Some(Box::new(Metadata {
-        //         title: Some(Self::schema_name()),
-        //         ..Default::default()
-        //     })),
-        //     object: Some(Box::new(ObjectValidation {
-        //         pattern_properties: vec![(
-        //             String::from(r"^.+$"),
-        //             generator.subschema_for::<Option<V>>(),
-        //         )]
-        //         .into_iter()
-        //         .collect(),
-        //         ..Default::default()
-        //     })),
-        //     ..Default::default()
-        // }
-        // .into()
     }
 }
