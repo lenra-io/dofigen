@@ -15,7 +15,7 @@ struct StageDependency {
 }
 
 macro_rules! linter_path {
-    ($session:expr, $part:expr, $block:block) => {
+    ($session:expr_2021, $part:expr_2021, $block:block) => {
         $session.push_path_part($part);
         $block
         $session.pop_path_part();

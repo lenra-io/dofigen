@@ -11,7 +11,7 @@ const GIT_SSH_REPO_REGEX: &str = "[a-zA-Z0-9_-]+@[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_
 const URL_REGEX: &str = "https?://(?:.+@)?[a-zA-Z0-9_-]+(?:\\.[a-zA-Z0-9_-]+)+(/[a-zA-Z0-9_.-]+)*";
 
 macro_rules! impl_parsable_patch {
-    ($struct:ty, $patch:ty, $param:ident, $expression:expr) => {
+    ($struct:ty, $patch:ty, $param:ident, $expression:expr_2021) => {
         impl Patch<ParsableStruct<$patch>> for $struct {
             fn apply(&mut self, patch: ParsableStruct<$patch>) {
                 self.apply(patch.0);

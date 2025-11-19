@@ -1278,7 +1278,7 @@ where
 
 // Can't use merge on option since it removes the previous value if it's none
 macro_rules! merge_option_patch {
-    ($opt_a: expr, $opt_b: expr) => {
+    ($opt_a: expr_2021, $opt_b: expr_2021) => {
         match ($opt_a, $opt_b) {
             (Some(a), Some(b)) => Some(a.merge(b)),
             (Some(a), None) => Some(a),
