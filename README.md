@@ -27,6 +27,7 @@
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 [![Crates.io][crate-shield]][crate-url]
+[![Twitch][twitch-shield]][twitch-url]
 
 <img alt="Dofigen logo" src="./logo.svg" width="256" style="margin: 20px 0" /> 
 
@@ -280,3 +281,5 @@ Project Link: [https://github.com/lenra-io/dofigen](https://github.com/lenra-io/
 [license-url]: https://github.com/lenra-io/dofigen/blob/master/LICENSE.txt
 [crate-shield]: https://img.shields.io/crates/v/dofigen.svg?style=for-the-badge
 [crate-url]: https://crates.io/crates/dofigen
+[twitch-shield]: https://img.shields.io/twitch/status/lenra4devs?logo=twitch&logoColor=white&style=for-the-badge
+[twitch-url]: https://twitch.tv/lenra4devs
