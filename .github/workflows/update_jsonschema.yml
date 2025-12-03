@@ -27,7 +27,7 @@ jobs:
           -H "X-GitHub-Api-Version: 2022-11-28" \
           https://api.github.com/repos/lenra-io/schemastore/merge-upstream \
           -d '{"branch":"master"}'
-    - name: Create Update branch
+    - name: Delete Update branch (if exists)
       shell: bash
       run: |
         curl -L -fs \
@@ -36,6 +36,9 @@ jobs:
           -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           https://api.github.com/repos/lenra-io/schemastore/git/refs/heads/update || echo "Branch does not exist, continuing..."
+    - name: Create Update branch
+      shell: bash
+      run: |
         export MASTER_SHA="$(curl -L -fs \
           -H "Accept: application/vnd.github+json" \
           -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" \
