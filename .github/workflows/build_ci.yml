@@ -244,7 +244,7 @@ jobs:
       version: ${{ needs.get-version.outputs.version }}
       changelog: ${{ needs.get-version.outputs.changelog }}
       prerelease: ${{ needs.get-version.outputs.channel != '' }}
-
+      with-artifact-path: dofigen-*
 
   publish-cargo:
     name: Publish Cargo
