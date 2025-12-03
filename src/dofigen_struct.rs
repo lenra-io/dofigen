@@ -42,6 +42,13 @@ pub struct Dofigen {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
 
+    /// The global build args of the Dockerfile
+    /// See: https://docs.docker.com/build/building/variables/#scoping
+    #[patch(name = "HashMapPatch<String, String>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "globalArgs"))))]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub global_arg: HashMap<String, String>,
+
     /// The builder stages of the Dockerfile
     #[patch(name = "HashMapDeepPatch<String, StagePatch>")]
     #[serde(skip_serializing_if = "HashMap::is_empty")]

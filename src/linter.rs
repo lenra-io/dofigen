@@ -1183,6 +1183,49 @@ mod test {
                 }
             ]);
         }
+
+        #[test]
+        fn with_global_arg() {
+            let dofigen = Dofigen {
+                global_arg: HashMap::from([("VERSION".into(), "21".into())]),
+                stage: Stage {
+                    from: FromContext::FromContext(Some("eclipse-temurin:${VERSION}".into())),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let lint_session = LintSession::analyze(&dofigen);
+
+            assert_eq_sorted!(lint_session.messages, vec![]);
+        }
+
+        #[test]
+        fn from_image_with_global_arg() {
+            let dofigen = Dofigen {
+                global_arg: HashMap::from([("VERSION".into(), "21".into())]),
+                stage: Stage {
+                    from: FromContext::FromImage(ImageName {
+                        path: "eclipse-temurin".into(),
+                        version: Some(ImageVersion::Tag("${VERSION}".into())),
+                        ..Default::default()
+                    }),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+
+            let lint_session = LintSession::analyze(&dofigen);
+
+            assert_eq_sorted!(lint_session.messages, vec![LintMessage {
+                    level: MessageLevel::Warn,
+                    path: vec![
+                        "fromImage".into(),
+                        "tag".into(),
+                    ],
+                    message: "Prefer to use fromContext when using global arg.".into(),
+                }]);
+        }
     }
 
     mod run {
