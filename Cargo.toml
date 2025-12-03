@@ -23,7 +23,7 @@ path = "src/bin/main.rs"
 required-features = ["cli"]
 
 [features]
-default = ["cli", "permissive"]
+default = ["cli", "permissive", "json_schema"]
 cli = ["clap"]
 json_schema = ["schemars", "serde_json"]
 permissive = []
@@ -35,7 +35,7 @@ serde_yaml = "0.9.34"
 serde_json = { version = "1.0.142", optional = true }
 thiserror = "2.0"
 clap = { version = "4.5", features = ["derive"], optional = true }
-schemars = { version = "0.8.21", optional = true, features = ["url"] }
+schemars = { version = "1", optional = true, features = ["url2"] }
 regex = "1.11.2"
 url = { version = "2.5.4", features = ["serde"] }
 struct-patch = { version = "=0.10.4", default-features = false, features = ["option", "merge"] }

@@ -1,349 +1,322 @@
 {
+  "$id": "https://json.schemastore.org/dofigen.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Dofigen",
+  "description": "Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format",
   "type": "object",
-  "oneOf": [
-    {
-      "type": "object",
-      "required": [
-        "fromImage"
-      ],
-      "properties": {
-        "fromImage": {
-          "$ref": "#/definitions/ParsableStruct<ImageName>"
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "fromBuilder"
-      ],
-      "properties": {
-        "fromBuilder": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "fromContext"
-      ],
-      "properties": {
-        "fromContext": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "nullable": true
-        }
-      },
-      "additionalProperties": false
-    }
-  ],
   "properties": {
     "arg": {
       "anyOf": [
         {
-          "$ref": "#/definitions/HashMapPatch<String, String>"
+          "$ref": "#/definitions/HashMapPatch_string_string"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "bind": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Bind>>"
+          "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Bind"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "builders": {
       "anyOf": [
         {
-          "$ref": "#/definitions/HashMapDeepPatch<String, Stage>"
+          "$ref": "#/definitions/HashMapDeepPatch_string_Stage"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "cache": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Cache>>"
+          "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Cache"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "cmd": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecPatch<String>"
+          "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "context": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecPatch<String>"
+          "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "copy": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecDeepPatch<ParsableStruct<CopyResourcePatch>>"
+          "$ref": "#/definitions/VecDeepPatch_ParsableStruct_CopyResourcePatch"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "entrypoint": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecPatch<String>"
+          "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "env": {
       "anyOf": [
         {
-          "$ref": "#/definitions/HashMapPatch<String, String>"
+          "$ref": "#/definitions/HashMapPatch_string_string"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "expose": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Port>>"
+          "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Port"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "extend": {
-      "$ref": "#/definitions/OneOrMany<Resource>"
+      "$ref": "#/definitions/OneOrMany_Resource"
     },
     "healthcheck": {
       "anyOf": [
         {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Healthcheck"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "nullable": true
+          "$ref": "#/definitions/Healthcheck"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "ignore": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecPatch<String>"
+          "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "label": {
       "anyOf": [
         {
-          "$ref": "#/definitions/NestedMap_for_String"
+          "$ref": "#/definitions/NestedMap"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "root": {
       "anyOf": [
         {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/Run"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "nullable": true
+          "$ref": "#/definitions/Run"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "run": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecPatch<String>"
+          "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "shell": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecPatch<String>"
+          "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "user": {
       "anyOf": [
         {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/ParsableStruct<User>"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "nullable": true
+          "$ref": "#/definitions/ParsableStruct_User"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "volume": {
       "anyOf": [
         {
-          "$ref": "#/definitions/VecPatch<String>"
+          "$ref": "#/definitions/VecPatch_string"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
-      ],
-      "nullable": true
+      ]
     },
     "workdir": {
-      "default": null,
       "type": [
         "string",
         "null"
       ],
+      "default": null,
       "nullable": true
     }
   },
+  "anyOf": [
+    {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "fromImage": {
+              "$ref": "#/definitions/ParsableStruct_ImageName"
+            }
+          },
+          "required": [
+            "fromImage"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fromBuilder": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "fromBuilder"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fromContext": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "nullable": true
+            }
+          },
+          "required": [
+            "fromContext"
+          ]
+        }
+      ]
+    },
+    {}
+  ],
   "definitions": {
     "Add": {
       "title": "Add",
       "type": "object",
       "properties": {
         "checksum": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "chmod": {
-          "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "chown": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/User"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/User"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "files": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecPatch<Resource>"
+              "$ref": "#/definitions/VecPatch_Resource"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "link": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "target": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
       },
@@ -354,73 +327,66 @@
       "type": "object",
       "properties": {
         "chmod": {
-          "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "chown": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/User"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/User"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "exclude": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecPatch<String>"
+              "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "keepGitDir": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "link": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "repo": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "target": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
       },
@@ -429,201 +395,190 @@
     "Bind": {
       "title": "Bind",
       "type": "object",
-      "oneOf": [
-        {
-          "type": "object",
-          "required": [
-            "fromImage"
-          ],
-          "properties": {
-            "fromImage": {
-              "$ref": "#/definitions/ParsableStruct<ImageName>"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "fromBuilder"
-          ],
-          "properties": {
-            "fromBuilder": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "fromContext"
-          ],
-          "properties": {
-            "fromContext": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "nullable": true
-            }
-          },
-          "additionalProperties": false
-        }
-      ],
       "properties": {
         "readwrite": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "source": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "target": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
-      }
+      },
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "fromImage": {
+                  "$ref": "#/definitions/ParsableStruct_ImageName"
+                }
+              },
+              "required": [
+                "fromImage"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fromBuilder": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fromBuilder"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fromContext": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "nullable": true
+                }
+              },
+              "required": [
+                "fromContext"
+              ]
+            }
+          ]
+        },
+        {}
+      ]
     },
     "Cache": {
       "title": "Cache",
       "type": "object",
-      "oneOf": [
-        {
-          "type": "object",
-          "required": [
-            "fromImage"
-          ],
-          "properties": {
-            "fromImage": {
-              "$ref": "#/definitions/ParsableStruct<ImageName>"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "fromBuilder"
-          ],
-          "properties": {
-            "fromBuilder": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "fromContext"
-          ],
-          "properties": {
-            "fromContext": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "nullable": true
-            }
-          },
-          "additionalProperties": false
-        }
-      ],
       "properties": {
         "chmod": {
-          "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "chown": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/User"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/User"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "id": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "readonly": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "sharing": {
-          "default": null,
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/CacheSharing"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/CacheSharing"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
           ],
-          "nullable": true
+          "default": null
         },
         "source": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "target": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
-      }
+      },
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "fromImage": {
+                  "$ref": "#/definitions/ParsableStruct_ImageName"
+                }
+              },
+              "required": [
+                "fromImage"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fromBuilder": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fromBuilder"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fromContext": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "nullable": true
+                }
+              },
+              "required": [
+                "fromContext"
+              ]
+            }
+          ]
+        },
+        {}
+      ]
     },
     "CacheSharing": {
       "description": "Represents a cache sharing strategy",
@@ -637,186 +592,177 @@
     "Copy": {
       "title": "Copy",
       "type": "object",
-      "oneOf": [
-        {
-          "type": "object",
-          "required": [
-            "fromImage"
-          ],
-          "properties": {
-            "fromImage": {
-              "$ref": "#/definitions/ParsableStruct<ImageName>"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "fromBuilder"
-          ],
-          "properties": {
-            "fromBuilder": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "fromContext"
-          ],
-          "properties": {
-            "fromContext": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "nullable": true
-            }
-          },
-          "additionalProperties": false
-        }
-      ],
       "properties": {
         "chmod": {
-          "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "chown": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/User"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/User"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "exclude": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecPatch<String>"
+              "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
+        "fromBuilder": true,
+        "fromContext": true,
+        "fromImage": true,
         "link": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "parents": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "paths": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecPatch<String>"
+              "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "target": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "fromImage": {
+                  "$ref": "#/definitions/ParsableStruct_ImageName"
+                }
+              },
+              "required": [
+                "fromImage"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fromBuilder": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fromBuilder"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fromContext": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "nullable": true
+                }
+              },
+              "required": [
+                "fromContext"
+              ]
+            }
+          ]
+        },
+        {}
+      ]
     },
     "CopyContent": {
       "title": "CopyContent",
       "type": "object",
       "properties": {
         "chmod": {
-          "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "chown": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/User"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/User"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "content": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "link": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "substitute": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "target": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
       },
@@ -841,8 +787,9 @@
         }
       ]
     },
-    "HashMapDeepPatch<String, Stage>": {
-      "title": "HashMapDeepPatch<String, Stage>",
+    "HashMapDeepPatch_string_Stage": {
+      "title": "HashMapDeepPatch<string, Stage>",
+      "type": "object",
       "patternProperties": {
         "^.+$": {
           "anyOf": [
@@ -850,15 +797,16 @@
               "$ref": "#/definitions/Stage"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         }
       }
     },
-    "HashMapPatch<String, String>": {
-      "title": "HashMapPatch<String, String>",
+    "HashMapPatch_string_string": {
+      "title": "HashMapPatch<string, string>",
+      "type": "object",
       "patternProperties": {
         "^.+$": {
           "type": [
@@ -874,45 +822,45 @@
       "type": "object",
       "properties": {
         "cmd": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "interval": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "retries": {
-          "default": null,
           "type": [
             "integer",
             "null"
           ],
-          "format": "uint16",
-          "minimum": 0.0,
+          "default": null,
+          "maximum": 65535,
+          "minimum": 0,
           "nullable": true
         },
         "start": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "timeout": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
       },
@@ -922,96 +870,103 @@
       "title": "ImageName",
       "description": "Represents a Docker image version",
       "type": "object",
-      "oneOf": [
-        {
-          "type": "object",
-          "required": [
-            "tag"
-          ],
-          "properties": {
-            "tag": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "digest"
-          ],
-          "properties": {
-            "digest": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      ],
       "properties": {
+        "digest": true,
         "host": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "path": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "port": {
-          "default": null,
           "type": [
             "integer",
             "null"
           ],
-          "format": "uint16",
-          "minimum": 0.0,
+          "default": null,
+          "maximum": 65535,
+          "minimum": 0,
           "nullable": true
-        }
+        },
+        "tag": true
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "tag": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tag"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "digest": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "digest"
+              ]
+            }
+          ]
+        },
+        {}
+      ]
     },
-    "NestedMapValue_for_String": {
+    "NestedMap": {
+      "description": "A multilevel key map",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/NestedMapValue"
+      }
+    },
+    "NestedMapValue": {
       "anyOf": [
         {
           "type": "string"
         },
         {
-          "$ref": "#/definitions/NestedMap_for_String"
+          "$ref": "#/definitions/NestedMap"
         },
         {
-          "type": "null"
+          "type": "null",
+          "nullable": true
         }
       ]
     },
-    "NestedMap_for_String": {
-      "description": "A multilevel key map",
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/NestedMapValue_for_String"
-      }
-    },
-    "OneOrMany<Resource>": {
+    "OneOrMany_Resource": {
       "title": "OneOrMany<Resource>",
       "oneOf": [
         {
           "$ref": "#/definitions/Resource"
         },
         {
+          "type": "array",
           "items": {
             "$ref": "#/definitions/Resource"
           }
         }
       ]
     },
-    "ParsableStruct<Bind>": {
+    "ParsableStruct_Bind": {
       "title": "ParsableStruct<Bind>",
       "oneOf": [
         {
@@ -1022,7 +977,7 @@
         }
       ]
     },
-    "ParsableStruct<Cache>": {
+    "ParsableStruct_Cache": {
       "title": "ParsableStruct<Cache>",
       "oneOf": [
         {
@@ -1033,7 +988,7 @@
         }
       ]
     },
-    "ParsableStruct<CopyResourcePatch>": {
+    "ParsableStruct_CopyResourcePatch": {
       "title": "ParsableStruct<CopyResourcePatch>",
       "oneOf": [
         {
@@ -1044,7 +999,7 @@
         }
       ]
     },
-    "ParsableStruct<ImageName>": {
+    "ParsableStruct_ImageName": {
       "title": "ParsableStruct<ImageName>",
       "oneOf": [
         {
@@ -1055,7 +1010,7 @@
         }
       ]
     },
-    "ParsableStruct<Port>": {
+    "ParsableStruct_Port": {
       "title": "ParsableStruct<Port>",
       "oneOf": [
         {
@@ -1066,7 +1021,7 @@
         }
       ]
     },
-    "ParsableStruct<User>": {
+    "ParsableStruct_User": {
       "title": "ParsableStruct<User>",
       "oneOf": [
         {
@@ -1082,34 +1037,26 @@
       "type": "object",
       "properties": {
         "port": {
-          "default": null,
           "type": [
             "integer",
             "null"
           ],
-          "format": "uint16",
-          "minimum": 0.0,
+          "default": null,
+          "maximum": 65535,
+          "minimum": 0,
           "nullable": true
         },
         "protocol": {
-          "default": null,
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/PortProtocol"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/PortProtocol"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
           ],
-          "nullable": true
+          "default": null
         }
       },
       "additionalProperties": false
@@ -1141,287 +1088,266 @@
         "bind": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Bind>>"
+              "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Bind"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "cache": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Cache>>"
+              "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Cache"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "run": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecPatch<String>"
+              "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "shell": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecPatch<String>"
+              "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         }
       }
     },
     "Stage": {
       "title": "Stage",
       "type": "object",
-      "oneOf": [
-        {
-          "type": "object",
-          "required": [
-            "fromImage"
-          ],
-          "properties": {
-            "fromImage": {
-              "$ref": "#/definitions/ParsableStruct<ImageName>"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "fromBuilder"
-          ],
-          "properties": {
-            "fromBuilder": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "fromContext"
-          ],
-          "properties": {
-            "fromContext": {
-              "type": [
-                "string",
-                "null"
-              ],
-              "nullable": true
-            }
-          },
-          "additionalProperties": false
-        }
-      ],
       "properties": {
         "arg": {
           "anyOf": [
             {
-              "$ref": "#/definitions/HashMapPatch<String, String>"
+              "$ref": "#/definitions/HashMapPatch_string_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "bind": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Bind>>"
+              "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Bind"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "cache": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecDeepPatch<ParsableStruct<Cache>>"
+              "$ref": "#/definitions/VecDeepPatch_ParsableStruct_Cache"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "copy": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecDeepPatch<ParsableStruct<CopyResourcePatch>>"
+              "$ref": "#/definitions/VecDeepPatch_ParsableStruct_CopyResourcePatch"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "env": {
           "anyOf": [
             {
-              "$ref": "#/definitions/HashMapPatch<String, String>"
+              "$ref": "#/definitions/HashMapPatch_string_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "label": {
           "anyOf": [
             {
-              "$ref": "#/definitions/NestedMap_for_String"
+              "$ref": "#/definitions/NestedMap"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "root": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/Run"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/Run"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "run": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecPatch<String>"
+              "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "shell": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecPatch<String>"
+              "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "user": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/ParsableStruct<User>"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/ParsableStruct_User"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "workdir": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
-      }
+      },
+      "anyOf": [
+        {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "fromImage": {
+                  "$ref": "#/definitions/ParsableStruct_ImageName"
+                }
+              },
+              "required": [
+                "fromImage"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fromBuilder": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fromBuilder"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "fromContext": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "nullable": true
+                }
+              },
+              "required": [
+                "fromContext"
+              ]
+            }
+          ]
+        },
+        {}
+      ]
     },
     "UnknownPatch": {
       "title": "CopyOptions",
       "type": "object",
       "properties": {
         "chmod": {
-          "default": null,
           "type": [
             "string",
+            "number",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "chown": {
           "anyOf": [
             {
-              "anyOf": [
-                {
-                  "$ref": "#/definitions/User"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "nullable": true
+              "$ref": "#/definitions/User"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "exclude": {
           "anyOf": [
             {
-              "$ref": "#/definitions/VecPatch<String>"
+              "$ref": "#/definitions/VecPatch_string"
             },
             {
-              "type": "null"
+              "type": "null",
+              "nullable": true
             }
-          ],
-          "nullable": true
+          ]
         },
         "link": {
-          "default": null,
           "type": [
             "boolean",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "target": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
       }
@@ -1431,215 +1357,243 @@
       "type": "object",
       "properties": {
         "group": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         },
         "user": {
-          "default": null,
           "type": [
             "string",
             "null"
           ],
+          "default": null,
           "nullable": true
         }
       },
       "additionalProperties": false
     },
-    "VecDeepPatch<ParsableStruct<Bind>>": {
-      "title": "VecDeepPatch<ParsableStruct<Bind>>",
+    "VecDeepPatch_ParsableStruct_Bind": {
+      "title": "VecDeepPatch<ParsableStruct_Bind>",
       "oneOf": [
         {
-          "$ref": "#/definitions/ParsableStruct<Bind>"
+          "$ref": "#/definitions/ParsableStruct_Bind"
         },
         {
+          "type": "array",
           "items": {
-            "$ref": "#/definitions/ParsableStruct<Bind>"
+            "$ref": "#/definitions/ParsableStruct_Bind"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Bind>"
+                "$ref": "#/definitions/ParsableStruct_Bind"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Bind>"
+                "$ref": "#/definitions/ParsableStruct_Bind"
               }
             },
             "^\\d+$": {
-              "$ref": "#/definitions/ParsableStruct<Bind>"
+              "$ref": "#/definitions/ParsableStruct_Bind"
             },
             "^\\d+<$": {
-              "$ref": "#/definitions/ParsableStruct<Bind>"
+              "$ref": "#/definitions/ParsableStruct_Bind"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Bind>"
+                "$ref": "#/definitions/ParsableStruct_Bind"
               }
             },
             "_": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Bind>"
+                "$ref": "#/definitions/ParsableStruct_Bind"
               }
             }
           }
         }
       ]
     },
-    "VecDeepPatch<ParsableStruct<Cache>>": {
-      "title": "VecDeepPatch<ParsableStruct<Cache>>",
+    "VecDeepPatch_ParsableStruct_Cache": {
+      "title": "VecDeepPatch<ParsableStruct_Cache>",
       "oneOf": [
         {
-          "$ref": "#/definitions/ParsableStruct<Cache>"
+          "$ref": "#/definitions/ParsableStruct_Cache"
         },
         {
+          "type": "array",
           "items": {
-            "$ref": "#/definitions/ParsableStruct<Cache>"
+            "$ref": "#/definitions/ParsableStruct_Cache"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Cache>"
+                "$ref": "#/definitions/ParsableStruct_Cache"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Cache>"
+                "$ref": "#/definitions/ParsableStruct_Cache"
               }
             },
             "^\\d+$": {
-              "$ref": "#/definitions/ParsableStruct<Cache>"
+              "$ref": "#/definitions/ParsableStruct_Cache"
             },
             "^\\d+<$": {
-              "$ref": "#/definitions/ParsableStruct<Cache>"
+              "$ref": "#/definitions/ParsableStruct_Cache"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Cache>"
+                "$ref": "#/definitions/ParsableStruct_Cache"
               }
             },
             "_": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Cache>"
+                "$ref": "#/definitions/ParsableStruct_Cache"
               }
             }
           }
         }
       ]
     },
-    "VecDeepPatch<ParsableStruct<CopyResourcePatch>>": {
-      "title": "VecDeepPatch<ParsableStruct<CopyResourcePatch>>",
+    "VecDeepPatch_ParsableStruct_CopyResourcePatch": {
+      "title": "VecDeepPatch<ParsableStruct_CopyResourcePatch>",
       "oneOf": [
         {
-          "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
+          "$ref": "#/definitions/ParsableStruct_CopyResourcePatch"
         },
         {
+          "type": "array",
           "items": {
-            "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
+            "$ref": "#/definitions/ParsableStruct_CopyResourcePatch"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
+                "$ref": "#/definitions/ParsableStruct_CopyResourcePatch"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
+                "$ref": "#/definitions/ParsableStruct_CopyResourcePatch"
               }
             },
             "^\\d+$": {
-              "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
+              "$ref": "#/definitions/ParsableStruct_CopyResourcePatch"
             },
             "^\\d+<$": {
-              "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
+              "$ref": "#/definitions/ParsableStruct_CopyResourcePatch"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
+                "$ref": "#/definitions/ParsableStruct_CopyResourcePatch"
               }
             },
             "_": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<CopyResourcePatch>"
+                "$ref": "#/definitions/ParsableStruct_CopyResourcePatch"
               }
             }
           }
         }
       ]
     },
-    "VecDeepPatch<ParsableStruct<Port>>": {
-      "title": "VecDeepPatch<ParsableStruct<Port>>",
+    "VecDeepPatch_ParsableStruct_Port": {
+      "title": "VecDeepPatch<ParsableStruct_Port>",
       "oneOf": [
         {
-          "$ref": "#/definitions/ParsableStruct<Port>"
+          "$ref": "#/definitions/ParsableStruct_Port"
         },
         {
+          "type": "array",
           "items": {
-            "$ref": "#/definitions/ParsableStruct<Port>"
+            "$ref": "#/definitions/ParsableStruct_Port"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Port>"
+                "$ref": "#/definitions/ParsableStruct_Port"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Port>"
+                "$ref": "#/definitions/ParsableStruct_Port"
               }
             },
             "^\\d+$": {
-              "$ref": "#/definitions/ParsableStruct<Port>"
+              "$ref": "#/definitions/ParsableStruct_Port"
             },
             "^\\d+<$": {
-              "$ref": "#/definitions/ParsableStruct<Port>"
+              "$ref": "#/definitions/ParsableStruct_Port"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Port>"
+                "$ref": "#/definitions/ParsableStruct_Port"
               }
             },
             "_": {
+              "type": "array",
               "items": {
-                "$ref": "#/definitions/ParsableStruct<Port>"
+                "$ref": "#/definitions/ParsableStruct_Port"
               }
             }
           }
         }
       ]
     },
-    "VecPatch<Resource>": {
+    "VecPatch_Resource": {
       "title": "VecPatch<Resource>",
       "oneOf": [
         {
           "$ref": "#/definitions/Resource"
         },
         {
+          "type": "array",
           "items": {
             "$ref": "#/definitions/Resource"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/Resource"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/Resource"
               }
@@ -1648,11 +1602,13 @@
               "$ref": "#/definitions/Resource"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/Resource"
               }
             },
             "_": {
+              "type": "array",
               "items": {
                 "$ref": "#/definitions/Resource"
               }
@@ -1661,25 +1617,29 @@
         }
       ]
     },
-    "VecPatch<String>": {
-      "title": "VecPatch<String>",
+    "VecPatch_string": {
+      "title": "VecPatch<string>",
       "oneOf": [
         {
           "type": "string"
         },
         {
+          "type": "array",
           "items": {
             "type": "string"
           }
         },
         {
+          "type": "object",
           "patternProperties": {
             "^\\+$": {
+              "type": "array",
               "items": {
                 "type": "string"
               }
             },
             "^\\+\\d+$": {
+              "type": "array",
               "items": {
                 "type": "string"
               }
@@ -1688,11 +1648,13 @@
               "type": "string"
             },
             "^\\d+\\+$": {
+              "type": "array",
               "items": {
                 "type": "string"
               }
             },
             "_": {
+              "type": "array",
               "items": {
                 "type": "string"
               }
