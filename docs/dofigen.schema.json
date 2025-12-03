@@ -275,6 +275,7 @@
         "chmod": {
           "type": [
             "string",
+            "number",
             "null"
           ],
           "default": null,
@@ -328,6 +329,7 @@
         "chmod": {
           "type": [
             "string",
+            "number",
             "null"
           ],
           "default": null,
@@ -471,6 +473,7 @@
         "chmod": {
           "type": [
             "string",
+            "number",
             "null"
           ],
           "default": null,
@@ -593,6 +596,7 @@
         "chmod": {
           "type": [
             "string",
+            "number",
             "null"
           ],
           "default": null,
@@ -712,6 +716,7 @@
         "chmod": {
           "type": [
             "string",
+            "number",
             "null"
           ],
           "default": null,
@@ -1301,6 +1306,7 @@
         "chmod": {
           "type": [
             "string",
+            "number",
             "null"
           ],
           "default": null,

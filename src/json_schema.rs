@@ -201,3 +201,15 @@ where
         })
     }
 }
+
+pub fn optional_string_or_number_schema(_gen: &mut SchemaGenerator) -> Schema {
+    json_schema!({
+          "type": [
+            "string",
+            "number",
+            "null"
+          ],
+          "default": null,
+          "nullable": true
+    })
+}
