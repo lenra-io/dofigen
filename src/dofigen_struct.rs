@@ -1,5 +1,7 @@
 use crate::deserialize::*;
 #[cfg(feature = "json_schema")]
+use crate::json_schema::optional_string_or_number_schema;
+#[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
@@ -18,7 +20,12 @@ use url::Url;
     feature = "json_schema",
     patch(
         attribute(derive(JsonSchema)),
-        attribute(schemars(title = "Dofigen", rename = "Dofigen"))
+        attribute(schemars(
+            title = "Dofigen",
+            rename = "Dofigen",
+            extend("$id" = "https://json.schemastore.org/dofigen.json"),
+            description = "Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format"
+        ))
     )
 )]
 pub struct Dofigen {
@@ -291,6 +298,10 @@ pub struct Cache {
         )))
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "json_schema",
+        patch(attribute(schemars(schema_with = "optional_string_or_number_schema")))
+    )]
     pub chmod: Option<String>,
 
     /// The user and group that own the cache
@@ -575,6 +586,10 @@ pub struct CopyOptions {
         )))
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "json_schema",
+        patch(attribute(schemars(schema_with = "optional_string_or_number_schema")))
+    )]
     pub chmod: Option<String>,
 
     /// Use of the link flag

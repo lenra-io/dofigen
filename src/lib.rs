@@ -30,8 +30,6 @@ mod generator;
 mod json_schema;
 mod linter;
 pub mod lock;
-#[cfg(feature = "json_schema")]
-use schemars::r#gen::*;
 pub use {
     context::*, deserialize::*, dofigen_struct::*, errors::*, extend::*,
     generator::GenerationContext, linter::*,
@@ -179,11 +177,19 @@ pub fn generate_effective_content(dofigen: &Dofigen) -> Result<String> {
 /// This is useful to validate the structure and IDE autocompletion.
 #[cfg(feature = "json_schema")]
 pub fn generate_json_schema() -> String {
-    let settings = SchemaSettings::default().with(|s| {
-        s.option_nullable = true;
-        s.option_add_null_type = true;
-    });
-    let r#gen = settings.into_generator();
-    let schema = r#gen.into_root_schema_for::<Extend<DofigenPatch>>();
+    use schemars::{
+        generate::SchemaSettings,
+        transform::{AddNullable, RestrictFormats, Transform},
+    };
+
+    let settings = SchemaSettings::draft07();
+    let generator = settings.into_generator();
+    let mut schema = generator.into_root_schema_for::<Extend<DofigenPatch>>();
+    let mut nullable = AddNullable::default();
+    nullable.add_const_null = false;
+    nullable.remove_null_type = false;
+    nullable.transform(&mut schema);
+    let mut restrcit_formats = RestrictFormats::default();
+    restrcit_formats.transform(&mut schema);
     serde_json::to_string_pretty(&schema).unwrap()
 }

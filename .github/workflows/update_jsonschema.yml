@@ -1,0 +1,75 @@
+name: Update JSON Schema
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/dofigen.schema.json'
+
+jobs:
+  publish-json-schema:
+    name: Publish JSON Schema
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.SCHEMASTORE_UPDATE_TOKEN }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Sync SchemaStore fork
+      shell: bash
+      run: |
+        curl -L -fs \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/repos/lenra-io/schemastore/merge-upstream \
+          -d '{"branch":"master"}'
+    - name: Delete Update branch (if exists)
+      shell: bash
+      run: |
+        curl -L -fs \
+          -X DELETE \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/repos/lenra-io/schemastore/git/refs/heads/update || echo "Branch does not exist, continuing..."
+    - name: Create Update branch
+      shell: bash
+      run: |
+        export MASTER_SHA="$(curl -L -fs \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/repos/lenra-io/schemastore/git/refs/heads/master | jq -r '.object.sha')"
+        echo "Master SHA: $MASTER_SHA"
+        curl -L -fs \
+          -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/repos/lenra-io/schemastore/git/refs \
+          -d "{ \"ref\": \"refs/heads/update\", \"sha\": \"${MASTER_SHA}\" }"
+    - name: Update SchemaStore repo
+      shell: bash
+      run: |
+        export FILE_URL=https://api.github.com/repos/lenra-io/schemastore/contents/src/schemas/json/dofigen.json
+        curl -fs -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" ${FILE_URL} \
+        -d "{\"message\":\"feat(dofigen): Update Dofigen Schema\",\"branch\": \"update\", \"content\": \"$(base64 -w0 docs/dofigen.schema.json)\",\"sha\":$(curl -fs ${FILE_URL} | jq '.sha')}"
+
+    - name: Create Pull Request
+      shell: bash
+      run: |
+        echo "To create a PR, go to: https://github.com/SchemaStore/schemastore/compare/master...lenra-io:schemastore:update?expand=1&title=feat(dofigen):%20Update%20Dofigen%20Schema&body=This%20PR%20updates%20the%20Dofigen%20JSON%20schema%20to%20the%20latest%20version."
+      
+      # This does not work since we must have PR writes on the target repo
+      # run: |
+      #   curl -L -fs \
+      #     -X POST \
+      #     -H "Accept: application/vnd.github+json" \
+      #     -H "Authorization: Bearer ${{ env.PR_GITHUB_TOKEN }}" \
+      #     -H "X-GitHub-Api-Version: 2022-11-28" \
+      #     https://api.github.com/repos/SchemaStore/schemastore/pulls \
+      #     -d "{\"title\":\"feat(dofigen): Update Dofigen Schema\",\"head\":\"lenra-io:update\",\"base\":\"master\",\"body\":\"This PR updates the Dofigen JSON schema to the latest version.\", \"maintainer_can_modify\": true}"
