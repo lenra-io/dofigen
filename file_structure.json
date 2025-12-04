@@ -1,0 +1,3356 @@
+{
+  "logo.svg": {
+    "file_id": 1
+  },
+  "docker-overview.md": {
+    "file_id": 2
+  },
+  "LICENSE": {
+    "file_id": 3
+  },
+  "Dockerfile": {
+    "file_id": 4
+  },
+  "dofigen.yml": {
+    "file_id": 5
+  },
+  "Cargo.toml": {
+    "file_id": 6
+  },
+  "README.md": {
+    "file_id": 7
+  },
+  "src": {
+    "generator.rs": {
+      "file_id": 8,
+      "functions": [
+        {
+          "name": "get_lint_messages",
+          "docstring": "",
+          "params": [],
+          "start_line": 23,
+          "end_line": 25
+        },
+        {
+          "name": "push_state",
+          "docstring": "",
+          "params": [
+            "state: GenerationContextState"
+          ],
+          "start_line": 27,
+          "end_line": 42
+        },
+        {
+          "name": "pop_state",
+          "docstring": "",
+          "params": [],
+          "start_line": 44,
+          "end_line": 55
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "dofigen: Dofigen"
+          ],
+          "start_line": 57,
+          "end_line": 64
+        },
+        {
+          "name": "generate_dockerfile",
+          "docstring": "",
+          "params": [],
+          "start_line": 66,
+          "end_line": 83
+        },
+        {
+          "name": "generate_dockerignore",
+          "docstring": "",
+          "params": [],
+          "start_line": 85,
+          "end_line": 110
+        },
+        {
+          "name": "get_base_image",
+          "docstring": "",
+          "params": [],
+          "start_line": 128,
+          "end_line": 143
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "context: &GenerationContext"
+          ],
+          "start_line": 147,
+          "end_line": 162
+        },
+        {
+          "name": "user",
+          "docstring": "",
+          "params": [
+            "context: &GenerationContext"
+          ],
+          "start_line": 164,
+          "end_line": 166
+        },
+        {
+          "name": "is_empty",
+          "docstring": "",
+          "params": [],
+          "start_line": 170,
+          "end_line": 172
+        },
+        {
+          "name": "uid",
+          "docstring": "",
+          "params": [],
+          "start_line": 176,
+          "end_line": 178
+        },
+        {
+          "name": "gid",
+          "docstring": "",
+          "params": [],
+          "start_line": 180,
+          "end_line": 185
+        },
+        {
+          "name": "into",
+          "docstring": "// Static methods",
+          "params": [],
+          "start_line": 187,
+          "end_line": 193
+        },
+        {
+          "name": "new",
+          "docstring": "// Static methods",
+          "params": [
+            "user: &str"
+          ],
+          "start_line": 195,
+          "end_line": 202
+        },
+        {
+          "name": "new_without_group",
+          "docstring": "",
+          "params": [
+            "user: &str"
+          ],
+          "start_line": 204,
+          "end_line": 209
+        },
+        {
+          "name": "to_string",
+          "docstring": "",
+          "params": [],
+          "start_line": 213,
+          "end_line": 243
+        },
+        {
+          "name": "to_string",
+          "docstring": "",
+          "params": [],
+          "start_line": 247,
+          "end_line": 255
+        },
+        {
+          "name": "to_string",
+          "docstring": "",
+          "params": [],
+          "start_line": 259,
+          "end_line": 270
+        },
+        {
+          "name": "to_string",
+          "docstring": "",
+          "params": [],
+          "start_line": 274,
+          "end_line": 279
+        },
+        {
+          "name": "to_string",
+          "docstring": "",
+          "params": [],
+          "start_line": 283,
+          "end_line": 288
+        },
+        {
+          "name": "to_string",
+          "docstring": "",
+          "params": [],
+          "start_line": 292,
+          "end_line": 298
+        },
+        {
+          "name": "to_string",
+          "docstring": "",
+          "params": [],
+          "start_line": 302,
+          "end_line": 308
+        },
+        {
+          "name": "generate_dockerfile_lines",
+          "docstring": "",
+          "params": [
+            "context: &mut GenerationContext"
+          ],
+          "start_line": 312,
+          "end_line": 324
+        },
+        {
+          "name": "add_copy_options",
+          "docstring": "",
+          "params": [
+            "inst_options: &mut Vec<InstructionOption>",
+            "copy_options: &CopyOptions",
+            "context: &GenerationContext"
+          ],
+          "start_line": 327,
+          "end_line": 341
+        },
+        {
+          "name": "generate_dockerfile_lines",
+          "docstring": "",
+          "params": [
+            "context: &mut GenerationContext"
+          ],
+          "start_line": 344,
+          "end_line": 373
+        },
+        {
+          "name": "generate_dockerfile_lines",
+          "docstring": "",
+          "params": [
+            "context: &mut GenerationContext"
+          ],
+          "start_line": 377,
+          "end_line": 402
+        },
+        {
+          "name": "generate_dockerfile_lines",
+          "docstring": "",
+          "params": [
+            "context: &mut GenerationContext"
+          ],
+          "start_line": 406,
+          "end_line": 430
+        },
+        {
+          "name": "generate_dockerfile_lines",
+          "docstring": "",
+          "params": [
+            "context: &mut GenerationContext"
+          ],
+          "start_line": 434,
+          "end_line": 456
+        },
+        {
+          "name": "generate_dockerfile_lines",
+          "docstring": "",
+          "params": [
+            "context: &mut GenerationContext"
+          ],
+          "start_line": 460,
+          "end_line": 559
+        },
+        {
+          "name": "generate_dockerfile_lines",
+          "docstring": "",
+          "params": [
+            "context: &mut GenerationContext"
+          ],
+          "start_line": 563,
+          "end_line": 689
+        },
+        {
+          "name": "generate_dockerfile_lines",
+          "docstring": "",
+          "params": [
+            "context: &mut GenerationContext"
+          ],
+          "start_line": 693,
+          "end_line": 802
+        },
+        {
+          "name": "copy_paths_into",
+          "docstring": "",
+          "params": [
+            "paths: Vec<String>",
+            "target: &Option<String>"
+          ],
+          "start_line": 805,
+          "end_line": 813
+        },
+        {
+          "name": "string_vec_into",
+          "docstring": "",
+          "params": [
+            "string_vec: Vec<String>"
+          ],
+          "start_line": 815,
+          "end_line": 824
+        },
+        {
+          "name": "user_with_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 837,
+          "end_line": 850
+        },
+        {
+          "name": "user_without_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 853,
+          "end_line": 857
+        },
+        {
+          "name": "stage_args",
+          "docstring": "",
+          "params": [],
+          "start_line": 860,
+          "end_line": 892
+        },
+        {
+          "name": "with_chmod",
+          "docstring": "",
+          "params": [],
+          "start_line": 899,
+          "end_line": 925
+        },
+        {
+          "name": "from_content",
+          "docstring": "",
+          "params": [],
+          "start_line": 928,
+          "end_line": 950
+        },
+        {
+          "name": "user_with_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 957,
+          "end_line": 980
+        },
+        {
+          "name": "user_without_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 983,
+          "end_line": 1005
+        },
+        {
+          "name": "simple",
+          "docstring": "",
+          "params": [],
+          "start_line": 1012,
+          "end_line": 1027
+        },
+        {
+          "name": "without_run",
+          "docstring": "",
+          "params": [],
+          "start_line": 1030,
+          "end_line": 1040
+        },
+        {
+          "name": "with_empty_run",
+          "docstring": "",
+          "params": [],
+          "start_line": 1043,
+          "end_line": 1054
+        },
+        {
+          "name": "with_script_and_caches_with_named_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 1057,
+          "end_line": 1088
+        },
+        {
+          "name": "with_script_and_caches_with_uid_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 1091,
+          "end_line": 1121
+        },
+        {
+          "name": "with_script_and_caches_with_uid_user_without_group",
+          "docstring": "",
+          "params": [],
+          "start_line": 1124,
+          "end_line": 1153
+        },
+        {
+          "name": "with_label",
+          "docstring": "",
+          "params": [],
+          "start_line": 1164,
+          "end_line": 1180
+        },
+        {
+          "name": "with_many_multiline_labels",
+          "docstring": "",
+          "params": [],
+          "start_line": 1183,
+          "end_line": 1202
+        },
+        {
+          "name": "locked_with_many_multiline_labels",
+          "docstring": "",
+          "params": [],
+          "start_line": 1205,
+          "end_line": 1228
+        }
+      ],
+      "language": "rust"
+    },
+    "errors.rs": {
+      "file_id": 9,
+      "functions": [
+        {
+          "name": "display",
+          "docstring": "",
+          "params": [],
+          "start_line": 23,
+          "end_line": 25
+        },
+        {
+          "name": "location_into",
+          "docstring": "",
+          "params": [
+            "location: Option<Location>"
+          ],
+          "start_line": 28,
+          "end_line": 32
+        },
+        {
+          "name": "report",
+          "docstring": "",
+          "params": [
+            "mut err: &dyn std::error::Error"
+          ],
+          "start_line": 34,
+          "end_line": 41
+        }
+      ],
+      "language": "rust"
+    },
+    "json_schema.rs": {
+      "file_id": 10,
+      "functions": [
+        {
+          "name": "schema_name",
+          "docstring": "",
+          "params": [],
+          "start_line": 13,
+          "end_line": 15
+        },
+        {
+          "name": "json_schema",
+          "docstring": "",
+          "params": [
+            "generator: &mut schemars::gen::SchemaGenerator"
+          ],
+          "start_line": 17,
+          "end_line": 33
+        },
+        {
+          "name": "schema_name",
+          "docstring": "",
+          "params": [],
+          "start_line": 41,
+          "end_line": 43
+        },
+        {
+          "name": "json_schema",
+          "docstring": "",
+          "params": [
+            "generator: &mut schemars::gen::SchemaGenerator"
+          ],
+          "start_line": 45,
+          "end_line": 69
+        },
+        {
+          "name": "schema_name",
+          "docstring": "",
+          "params": [],
+          "start_line": 76,
+          "end_line": 78
+        },
+        {
+          "name": "json_schema",
+          "docstring": "",
+          "params": [
+            "generator: &mut schemars::gen::SchemaGenerator"
+          ],
+          "start_line": 80,
+          "end_line": 128
+        },
+        {
+          "name": "schema_name",
+          "docstring": "",
+          "params": [],
+          "start_line": 136,
+          "end_line": 138
+        },
+        {
+          "name": "json_schema",
+          "docstring": "",
+          "params": [
+            "generator: &mut schemars::gen::SchemaGenerator"
+          ],
+          "start_line": 140,
+          "end_line": 190
+        },
+        {
+          "name": "schema_name",
+          "docstring": "",
+          "params": [],
+          "start_line": 198,
+          "end_line": 200
+        },
+        {
+          "name": "json_schema",
+          "docstring": "",
+          "params": [
+            "generator: &mut schemars::gen::SchemaGenerator"
+          ],
+          "start_line": 202,
+          "end_line": 220
+        },
+        {
+          "name": "schema_name",
+          "docstring": "",
+          "params": [],
+          "start_line": 228,
+          "end_line": 234
+        },
+        {
+          "name": "json_schema",
+          "docstring": "",
+          "params": [
+            "generator: &mut schemars::gen::SchemaGenerator"
+          ],
+          "start_line": 236,
+          "end_line": 254
+        }
+      ],
+      "language": "rust"
+    },
+    "extend.rs": {
+      "file_id": 11,
+      "functions": [
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 38,
+          "end_line": 58
+        },
+        {
+          "name": "load_resource_content",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 62,
+          "end_line": 97
+        },
+        {
+          "name": "load",
+          "docstring": "",
+          "params": [],
+          "start_line": 99,
+          "end_line": 111
+        },
+        {
+          "name": "empty",
+          "docstring": "",
+          "params": [],
+          "start_line": 149,
+          "end_line": 164
+        },
+        {
+          "name": "only_name",
+          "docstring": "",
+          "params": [],
+          "start_line": 167,
+          "end_line": 183
+        },
+        {
+          "name": "only_sub",
+          "docstring": "",
+          "params": [],
+          "start_line": 186,
+          "end_line": 204
+        },
+        {
+          "name": "empty",
+          "docstring": "",
+          "params": [],
+          "start_line": 213,
+          "end_line": 231
+        },
+        {
+          "name": "only_from",
+          "docstring": "",
+          "params": [],
+          "start_line": 234,
+          "end_line": 263
+        }
+      ],
+      "language": "rust"
+    },
+    "context.rs": {
+      "file_id": 12,
+      "functions": [
+        {
+          "name": "current_resource",
+          "docstring": "//////////  Resource management  //////////",
+          "params": [],
+          "start_line": 37,
+          "end_line": 41
+        },
+        {
+          "name": "push_resource_stack",
+          "docstring": "",
+          "params": [
+            "resource: Resource"
+          ],
+          "start_line": 43,
+          "end_line": 71
+        },
+        {
+          "name": "pop_resource_stack",
+          "docstring": "/// Get the content of a resource from cache if possible",
+          "params": [],
+          "start_line": 73,
+          "end_line": 75
+        },
+        {
+          "name": "get_resource_content",
+          "docstring": "/// Get the content of a resource from cache if possible/// Load the content of a resource",
+          "params": [
+            "resource: Resource"
+          ],
+          "start_line": 77,
+          "end_line": 119
+        },
+        {
+          "name": "load_resource_version",
+          "docstring": "/// Load the content of a resource",
+          "params": [
+            "resource: &Resource"
+          ],
+          "start_line": 121,
+          "end_line": 144
+        },
+        {
+          "name": "clean_unused_resources",
+          "docstring": "//////////  Image management  //////////",
+          "params": [],
+          "start_line": 146,
+          "end_line": 160
+        },
+        {
+          "name": "get_image_tag",
+          "docstring": "//////////  Image management  //////////",
+          "params": [
+            "image: &ImageName"
+          ],
+          "start_line": 162,
+          "end_line": 201
+        },
+        {
+          "name": "load_image_tag",
+          "docstring": "",
+          "params": [
+            "image: &ImageName"
+          ],
+          "start_line": 203,
+          "end_line": 283
+        },
+        {
+          "name": "load_from_api",
+          "docstring": "",
+          "params": [
+            "host: &str"
+          ],
+          "start_line": 285,
+          "end_line": 287
+        },
+        {
+          "name": "clean_unused_images",
+          "docstring": "//////////  Getters  //////////",
+          "params": [],
+          "start_line": 289,
+          "end_line": 303
+        },
+        {
+          "name": "used_resource_contents",
+          "docstring": "//////////  Getters  //////////",
+          "params": [],
+          "start_line": 305,
+          "end_line": 312
+        },
+        {
+          "name": "used_image_tags",
+          "docstring": "//////////  Comparison  //////////",
+          "params": [],
+          "start_line": 314,
+          "end_line": 319
+        },
+        {
+          "name": "image_updates",
+          "docstring": "//////////  Comparison  //////////",
+          "params": [
+            "previous: &DofigenContext"
+          ],
+          "start_line": 321,
+          "end_line": 349
+        },
+        {
+          "name": "resource_updates",
+          "docstring": "//////////  Dofigen parsing  //////////",
+          "params": [
+            "previous: &DofigenContext"
+          ],
+          "start_line": 351,
+          "end_line": 383
+        },
+        {
+          "name": "parse_from_string",
+          "docstring": "/// ```/// Parse an Dofigen from an IO stream.",
+          "params": [
+            "input: &str"
+          ],
+          "start_line": 477,
+          "end_line": 482
+        },
+        {
+          "name": "parse_from_reader",
+          "docstring": "/// ```/// Parse an Dofigen from a Resource (File or Url)",
+          "params": [],
+          "start_line": 575,
+          "end_line": 580
+        },
+        {
+          "name": "parse_from_resource",
+          "docstring": "/// ```",
+          "params": [
+            "resource: Resource"
+          ],
+          "start_line": 605,
+          "end_line": 609
+        },
+        {
+          "name": "merge_extended_image",
+          "docstring": "",
+          "params": [
+            "dofigen: Extend<DofigenPatch>"
+          ],
+          "start_line": 611,
+          "end_line": 613
+        },
+        {
+          "name": "clean_unused",
+          "docstring": "//////////  Constructors  //////////",
+          "params": [],
+          "start_line": 615,
+          "end_line": 618
+        },
+        {
+          "name": "new",
+          "docstring": "//////////  Constructors  //////////",
+          "params": [],
+          "start_line": 620,
+          "end_line": 636
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "resources: HashMap<Resource, ResourceVersion>",
+            "images: HashMap<ImageName, DockerTag>"
+          ],
+          "start_line": 638,
+          "end_line": 655
+        },
+        {
+          "name": "cmp",
+          "docstring": "",
+          "params": [
+            "other: &Self"
+          ],
+          "start_line": 676,
+          "end_line": 687
+        },
+        {
+          "name": "cmp",
+          "docstring": "",
+          "params": [
+            "other: &Self"
+          ],
+          "start_line": 691,
+          "end_line": 693
+        },
+        {
+          "name": "cmp",
+          "docstring": "",
+          "params": [
+            "other: &Self"
+          ],
+          "start_line": 697,
+          "end_line": 704
+        },
+        {
+          "name": "from_str",
+          "docstring": "",
+          "params": [
+            "s: &str"
+          ],
+          "start_line": 710,
+          "end_line": 716
+        }
+      ],
+      "language": "rust"
+    },
+    "from_str.rs": {
+      "file_id": 13,
+      "functions": [
+        {
+          "name": "simple",
+          "docstring": "",
+          "params": [],
+          "start_line": 255,
+          "end_line": 262
+        },
+        {
+          "name": "with_host",
+          "docstring": "",
+          "params": [],
+          "start_line": 265,
+          "end_line": 272
+        },
+        {
+          "name": "with_tag",
+          "docstring": "",
+          "params": [],
+          "start_line": 275,
+          "end_line": 282
+        },
+        {
+          "name": "with_digest",
+          "docstring": "",
+          "params": [],
+          "start_line": 285,
+          "end_line": 295
+        },
+        {
+          "name": "full",
+          "docstring": "",
+          "params": [],
+          "start_line": 298,
+          "end_line": 308
+        },
+        {
+          "name": "simple",
+          "docstring": "",
+          "params": [],
+          "start_line": 316,
+          "end_line": 333
+        },
+        {
+          "name": "with_target_option",
+          "docstring": "",
+          "params": [],
+          "start_line": 336,
+          "end_line": 353
+        },
+        {
+          "name": "with_multiple_sources_and_target",
+          "docstring": "",
+          "params": [],
+          "start_line": 356,
+          "end_line": 373
+        },
+        {
+          "name": "ssh",
+          "docstring": "",
+          "params": [],
+          "start_line": 381,
+          "end_line": 397
+        },
+        {
+          "name": "ssh_with_target",
+          "docstring": "",
+          "params": [],
+          "start_line": 400,
+          "end_line": 417
+        },
+        {
+          "name": "http",
+          "docstring": "",
+          "params": [],
+          "start_line": 420,
+          "end_line": 437
+        },
+        {
+          "name": "http_with_target",
+          "docstring": "",
+          "params": [],
+          "start_line": 440,
+          "end_line": 457
+        },
+        {
+          "name": "simple",
+          "docstring": "",
+          "params": [],
+          "start_line": 468,
+          "end_line": 485
+        },
+        {
+          "name": "with_target_option",
+          "docstring": "",
+          "params": [],
+          "start_line": 488,
+          "end_line": 508
+        },
+        {
+          "name": "with_multiple_sources_and_target",
+          "docstring": "",
+          "params": [],
+          "start_line": 511,
+          "end_line": 536
+        },
+        {
+          "name": "copy",
+          "docstring": "",
+          "params": [],
+          "start_line": 543,
+          "end_line": 549
+        },
+        {
+          "name": "add_git_repo_ssh",
+          "docstring": "",
+          "params": [],
+          "start_line": 552,
+          "end_line": 561
+        },
+        {
+          "name": "add_git_repo_http",
+          "docstring": "",
+          "params": [],
+          "start_line": 564,
+          "end_line": 573
+        },
+        {
+          "name": "add",
+          "docstring": "",
+          "params": [],
+          "start_line": 576,
+          "end_line": 588
+        },
+        {
+          "name": "user",
+          "docstring": "",
+          "params": [],
+          "start_line": 597,
+          "end_line": 602
+        },
+        {
+          "name": "with_group",
+          "docstring": "",
+          "params": [],
+          "start_line": 605,
+          "end_line": 610
+        },
+        {
+          "name": "uid",
+          "docstring": "",
+          "params": [],
+          "start_line": 613,
+          "end_line": 618
+        },
+        {
+          "name": "uid_with_gid",
+          "docstring": "",
+          "params": [],
+          "start_line": 621,
+          "end_line": 626
+        },
+        {
+          "name": "invalid_username",
+          "docstring": "",
+          "params": [],
+          "start_line": 629,
+          "end_line": 633
+        },
+        {
+          "name": "invalid_extra",
+          "docstring": "",
+          "params": [],
+          "start_line": 636,
+          "end_line": 640
+        },
+        {
+          "name": "simple",
+          "docstring": "",
+          "params": [],
+          "start_line": 648,
+          "end_line": 653
+        },
+        {
+          "name": "with_tcp_protocol",
+          "docstring": "",
+          "params": [],
+          "start_line": 656,
+          "end_line": 661
+        },
+        {
+          "name": "with_udp_protocol",
+          "docstring": "",
+          "params": [],
+          "start_line": 664,
+          "end_line": 669
+        },
+        {
+          "name": "invalid",
+          "docstring": "",
+          "params": [],
+          "start_line": 672,
+          "end_line": 676
+        }
+      ],
+      "language": "rust"
+    },
+    "lib.rs": {
+      "file_id": 14,
+      "functions": [
+        {
+          "name": "generate_dockerfile",
+          "docstring": "/// Generates the .dockerignore file content from an Dofigen struct.",
+          "params": [
+            "dofigen: &Dofigen"
+          ],
+          "start_line": 81,
+          "end_line": 83
+        },
+        {
+          "name": "generate_dockerignore",
+          "docstring": "/// Generates the effective Dofigen content from a Dofigen struct.",
+          "params": [
+            "dofigen: &Dofigen"
+          ],
+          "start_line": 144,
+          "end_line": 148
+        },
+        {
+          "name": "generate_effective_content",
+          "docstring": "/// ```/// Generates the JSON schema for the Dofigen struct.",
+          "params": [
+            "dofigen: &Dofigen"
+          ],
+          "start_line": 173,
+          "end_line": 176
+        },
+        {
+          "name": "generate_json_schema",
+          "docstring": "",
+          "params": [],
+          "start_line": 181,
+          "end_line": 189
+        }
+      ],
+      "language": "rust"
+    },
+    "deserialize.rs": {
+      "file_id": 15,
+      "functions": [
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "patch: FromContextPatch"
+          ],
+          "start_line": 221,
+          "end_line": 227
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "image: ImageName"
+          ],
+          "start_line": 231,
+          "end_line": 233
+        },
+        {
+          "name": "default",
+          "docstring": "",
+          "params": [],
+          "start_line": 237,
+          "end_line": 239
+        },
+        {
+          "name": "is_empty",
+          "docstring": "",
+          "params": [],
+          "start_line": 243,
+          "end_line": 248
+        },
+        {
+          "name": "default",
+          "docstring": "",
+          "params": [],
+          "start_line": 252,
+          "end_line": 254
+        },
+        {
+          "name": "default",
+          "docstring": "",
+          "params": [],
+          "start_line": 258,
+          "end_line": 260
+        },
+        {
+          "name": "default",
+          "docstring": "",
+          "params": [],
+          "start_line": 264,
+          "end_line": 266
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "patch: CopyResourcePatch"
+          ],
+          "start_line": 270,
+          "end_line": 278
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "value: T"
+          ],
+          "start_line": 283,
+          "end_line": 285
+        },
+        {
+          "name": "default",
+          "docstring": "",
+          "params": [],
+          "start_line": 293,
+          "end_line": 295
+        },
+        {
+          "name": "deref",
+          "docstring": "",
+          "params": [],
+          "start_line": 305,
+          "end_line": 307
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "value: OneOrManyDeserializable<T>"
+          ],
+          "start_line": 312,
+          "end_line": 317
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "value: VecPatchDeserializable<T>"
+          ],
+          "start_line": 324,
+          "end_line": 338
+        },
+        {
+          "name": "try_from",
+          "docstring": "",
+          "params": [
+            "value: VecDeepPatchCommand<T, P>"
+          ],
+          "start_line": 347,
+          "end_line": 360
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "value: VecDeepPatchDeserializable<T, P>"
+          ],
+          "start_line": 368,
+          "end_line": 386
+        },
+        {
+          "name": "flatten",
+          "docstring": "",
+          "params": [],
+          "start_line": 391,
+          "end_line": 407
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: FromContextPatch"
+          ],
+          "start_line": 413,
+          "end_line": 418
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 420,
+          "end_line": 426
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "_previous_struct: Self"
+          ],
+          "start_line": 428,
+          "end_line": 430
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 432,
+          "end_line": 434
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: CopyResourcePatch"
+          ],
+          "start_line": 438,
+          "end_line": 450
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 452,
+          "end_line": 459
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "previous_struct: Self"
+          ],
+          "start_line": 461,
+          "end_line": 474
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 476,
+          "end_line": 478
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: UnknownPatch"
+          ],
+          "start_line": 482,
+          "end_line": 486
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 488,
+          "end_line": 493
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "previous_struct: Self"
+          ],
+          "start_line": 495,
+          "end_line": 500
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 502,
+          "end_line": 504
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: UnknownPatch"
+          ],
+          "start_line": 508,
+          "end_line": 512
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 514,
+          "end_line": 519
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "previous_struct: Self"
+          ],
+          "start_line": 521,
+          "end_line": 526
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 528,
+          "end_line": 530
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: UnknownPatch"
+          ],
+          "start_line": 534,
+          "end_line": 538
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 540,
+          "end_line": 545
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "previous_struct: Self"
+          ],
+          "start_line": 547,
+          "end_line": 552
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 554,
+          "end_line": 556
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: UnknownPatch"
+          ],
+          "start_line": 560,
+          "end_line": 564
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 566,
+          "end_line": 571
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "previous_struct: Self"
+          ],
+          "start_line": 573,
+          "end_line": 578
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 580,
+          "end_line": 582
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: VecPatch<T>"
+          ],
+          "start_line": 589,
+          "end_line": 675
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 677,
+          "end_line": 681
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "_previous_struct: Self"
+          ],
+          "start_line": 683,
+          "end_line": 689
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 691,
+          "end_line": 693
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: VecDeepPatch<T, P>"
+          ],
+          "start_line": 701,
+          "end_line": 813
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 815,
+          "end_line": 819
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "_previous_struct: Self"
+          ],
+          "start_line": 821,
+          "end_line": 823
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 825,
+          "end_line": 827
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: HashMapPatch<K, V>"
+          ],
+          "start_line": 835,
+          "end_line": 846
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 848,
+          "end_line": 854
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "_previous_struct: Self"
+          ],
+          "start_line": 856,
+          "end_line": 858
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 860,
+          "end_line": 864
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: HashMapDeepPatch<K, P>"
+          ],
+          "start_line": 873,
+          "end_line": 884
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 886,
+          "end_line": 892
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "_previous_struct: Self"
+          ],
+          "start_line": 894,
+          "end_line": 896
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 898,
+          "end_line": 902
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "value: NestedMap<T>"
+          ],
+          "start_line": 907,
+          "end_line": 924
+        },
+        {
+          "name": "apply",
+          "docstring": "",
+          "params": [
+            "patch: NestedMap<T>"
+          ],
+          "start_line": 932,
+          "end_line": 941
+        },
+        {
+          "name": "into_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 943,
+          "end_line": 949
+        },
+        {
+          "name": "into_patch_by_diff",
+          "docstring": "",
+          "params": [
+            "_previous_struct: Self"
+          ],
+          "start_line": 951,
+          "end_line": 953
+        },
+        {
+          "name": "new_empty_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 955,
+          "end_line": 957
+        },
+        {
+          "name": "deserialize",
+          "docstring": "",
+          "params": [],
+          "start_line": 967,
+          "end_line": 1073
+        },
+        {
+          "name": "expecting",
+          "docstring": "",
+          "params": [
+            "formatter: &mut fmt::Formatter"
+          ],
+          "start_line": 979,
+          "end_line": 981
+        },
+        {
+          "name": "visit_i8",
+          "docstring": "",
+          "params": [],
+          "start_line": 983,
+          "end_line": 988
+        },
+        {
+          "name": "visit_i16",
+          "docstring": "",
+          "params": [],
+          "start_line": 990,
+          "end_line": 995
+        },
+        {
+          "name": "visit_i32",
+          "docstring": "",
+          "params": [],
+          "start_line": 997,
+          "end_line": 1002
+        },
+        {
+          "name": "visit_i64",
+          "docstring": "",
+          "params": [],
+          "start_line": 1004,
+          "end_line": 1009
+        },
+        {
+          "name": "visit_i128",
+          "docstring": "",
+          "params": [],
+          "start_line": 1011,
+          "end_line": 1016
+        },
+        {
+          "name": "visit_u8",
+          "docstring": "",
+          "params": [],
+          "start_line": 1018,
+          "end_line": 1023
+        },
+        {
+          "name": "visit_u16",
+          "docstring": "",
+          "params": [],
+          "start_line": 1025,
+          "end_line": 1030
+        },
+        {
+          "name": "visit_u32",
+          "docstring": "",
+          "params": [],
+          "start_line": 1032,
+          "end_line": 1037
+        },
+        {
+          "name": "visit_u64",
+          "docstring": "",
+          "params": [],
+          "start_line": 1039,
+          "end_line": 1044
+        },
+        {
+          "name": "visit_u128",
+          "docstring": "",
+          "params": [],
+          "start_line": 1046,
+          "end_line": 1051
+        },
+        {
+          "name": "visit_str",
+          "docstring": "",
+          "params": [],
+          "start_line": 1053,
+          "end_line": 1060
+        },
+        {
+          "name": "visit_map",
+          "docstring": "",
+          "params": [],
+          "start_line": 1062,
+          "end_line": 1067
+        },
+        {
+          "name": "deserialize",
+          "docstring": "",
+          "params": [],
+          "start_line": 1080,
+          "end_line": 1092
+        },
+        {
+          "name": "deserialize",
+          "docstring": "",
+          "params": [],
+          "start_line": 1100,
+          "end_line": 1107
+        },
+        {
+          "name": "deserialize_vec_patch_commands",
+          "docstring": "",
+          "params": [],
+          "start_line": 1110,
+          "end_line": 1205
+        },
+        {
+          "name": "map_vec",
+          "docstring": "",
+          "params": [],
+          "start_line": 1121,
+          "end_line": 1127
+        },
+        {
+          "name": "map_vec",
+          "docstring": "",
+          "params": [],
+          "start_line": 1130,
+          "end_line": 1136
+        },
+        {
+          "name": "expecting",
+          "docstring": "",
+          "params": [
+            "formatter: &mut fmt::Formatter"
+          ],
+          "start_line": 1145,
+          "end_line": 1147
+        },
+        {
+          "name": "visit_map",
+          "docstring": "",
+          "params": [],
+          "start_line": 1149,
+          "end_line": 1199
+        },
+        {
+          "name": "deserialize_from_optional_string_or_number",
+          "docstring": "",
+          "params": [],
+          "start_line": 1208,
+          "end_line": 1220
+        },
+        {
+          "name": "sort_commands",
+          "docstring": "//////////////////////// Merge //////////////////////////",
+          "params": [],
+          "start_line": 1222,
+          "end_line": 1275
+        },
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "other: Self"
+          ],
+          "start_line": 1292,
+          "end_line": 1297
+        },
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "other: Self"
+          ],
+          "start_line": 1301,
+          "end_line": 1339
+        },
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "other: Self"
+          ],
+          "start_line": 1343,
+          "end_line": 1348
+        },
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "other: Self"
+          ],
+          "start_line": 1356,
+          "end_line": 1358
+        },
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "other: Self"
+          ],
+          "start_line": 1365,
+          "end_line": 1492
+        },
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "other: Self"
+          ],
+          "start_line": 1500,
+          "end_line": 1672
+        },
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "other: Self"
+          ],
+          "start_line": 1680,
+          "end_line": 1693
+        },
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "other: Self"
+          ],
+          "start_line": 1701,
+          "end_line": 1718
+        },
+        {
+          "name": "merge",
+          "docstring": "",
+          "params": [
+            "other: Self"
+          ],
+          "start_line": 1726,
+          "end_line": 1734
+        },
+        {
+          "name": "deserialize_basic_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 1749,
+          "end_line": 1759
+        },
+        {
+          "name": "deserialize_user_error_wrong_username",
+          "docstring": "",
+          "params": [],
+          "start_line": 1762,
+          "end_line": 1771
+        },
+        {
+          "name": "deserialize_stage_with_invalid_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 1774,
+          "end_line": 1783
+        },
+        {
+          "name": "deserialize_dofigen_with_invalid_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 1787,
+          "end_line": 1796
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "patch: TestStructPatch"
+          ],
+          "start_line": 1821,
+          "end_line": 1825
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "patch: SubTestStructPatch"
+          ],
+          "start_line": 1829,
+          "end_line": 1833
+        },
+        {
+          "name": "test_simple_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 1837,
+          "end_line": 1870
+        },
+        {
+          "name": "test_vec_replace",
+          "docstring": "",
+          "params": [],
+          "start_line": 1873,
+          "end_line": 1907
+        },
+        {
+          "name": "test_vec_append_list_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 1910,
+          "end_line": 1950
+        },
+        {
+          "name": "test_vec_append_one_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 1954,
+          "end_line": 1987
+        },
+        {
+          "name": "test_vec_replace_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 1990,
+          "end_line": 2031
+        },
+        {
+          "name": "test_vec_insert_before_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2034,
+          "end_line": 2078
+        },
+        {
+          "name": "test_vec_insert_after_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2081,
+          "end_line": 2125
+        },
+        {
+          "name": "test_vec_many_operations_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2128,
+          "end_line": 2177
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "patch: TestStructPatch"
+          ],
+          "start_line": 2201,
+          "end_line": 2205
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "patch: SubTestStructPatch"
+          ],
+          "start_line": 2209,
+          "end_line": 2213
+        },
+        {
+          "name": "test_simple_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2217,
+          "end_line": 2254
+        },
+        {
+          "name": "test_vec_replace",
+          "docstring": "",
+          "params": [],
+          "start_line": 2257,
+          "end_line": 2298
+        },
+        {
+          "name": "test_vec_append_list_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2301,
+          "end_line": 2351
+        },
+        {
+          "name": "test_vec_append_one_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2355,
+          "end_line": 2399
+        },
+        {
+          "name": "test_vec_replace_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2402,
+          "end_line": 2442
+        },
+        {
+          "name": "test_vec_deep_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2445,
+          "end_line": 2484
+        },
+        {
+          "name": "test_vec_insert_before_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2487,
+          "end_line": 2549
+        },
+        {
+          "name": "test_vec_insert_after_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2552,
+          "end_line": 2614
+        },
+        {
+          "name": "test_vec_many_operations_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2617,
+          "end_line": 2692
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "patch: TestStructPatch"
+          ],
+          "start_line": 2709,
+          "end_line": 2713
+        },
+        {
+          "name": "test_simple_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2717,
+          "end_line": 2749
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "patch: TestStructPatch"
+          ],
+          "start_line": 2772,
+          "end_line": 2776
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [
+            "patch: TestSubStructPatch"
+          ],
+          "start_line": 2780,
+          "end_line": 2784
+        },
+        {
+          "name": "test_simple_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2788,
+          "end_line": 2835
+        },
+        {
+          "name": "test_nested_map_patch",
+          "docstring": "",
+          "params": [],
+          "start_line": 2844,
+          "end_line": 2870
+        },
+        {
+          "name": "one",
+          "docstring": "",
+          "params": [],
+          "start_line": 2886,
+          "end_line": 2894
+        },
+        {
+          "name": "many",
+          "docstring": "",
+          "params": [],
+          "start_line": 2897,
+          "end_line": 2905
+        },
+        {
+          "name": "one",
+          "docstring": "",
+          "params": [],
+          "start_line": 2918,
+          "end_line": 2927
+        },
+        {
+          "name": "many",
+          "docstring": "",
+          "params": [],
+          "start_line": 2930,
+          "end_line": 2939
+        },
+        {
+          "name": "null",
+          "docstring": "",
+          "params": [],
+          "start_line": 2942,
+          "end_line": 2951
+        },
+        {
+          "name": "absent",
+          "docstring": "",
+          "params": [],
+          "start_line": 2954,
+          "end_line": 2963
+        },
+        {
+          "name": "string",
+          "docstring": "",
+          "params": [],
+          "start_line": 2980,
+          "end_line": 2988
+        },
+        {
+          "name": "number",
+          "docstring": "",
+          "params": [],
+          "start_line": 2991,
+          "end_line": 2999
+        },
+        {
+          "name": "null",
+          "docstring": "",
+          "params": [],
+          "start_line": 3002,
+          "end_line": 3005
+        },
+        {
+          "name": "absent",
+          "docstring": "",
+          "params": [],
+          "start_line": 3008,
+          "end_line": 3011
+        },
+        {
+          "name": "test_single_level_map",
+          "docstring": "",
+          "params": [],
+          "start_line": 3019,
+          "end_line": 3042
+        },
+        {
+          "name": "test_multilevel_map",
+          "docstring": "",
+          "params": [],
+          "start_line": 3045,
+          "end_line": 3063
+        },
+        {
+          "name": "test_equivalent_flattened_map",
+          "docstring": "",
+          "params": [],
+          "start_line": 3066,
+          "end_line": 3080
+        },
+        {
+          "name": "test_combined_multilevel_and_flattened_map",
+          "docstring": "",
+          "params": [],
+          "start_line": 3083,
+          "end_line": 3108
+        },
+        {
+          "name": "test_empty_map",
+          "docstring": "",
+          "params": [],
+          "start_line": 3111,
+          "end_line": 3118
+        },
+        {
+          "name": "test_nested_empty_map",
+          "docstring": "",
+          "params": [],
+          "start_line": 3121,
+          "end_line": 3135
+        }
+      ],
+      "language": "rust"
+    },
+    "dofigen_struct.rs": {
+      "file_id": 16,
+      "functions": [
+        {
+          "name": "empty",
+          "docstring": "",
+          "params": [],
+          "start_line": 743,
+          "end_line": 750
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [],
+          "start_line": 753,
+          "end_line": 775
+        },
+        {
+          "name": "duplicate_from",
+          "docstring": "",
+          "params": [],
+          "start_line": 779,
+          "end_line": 792
+        },
+        {
+          "name": "duplicate_from_and_alias",
+          "docstring": "",
+          "params": [],
+          "start_line": 796,
+          "end_line": 809
+        },
+        {
+          "name": "empty",
+          "docstring": "",
+          "params": [],
+          "start_line": 816,
+          "end_line": 823
+        },
+        {
+          "name": "from",
+          "docstring": "",
+          "params": [],
+          "start_line": 826,
+          "end_line": 846
+        },
+        {
+          "name": "duplicate_from",
+          "docstring": "",
+          "params": [],
+          "start_line": 850,
+          "end_line": 861
+        },
+        {
+          "name": "duplicate_from_and_alias",
+          "docstring": "",
+          "params": [],
+          "start_line": 865,
+          "end_line": 876
+        },
+        {
+          "name": "label",
+          "docstring": "",
+          "params": [],
+          "start_line": 879,
+          "end_line": 902
+        },
+        {
+          "name": "name_and_group",
+          "docstring": "",
+          "params": [],
+          "start_line": 909,
+          "end_line": 925
+        },
+        {
+          "name": "copy",
+          "docstring": "",
+          "params": [],
+          "start_line": 933,
+          "end_line": 970
+        },
+        {
+          "name": "copy_simple",
+          "docstring": "",
+          "params": [],
+          "start_line": 973,
+          "end_line": 999
+        },
+        {
+          "name": "copy_chmod_int",
+          "docstring": "",
+          "params": [],
+          "start_line": 1003,
+          "end_line": 1022
+        },
+        {
+          "name": "deserialize_copy_from_str",
+          "docstring": "",
+          "params": [],
+          "start_line": 1026,
+          "end_line": 1044
+        },
+        {
+          "name": "copy_content",
+          "docstring": "",
+          "params": [],
+          "start_line": 1047,
+          "end_line": 1079
+        },
+        {
+          "name": "add_git_repo",
+          "docstring": "",
+          "params": [],
+          "start_line": 1082,
+          "end_line": 1115
+        },
+        {
+          "name": "add",
+          "docstring": "",
+          "params": [],
+          "start_line": 1118,
+          "end_line": 1154
+        },
+        {
+          "name": "with_bind",
+          "docstring": "",
+          "params": [],
+          "start_line": 1161,
+          "end_line": 1199
+        }
+      ],
+      "language": "rust"
+    },
+    "dockerfile_struct.rs": {
+      "file_id": 17,
+      "functions": [
+        {
+          "name": "new",
+          "docstring": "",
+          "params": [
+            "name: &str",
+            "value: String"
+          ],
+          "start_line": 37,
+          "end_line": 42
+        },
+        {
+          "name": "new_flag",
+          "docstring": "",
+          "params": [
+            "name: &str"
+          ],
+          "start_line": 44,
+          "end_line": 49
+        },
+        {
+          "name": "generate_content",
+          "docstring": "",
+          "params": [],
+          "start_line": 53,
+          "end_line": 63
+        },
+        {
+          "name": "generate_content",
+          "docstring": "",
+          "params": [],
+          "start_line": 67,
+          "end_line": 79
+        },
+        {
+          "name": "generate_content",
+          "docstring": "",
+          "params": [],
+          "start_line": 83,
+          "end_line": 97
+        },
+        {
+          "name": "generate_content",
+          "docstring": "",
+          "params": [],
+          "start_line": 101,
+          "end_line": 111
+        },
+        {
+          "name": "test_generate_content_instruction",
+          "docstring": "",
+          "params": [],
+          "start_line": 121,
+          "end_line": 134
+        },
+        {
+          "name": "test_generate_content_comment",
+          "docstring": "",
+          "params": [],
+          "start_line": 137,
+          "end_line": 140
+        },
+        {
+          "name": "test_generate_content_empty",
+          "docstring": "",
+          "params": [],
+          "start_line": 143,
+          "end_line": 146
+        },
+        {
+          "name": "test_generate_content_name_only_option",
+          "docstring": "",
+          "params": [],
+          "start_line": 149,
+          "end_line": 152
+        },
+        {
+          "name": "test_generate_content_with_value_option",
+          "docstring": "",
+          "params": [],
+          "start_line": 155,
+          "end_line": 158
+        },
+        {
+          "name": "test_generate_content_with_options_option",
+          "docstring": "",
+          "params": [],
+          "start_line": 161,
+          "end_line": 168
+        },
+        {
+          "name": "test_generate_content_instruction_option_option",
+          "docstring": "",
+          "params": [],
+          "start_line": 171,
+          "end_line": 175
+        }
+      ],
+      "language": "rust"
+    },
+    "linter.rs": {
+      "file_id": 18,
+      "functions": [
+        {
+          "name": "analyze",
+          "docstring": "",
+          "params": [
+            "session: &mut LintSession"
+          ],
+          "start_line": 30,
+          "end_line": 59
+        },
+        {
+          "name": "analyze",
+          "docstring": "",
+          "params": [
+            "session: &mut LintSession"
+          ],
+          "start_line": 63,
+          "end_line": 133
+        },
+        {
+          "name": "analyze",
+          "docstring": "",
+          "params": [
+            "session: &mut LintSession"
+          ],
+          "start_line": 137,
+          "end_line": 142
+        },
+        {
+          "name": "analyze",
+          "docstring": "",
+          "params": [
+            "session: &mut LintSession"
+          ],
+          "start_line": 146,
+          "end_line": 161
+        },
+        {
+          "name": "analyze",
+          "docstring": "",
+          "params": [
+            "session: &mut LintSession"
+          ],
+          "start_line": 165,
+          "end_line": 234
+        },
+        {
+          "name": "get_dependencies",
+          "docstring": "",
+          "params": [
+            "origin: &Vec<String>"
+          ],
+          "start_line": 242,
+          "end_line": 263
+        },
+        {
+          "name": "get_dependencies",
+          "docstring": "",
+          "params": [
+            "origin: &Vec<String>"
+          ],
+          "start_line": 267,
+          "end_line": 288
+        },
+        {
+          "name": "get_dependencies",
+          "docstring": "",
+          "params": [
+            "origin: &Vec<String>"
+          ],
+          "start_line": 292,
+          "end_line": 308
+        },
+        {
+          "name": "push_path_part",
+          "docstring": "",
+          "params": [
+            "part: String"
+          ],
+          "start_line": 320,
+          "end_line": 322
+        },
+        {
+          "name": "pop_path_part",
+          "docstring": "",
+          "params": [],
+          "start_line": 324,
+          "end_line": 326
+        },
+        {
+          "name": "add_message",
+          "docstring": "",
+          "params": [
+            "level: MessageLevel",
+            "message: String"
+          ],
+          "start_line": 328,
+          "end_line": 334
+        },
+        {
+          "name": "messages",
+          "docstring": "",
+          "params": [],
+          "start_line": 336,
+          "end_line": 338
+        },
+        {
+          "name": "get_sorted_builders",
+          "docstring": "",
+          "params": [],
+          "start_line": 340,
+          "end_line": 368
+        },
+        {
+          "name": "get_stage_recursive_dependencies",
+          "docstring": "",
+          "params": [
+            "stage: String"
+          ],
+          "start_line": 370,
+          "end_line": 372
+        },
+        {
+          "name": "resolve_stage_recursive_dependencies",
+          "docstring": "/// Checks if dependencies are using path that are in cache",
+          "params": [
+            "path: &mut Vec<String>"
+          ],
+          "start_line": 374,
+          "end_line": 411
+        },
+        {
+          "name": "check_dependencies",
+          "docstring": "/// Checks if dependencies are using path that are in cache",
+          "params": [],
+          "start_line": 413,
+          "end_line": 478
+        },
+        {
+          "name": "get_stage_cache_paths",
+          "docstring": "",
+          "params": [
+            "stage: &Stage"
+          ],
+          "start_line": 480,
+          "end_line": 495
+        },
+        {
+          "name": "get_run_cache_paths",
+          "docstring": "////////// Statics //////////",
+          "params": [
+            "run: &Run",
+            "path: &Vec<String>",
+            "workdir: &Option<String>"
+          ],
+          "start_line": 497,
+          "end_line": 523
+        },
+        {
+          "name": "analyze",
+          "docstring": "/// Analyze the given Dofigen configuration and return a lint session",
+          "params": [
+            "dofigen: &Dofigen"
+          ],
+          "start_line": 527,
+          "end_line": 533
+        },
+        {
+          "name": "builders_dependencies",
+          "docstring": "",
+          "params": [],
+          "start_line": 566,
+          "end_line": 637
+        },
+        {
+          "name": "builders_circular_dependencies",
+          "docstring": "",
+          "params": [],
+          "start_line": 640,
+          "end_line": 719
+        },
+        {
+          "name": "builder_named_runtime",
+          "docstring": "",
+          "params": [],
+          "start_line": 722,
+          "end_line": 752
+        },
+        {
+          "name": "builder_not_found",
+          "docstring": "",
+          "params": [],
+          "start_line": 755,
+          "end_line": 779
+        },
+        {
+          "name": "dependency_to_runtime",
+          "docstring": "",
+          "params": [],
+          "start_line": 782,
+          "end_line": 832
+        },
+        {
+          "name": "dependency_to_cache_path",
+          "docstring": "",
+          "params": [],
+          "start_line": 835,
+          "end_line": 891
+        },
+        {
+          "name": "runtime_dependencies",
+          "docstring": "",
+          "params": [],
+          "start_line": 894,
+          "end_line": 984
+        },
+        {
+          "name": "empty",
+          "docstring": "",
+          "params": [],
+          "start_line": 991,
+          "end_line": 1020
+        },
+        {
+          "name": "unused",
+          "docstring": "",
+          "params": [],
+          "start_line": 1023,
+          "end_line": 1051
+        },
+        {
+          "name": "uid",
+          "docstring": "",
+          "params": [],
+          "start_line": 1058,
+          "end_line": 1070
+        },
+        {
+          "name": "username",
+          "docstring": "",
+          "params": [],
+          "start_line": 1073,
+          "end_line": 1092
+        },
+        {
+          "name": "stage_and_copy",
+          "docstring": "",
+          "params": [],
+          "start_line": 1099,
+          "end_line": 1127
+        },
+        {
+          "name": "root_bind",
+          "docstring": "",
+          "params": [],
+          "start_line": 1130,
+          "end_line": 1171
+        },
+        {
+          "name": "empty_run",
+          "docstring": "",
+          "params": [],
+          "start_line": 1178,
+          "end_line": 1216
+        }
+      ],
+      "language": "rust"
+    },
+    "lock.rs": {
+      "file_id": 19,
+      "functions": [
+        {
+          "name": "fill",
+          "docstring": "",
+          "params": [],
+          "start_line": 23,
+          "end_line": 33
+        },
+        {
+          "name": "images",
+          "docstring": "",
+          "params": [],
+          "start_line": 53,
+          "end_line": 93
+        },
+        {
+          "name": "resources",
+          "docstring": "",
+          "params": [],
+          "start_line": 95,
+          "end_line": 101
+        },
+        {
+          "name": "to_context",
+          "docstring": "",
+          "params": [],
+          "start_line": 103,
+          "end_line": 105
+        },
+        {
+          "name": "from_context",
+          "docstring": "",
+          "params": [
+            "effective: &Dofigen",
+            "context: &DofigenContext"
+          ],
+          "start_line": 107,
+          "end_line": 154
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 165,
+          "end_line": 170
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 177,
+          "end_line": 179
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 187,
+          "end_line": 195
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 199,
+          "end_line": 212
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 216,
+          "end_line": 271
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 275,
+          "end_line": 280
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 284,
+          "end_line": 294
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 298,
+          "end_line": 303
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 307,
+          "end_line": 312
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 316,
+          "end_line": 322
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 326,
+          "end_line": 331
+        },
+        {
+          "name": "lock",
+          "docstring": "",
+          "params": [
+            "context: &mut DofigenContext"
+          ],
+          "start_line": 335,
+          "end_line": 340
+        },
+        {
+          "name": "cmp",
+          "docstring": "",
+          "params": [
+            "_other: &Self"
+          ],
+          "start_line": 344,
+          "end_line": 346
+        },
+        {
+          "name": "cmp",
+          "docstring": "",
+          "params": [
+            "other: &Self"
+          ],
+          "start_line": 350,
+          "end_line": 352
+        }
+      ],
+      "language": "rust"
+    },
+    "bin": {
+      "main.rs": {
+        "file_id": 20,
+        "functions": [
+          {
+            "name": "run",
+            "docstring": "",
+            "params": [],
+            "start_line": 56,
+            "end_line": 64
+          },
+          {
+            "name": "main",
+            "docstring": "",
+            "params": [],
+            "start_line": 67,
+            "end_line": 72
+          },
+          {
+            "name": "verify_cmd",
+            "docstring": "",
+            "params": [],
+            "start_line": 80,
+            "end_line": 82
+          }
+        ],
+        "language": "rust"
+      },
+      "commands": {
+        "effective.rs": {
+          "file_id": 21,
+          "functions": [
+            {
+              "name": "run",
+              "docstring": "",
+              "params": [],
+              "start_line": 27,
+              "end_line": 57
+            }
+          ],
+          "language": "rust"
+        },
+        "generate.rs": {
+          "file_id": 22,
+          "functions": [
+            {
+              "name": "write_dockerfile",
+              "docstring": "",
+              "params": [
+                "dockerfile_content: &str",
+                "ignore_content: &str"
+              ],
+              "start_line": 37,
+              "end_line": 50
+            },
+            {
+              "name": "run",
+              "docstring": "",
+              "params": [],
+              "start_line": 54,
+              "end_line": 137
+            }
+          ],
+          "language": "rust"
+        },
+        "update.rs": {
+          "file_id": 23,
+          "functions": [
+            {
+              "name": "run",
+              "docstring": "",
+              "params": [],
+              "start_line": 24,
+              "end_line": 65
+            }
+          ],
+          "language": "rust"
+        },
+        "schema.rs": {
+          "file_id": 24,
+          "functions": [
+            {
+              "name": "run",
+              "docstring": "",
+              "params": [],
+              "start_line": 15,
+              "end_line": 18
+            }
+          ],
+          "language": "rust"
+        },
+        "mod.rs": {
+          "file_id": 25,
+          "functions": [
+            {
+              "name": "get_file_path",
+              "docstring": "",
+              "params": [
+                "path: &Option<String>"
+              ],
+              "start_line": 10,
+              "end_line": 21
+            },
+            {
+              "name": "get_lockfile_path",
+              "docstring": "",
+              "params": [
+                "path: String"
+              ],
+              "start_line": 23,
+              "end_line": 29
+            },
+            {
+              "name": "get_image_from_path",
+              "docstring": "",
+              "params": [
+                "path: String",
+                "context: &mut DofigenContext"
+              ],
+              "start_line": 31,
+              "end_line": 37
+            },
+            {
+              "name": "load_lockfile",
+              "docstring": "",
+              "params": [
+                "path: Option<PathBuf>"
+              ],
+              "start_line": 39,
+              "end_line": 50
+            }
+          ],
+          "language": "rust"
+        }
+      }
+    }
+  },
+  "tests": {
+    "cases.rs": {
+      "file_id": 26,
+      "functions": [
+        {
+          "name": "test_cases",
+          "docstring": "",
+          "params": [],
+          "start_line": 8,
+          "end_line": 81
+        },
+        {
+          "name": "filter_to_map",
+          "docstring": "",
+          "params": [],
+          "start_line": 61,
+          "end_line": 80
+        },
+        {
+          "name": "test_load_url",
+          "docstring": "",
+          "params": [],
+          "start_line": 84,
+          "end_line": 125
+        }
+      ],
+      "language": "rust"
+    },
+    "infinite_loop.rs": {
+      "file_id": 27,
+      "functions": [
+        {
+          "name": "test_self_loop",
+          "docstring": "",
+          "params": [],
+          "start_line": 6,
+          "end_line": 19
+        },
+        {
+          "name": "test_self_relative_loop",
+          "docstring": "",
+          "params": [],
+          "start_line": 22,
+          "end_line": 35
+        },
+        {
+          "name": "test_self_relative_from_parent_loop",
+          "docstring": "",
+          "params": [],
+          "start_line": 38,
+          "end_line": 51
+        },
+        {
+          "name": "test_a_b_loop",
+          "docstring": "",
+          "params": [],
+          "start_line": 54,
+          "end_line": 71
+        },
+        {
+          "name": "test_stack_size",
+          "docstring": "",
+          "params": [],
+          "start_line": 74,
+          "end_line": 95
+        }
+      ],
+      "language": "rust"
+    },
+    "cli_test.rs": {
+      "file_id": 28,
+      "functions": [
+        {
+          "name": "generate_bin",
+          "docstring": "",
+          "params": [],
+          "start_line": 19,
+          "end_line": 40
+        },
+        {
+          "name": "output_starts_with",
+          "docstring": "",
+          "params": [
+            "output: &Vec<u8>",
+            "expected: &str"
+          ],
+          "start_line": 42,
+          "end_line": 48
+        },
+        {
+          "name": "assert_output",
+          "docstring": "",
+          "params": [
+            "output: &Vec<u8>",
+            "expected: &str"
+          ],
+          "start_line": 50,
+          "end_line": 54
+        },
+        {
+          "name": "check_help_result",
+          "docstring": "",
+          "params": [
+            "output: &Vec<u8>"
+          ],
+          "start_line": 56,
+          "end_line": 69
+        },
+        {
+          "name": "without_subcommand",
+          "docstring": "",
+          "params": [],
+          "start_line": 72,
+          "end_line": 80
+        },
+        {
+          "name": "help",
+          "docstring": "",
+          "params": [],
+          "start_line": 83,
+          "end_line": 87
+        },
+        {
+          "name": "help_option",
+          "docstring": "",
+          "params": [],
+          "start_line": 90,
+          "end_line": 94
+        },
+        {
+          "name": "version",
+          "docstring": "",
+          "params": [],
+          "start_line": 97,
+          "end_line": 105
+        },
+        {
+          "name": "generate_specified_file_locked",
+          "docstring": "",
+          "params": [],
+          "start_line": 108,
+          "end_line": 159
+        },
+        {
+          "name": "generate_file_not_found",
+          "docstring": "",
+          "params": [],
+          "start_line": 162,
+          "end_line": 179
+        },
+        {
+          "name": "extend_not_existing_url",
+          "docstring": "",
+          "params": [],
+          "start_line": 182,
+          "end_line": 207
+        }
+      ],
+      "language": "rust"
+    },
+    "lib_test.rs": {
+      "file_id": 29,
+      "functions": [
+        {
+          "name": "yaml_to_dockerfile_empty",
+          "docstring": "",
+          "params": [],
+          "start_line": 5,
+          "end_line": 34
+        },
+        {
+          "name": "yaml_to_dockerfile_complex",
+          "docstring": "",
+          "params": [],
+          "start_line": 38,
+          "end_line": 133
+        },
+        {
+          "name": "using_dockerfile_overlap_aliases",
+          "docstring": "",
+          "params": [],
+          "start_line": 138,
+          "end_line": 213
+        },
+        {
+          "name": "multiline_run_field",
+          "docstring": "",
+          "params": [],
+          "start_line": 217,
+          "end_line": 246
+        },
+        {
+          "name": "combine_field_and_aliases",
+          "docstring": "",
+          "params": [],
+          "start_line": 251,
+          "end_line": 270
+        },
+        {
+          "name": "fail_on_unknow_field",
+          "docstring": "",
+          "params": [],
+          "start_line": 275,
+          "end_line": 303
+        },
+        {
+          "name": "manage_plural_aliases",
+          "docstring": "",
+          "params": [],
+          "start_line": 307,
+          "end_line": 373
+        },
+        {
+          "name": "artifact_copy_custom_user",
+          "docstring": "",
+          "params": [],
+          "start_line": 377,
+          "end_line": 458
+        },
+        {
+          "name": "bind_instead_of_copy",
+          "docstring": "",
+          "params": [],
+          "start_line": 461,
+          "end_line": 573
+        },
+        {
+          "name": "malformed_user_must_fail",
+          "docstring": "",
+          "params": [],
+          "start_line": 578,
+          "end_line": 588
+        },
+        {
+          "name": "simple",
+          "docstring": "",
+          "params": [],
+          "start_line": 594,
+          "end_line": 631
+        },
+        {
+          "name": "multiline",
+          "docstring": "",
+          "params": [],
+          "start_line": 634,
+          "end_line": 677
+        },
+        {
+          "name": "no_arg_substitution",
+          "docstring": "",
+          "params": [],
+          "start_line": 680,
+          "end_line": 718
+        },
+        {
+          "name": "shells_in_dockerfile",
+          "docstring": "",
+          "params": [],
+          "start_line": 722,
+          "end_line": 750
+        }
+      ],
+      "language": "rust"
+    },
+    "regression_test.rs": {
+      "file_id": 30,
+      "functions": [
+        {
+          "name": "badly_ordered_stages_and_no_runtime",
+          "docstring": "",
+          "params": [],
+          "start_line": 10,
+          "end_line": 214
+        }
+      ],
+      "language": "rust"
+    },
+    "cases": {
+      "springboot-maven.base.result.Dockerfile": {
+        "file_id": 31
+      },
+      "springboot-maven.extend.yml": {
+        "file_id": 32
+      },
+      "springboot-maven.extend.result.Dockerfile": {
+        "file_id": 33
+      },
+      "springboot-maven.base.yml": {
+        "file_id": 34
+      },
+      "simple.result.Dockerfile": {
+        "file_id": 35
+      },
+      "simple.locked.result.Dockerfile": {
+        "file_id": 36
+      },
+      "simple.yml": {
+        "file_id": 37
+      },
+      "simple.permissive.yml": {
+        "file_id": 38
+      },
+      "springboot-maven.base.permissive.yml": {
+        "file_id": 39
+      },
+      "springboot-maven.override.result.Dockerfile": {
+        "file_id": 40
+      },
+      "springboot-maven.extend.result.yml": {
+        "file_id": 41
+      },
+      "springboot-maven.base.result.yml": {
+        "file_id": 42
+      },
+      "springboot-maven.override.permissive.yml": {
+        "file_id": 43
+      },
+      "springboot-maven.override.yml": {
+        "file_id": 44
+      },
+      "simple.result.yml": {
+        "file_id": 45
+      },
+      "springboot-maven.override.result.yml": {
+        "file_id": 46
+      },
+      "springboot-maven.extend.permissive.yml": {
+        "file_id": 47
+      }
+    },
+    "infinite_loop": {
+      "stack_size_2.yml": {
+        "file_id": 48
+      },
+      "self.yml": {
+        "file_id": 49
+      },
+      "a.yml": {
+        "file_id": 50
+      },
+      "stack_size_7.yml": {
+        "file_id": 51
+      },
+      "stack_size_8.yml": {
+        "file_id": 52
+      },
+      "stack_size_4.yml": {
+        "file_id": 53
+      },
+      "stack_size.yml": {
+        "file_id": 54
+      },
+      "stack_size_9.yml": {
+        "file_id": 55
+      },
+      "self_relative.yml": {
+        "file_id": 56
+      },
+      "stack_size_0.yml": {
+        "file_id": 57
+      },
+      "stack_size_6.yml": {
+        "file_id": 58
+      },
+      "b.yml": {
+        "file_id": 59
+      },
+      "self_relative_from_parent.yml": {
+        "file_id": 60
+      },
+      "stack_size_1.yml": {
+        "file_id": 61
+      },
+      "stack_size_5.yml": {
+        "file_id": 62
+      },
+      "stack_size_3.yml": {
+        "file_id": 63
+      }
+    }
+  },
+  "docs": {
+    "struct.md": {
+      "file_id": 64
+    },
+    "dofigen.schema.json": {
+      "file_id": 65
+    }
+  }
+}
