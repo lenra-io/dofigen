@@ -39,7 +39,7 @@ schemars = { version = "1", optional = true, features = ["url2"] }
 regex = "1.11.2"
 url = { version = "2.5.4", features = ["serde"] }
 struct-patch = { version = "=0.10.4", default-features = false, features = ["option", "merge"] }
-reqwest = { version = "0.12.23", default-features = false, features = ["json", "blocking", "rustls-tls-native-roots"] }
+reqwest = { version = "0.12.25", default-features = false, features = ["json", "blocking", "rustls-tls-native-roots"] }
 relative-path = "2.0.1"
 sha256 = { version = "1.5.0", default-features = false }
 colored = "3.0.0"
