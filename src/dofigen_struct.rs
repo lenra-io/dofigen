@@ -414,6 +414,13 @@ pub struct ImageName {
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     #[patch(attribute(serde(flatten)))]
     pub version: Option<ImageVersion>,
+
+    /// The optional platform option can be used to specify the platform of the image in case FROM references a multi-platform image.
+    /// For example, linux/amd64, linux/arm64, or windows/amd64.
+    /// By default, the target platform of the build request is used. Global build arguments can be used in the value of this flag, for example automatic platform ARGs allow you to force a stage to native build platform (platform: $BUILDPLATFORM), and use it to cross-compile to the target platform inside the stage.
+    /// See https://docs.docker.com/reference/dockerfile/#from
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<String>,
 }
 
 /// Represents the COPY instruction in a Dockerfile.
