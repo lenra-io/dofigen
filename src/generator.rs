@@ -849,6 +849,12 @@ impl DockerfileGenerator for Add {
                 checksum.into(),
             ));
         }
+        if let Some(unpack) = &self.unpack {
+            options.push(InstructionOption::WithValue(
+                "unpack".into(),
+                unpack.to_string(),
+            ));
+        }
         add_copy_options(&mut options, &self.options, context);
 
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
@@ -880,6 +886,12 @@ impl DockerfileGenerator for AddGitRepo {
             options.push(InstructionOption::WithValue(
                 "keep-git-dir".into(),
                 keep_git_dir.to_string(),
+            ));
+        }
+        if let Some(checksum) = &self.checksum {
+            options.push(InstructionOption::WithValue(
+                "checksum".into(),
+                checksum.into(),
             ));
         }
 
