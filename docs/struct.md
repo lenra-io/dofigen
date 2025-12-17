@@ -114,6 +114,11 @@ This represents a run command.
 | `shell` | string or string[] | The shell to use for the RUN command. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#shell). |
 | `cache` | [Cache](#cache)[] | The cache definitions during the run. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#run---mounttypecache). |
 | `bind` | [Bind](#bind)[] | The file system bindings during the run. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#run---mounttypebind). |
+| `tmpfs` | [TmpFs](#tmpfs)[] | This mount type allows [mounting tmpfs](https://docs.docker.com/reference/dockerfile/#run---mounttypetmpfs) in the build container. |
+| `secret` | [Secret](#secret)[] | This allows the build container to access secret values, such as tokens or private keys, without baking them into the image. |
+| `ssh` | [Ssh](#ssh)[] | This allows the build container to access SSH keys via SSH agents, with support for passphrases. |
+| `network` | `default`, `none` or `host` | This allows control over which networking environment the command is run in. |
+| `security` | `sandbox` or `insecure` | The default security mode is sandbox. With `security: insecure`, the builder runs the command without sandbox in insecure mode, which allows to run flows requiring elevated privileges (e.g. containerd). |
 
 ## Cache
 
