@@ -1248,6 +1248,144 @@ mod test {
                 })]
             );
         }
+
+        #[test]
+        fn with_tmpfs() {
+            let builder = Run {
+                run: vec!["echo Hello".into()].into(),
+                tmpfs: vec![TmpFs {
+                    target: "/path/to/tmpfs".into(),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            };
+            let mut context = GenerationContext {
+                user: Some(User::new_without_group("1000")),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder.generate_dockerfile_lines(&mut context).unwrap(),
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "RUN".into(),
+                    content: "echo Hello".into(),
+                    options: vec![InstructionOption::WithOptions(
+                        "mount".into(),
+                        vec![
+                            InstructionOptionOption::new("type", "tmpfs".into()),
+                            InstructionOptionOption::new("target", "/path/to/tmpfs".into()),
+                        ],
+                    )],
+                })]
+            );
+        }
+
+        #[test]
+        fn with_secret() {
+            let builder = Run {
+                run: vec!["echo Hello".into()].into(),
+                secret: vec![Secret {
+                    id: Some("test".into()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            };
+            let mut context = GenerationContext {
+                user: Some(User::new_without_group("1000")),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder.generate_dockerfile_lines(&mut context).unwrap(),
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "RUN".into(),
+                    content: "echo Hello".into(),
+                    options: vec![InstructionOption::WithOptions(
+                        "mount".into(),
+                        vec![
+                            InstructionOptionOption::new("type", "secret".into()),
+                            InstructionOptionOption::new("id", "test".into()),
+                        ],
+                    )],
+                })]
+            );
+        }
+
+        #[test]
+        fn with_secret_empty() {
+            let builder = Run {
+                run: vec!["echo Hello".into()].into(),
+                secret: vec![Secret::default()],
+                ..Default::default()
+            };
+            let mut context = GenerationContext {
+                user: Some(User::new_without_group("1000")),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder.generate_dockerfile_lines(&mut context).unwrap(),
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "RUN".into(),
+                    content: "echo Hello".into(),
+                    options: vec![InstructionOption::WithOptions(
+                        "mount".into(),
+                        vec![InstructionOptionOption::new("type", "secret".into()),],
+                    )],
+                })]
+            );
+        }
+
+        #[test]
+        fn with_ssh() {
+            let builder = Run {
+                run: vec!["echo Hello".into()].into(),
+                ssh: vec![Ssh {
+                    id: Some("test".into()),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            };
+            let mut context = GenerationContext {
+                user: Some(User::new_without_group("1000")),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder.generate_dockerfile_lines(&mut context).unwrap(),
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "RUN".into(),
+                    content: "echo Hello".into(),
+                    options: vec![InstructionOption::WithOptions(
+                        "mount".into(),
+                        vec![
+                            InstructionOptionOption::new("type", "ssh".into()),
+                            InstructionOptionOption::new("id", "test".into()),
+                        ],
+                    )],
+                })]
+            );
+        }
+
+        #[test]
+        fn with_ssh_empty() {
+            let builder = Run {
+                run: vec!["echo Hello".into()].into(),
+                ssh: vec![Ssh::default()],
+                ..Default::default()
+            };
+            let mut context = GenerationContext {
+                user: Some(User::new_without_group("1000")),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                builder.generate_dockerfile_lines(&mut context).unwrap(),
+                vec![DockerfileLine::Instruction(DockerfileInsctruction {
+                    command: "RUN".into(),
+                    content: "echo Hello".into(),
+                    options: vec![InstructionOption::WithOptions(
+                        "mount".into(),
+                        vec![InstructionOptionOption::new("type", "ssh".into()),],
+                    )],
+                })]
+            );
+        }
     }
 
     mod label {
