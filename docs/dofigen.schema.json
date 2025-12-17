@@ -118,6 +118,17 @@
     "extend": {
       "$ref": "#/definitions/OneOrMany_Resource"
     },
+    "globalArg": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/HashMapPatch_string_string"
+        },
+        {
+          "type": "null",
+          "nullable": true
+        }
+      ]
+    },
     "healthcheck": {
       "anyOf": [
         {

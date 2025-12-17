@@ -306,6 +306,13 @@ mod test_from_str {
                 Some(Some(ImageVersion::Tag("stable".into())))
             );
         }
+
+        #[test]
+        fn with_arg() {
+            let input = "example/image:${VERSION}";
+            let result = ImageNamePatch::from_str(input);
+            assert!(result.is_err());
+        }
     }
 
     mod copy {
