@@ -899,6 +899,14 @@
           "default": null,
           "nullable": true
         },
+        "platform": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "nullable": true
+        },
         "port": {
           "type": [
             "integer",

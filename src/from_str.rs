@@ -66,6 +66,7 @@ impl_parsable_patch!(ImageName, ImageNamePatch, s, {
                 _ => return Err(Error::custom("Invalid version format")),
             },
         ),
+        platform: Some(None),
     })
 });
 
