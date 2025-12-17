@@ -459,7 +459,6 @@ pub struct Secret {
     )
 )]
 pub struct Ssh {
-    
     /// ID of SSH agent socket or key. Defaults to "default".
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
