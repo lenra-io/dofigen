@@ -242,6 +242,13 @@ impl_parsable_patch!(Cache, CachePatch, s, {
     })
 });
 
+impl_parsable_patch!(TmpFs, TmpFsPatch, s, {
+    Ok(Self {
+        target: Some(s.into()),
+        size: Some(None),
+    })
+});
+
 #[cfg(test)]
 mod test_from_str {
     use super::*;
