@@ -166,6 +166,7 @@ It can be parsed from string.
 | `host` | string | The host of the image registry. |
 | `port` | int | The port of the image registry. |
 | `path` | string | The path of the image repository. |
+| `platform` | string | The optional platform option can be used to specify the platform of the image in case FROM references a multi-platform image. |
 
 The version of the image can also be set with one of the following fields:
 

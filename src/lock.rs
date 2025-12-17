@@ -82,6 +82,7 @@ impl LockFile {
                                 port,
                                 path: path.clone(),
                                 version: Some(ImageVersion::Tag(tag)),
+                                platform: None,
                             },
                             digest,
                         );

@@ -442,7 +442,18 @@ impl DockerfileGenerator for Stage {
                     "{image_name} AS {stage_name}",
                     image_name = self.from(context).to_string()
                 ),
-                options: vec![],
+                options: match &self.from {
+                    FromContext::FromImage(ImageName {
+                        platform: Some(platform),
+                        ..
+                    }) => {
+                        vec![InstructionOption::WithValue(
+                            "platform".into(),
+                            platform.clone(),
+                        )]
+                    }
+                    _ => vec![],
+                },
             }),
         ];
 
@@ -1019,6 +1030,37 @@ mod test {
                     user: String::from("1000"),
                     group: Some(String::from("1000")),
                 })
+            );
+        }
+
+        #[test]
+        fn with_platform() {
+            let stage = Stage {
+                from: FromContext::FromImage(ImageName {
+                    path: String::from("alpine"),
+                    platform: Some("linux/amd64".into()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+            assert_eq_sorted!(
+                stage
+                    .generate_dockerfile_lines(&mut GenerationContext {
+                        stage_name: "runtime".into(),
+                        ..Default::default()
+                    })
+                    .unwrap(),
+                vec![
+                    DockerfileLine::Comment("runtime".into()),
+                    DockerfileLine::Instruction(DockerfileInsctruction {
+                        command: "FROM".into(),
+                        content: "alpine AS runtime".into(),
+                        options: vec![InstructionOption::WithValue(
+                            "platform".into(),
+                            "linux/amd64".into()
+                        )],
+                    })
+                ]
             );
         }
     }
