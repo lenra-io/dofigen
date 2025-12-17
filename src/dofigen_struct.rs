@@ -14,7 +14,7 @@ use url::Url;
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     // attribute(serde(deny_unknown_fields)),
-    attribute(serde(default))
+    attribute(serde(default, rename_all = "camelCase"))
 )]
 #[cfg_attr(
     feature = "json_schema",
@@ -41,6 +41,13 @@ pub struct Dofigen {
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "ignores"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
+
+    /// The global build args of the Dockerfile
+    /// See: https://docs.docker.com/build/building/variables/#scoping
+    #[patch(name = "HashMapPatch<String, String>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "globalArgs"))))]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub global_arg: HashMap<String, String>,
 
     /// The builder stages of the Dockerfile
     #[patch(name = "HashMapDeepPatch<String, StagePatch>")]
@@ -821,6 +828,30 @@ mod test {
                 println!("{:?}", dofigen);
 
                 assert!(dofigen.is_err());
+            }
+
+            #[test]
+            fn global_arg() {
+                let data = r#"
+                globalArg:
+                  IMAGE: ubuntu
+                fromContext: ${IMAGE}
+                "#;
+
+                let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
+
+                assert_eq_sorted!(
+                    dofigen,
+                    Dofigen {
+                        global_arg: HashMap::from([("IMAGE".into(), "ubuntu".into())]),
+                        stage: Stage {
+                            from: FromContext::FromContext(Some("${IMAGE}".into())).into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
+                );
             }
         }
 
