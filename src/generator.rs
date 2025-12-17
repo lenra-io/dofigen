@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::errors::Error;
 
 use crate::lock::DEFAULT_PORT;
@@ -308,154 +310,6 @@ impl ToString for FromContext {
     }
 }
 
-impl DockerfileGenerator for CopyResource {
-    fn generate_dockerfile_lines(
-        &self,
-        context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
-        match self {
-            CopyResource::Copy(copy) => copy.generate_dockerfile_lines(context),
-            CopyResource::Content(content) => content.generate_dockerfile_lines(context),
-            CopyResource::Add(add_web_file) => add_web_file.generate_dockerfile_lines(context),
-            CopyResource::AddGitRepo(add_git_repo) => {
-                add_git_repo.generate_dockerfile_lines(context)
-            }
-        }
-    }
-}
-
-fn add_copy_options(
-    inst_options: &mut Vec<InstructionOption>,
-    copy_options: &CopyOptions,
-    context: &GenerationContext,
-) {
-    if let Some(chown) = copy_options.chown.as_ref().or(context.user.as_ref().into()) {
-        inst_options.push(InstructionOption::WithValue("chown".into(), chown.into()));
-    }
-    if let Some(chmod) = &copy_options.chmod {
-        inst_options.push(InstructionOption::WithValue("chmod".into(), chmod.into()));
-    }
-    if *copy_options.link.as_ref().unwrap_or(&true) {
-        inst_options.push(InstructionOption::Flag("link".into()));
-    }
-}
-
-impl DockerfileGenerator for Copy {
-    fn generate_dockerfile_lines(
-        &self,
-        context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
-        let mut options: Vec<InstructionOption> = vec![];
-
-        let from = match &self.from {
-            FromContext::FromImage(image) => Some(image.to_string()),
-            FromContext::FromBuilder(builder) => Some(builder.clone()),
-            FromContext::FromContext(context) => context.clone(),
-        };
-        if let Some(from) = from {
-            options.push(InstructionOption::WithValue("from".into(), from));
-        }
-        add_copy_options(&mut options, &self.options, context);
-
-        for path in self.exclude.iter() {
-            options.push(InstructionOption::WithValue("exclude".into(), path.clone()));
-        }
-
-        if self.parents.unwrap_or(false) {
-            options.push(InstructionOption::Flag("parents".into()));
-        }
-
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
-            command: "COPY".into(),
-            content: copy_paths_into(self.paths.to_vec(), &self.options.target),
-            options,
-        })])
-    }
-}
-
-impl DockerfileGenerator for CopyContent {
-    fn generate_dockerfile_lines(
-        &self,
-        context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
-        let mut options: Vec<InstructionOption> = vec![];
-
-        add_copy_options(&mut options, &self.options, context);
-
-        let mut start_delimiter = "EOF".to_string();
-        if !self.substitute.clone().unwrap_or(true) {
-            start_delimiter = format!("\"{start_delimiter}\"");
-        }
-        let target = self.options.target.clone().ok_or(Error::Custom(
-            "The target file must be defined when coying content".into(),
-        ))?;
-        let content = format!(
-            "<<{start_delimiter} {target}\n{}\nEOF",
-            self.content.clone()
-        );
-
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
-            command: "COPY".into(),
-            content,
-            options,
-        })])
-    }
-}
-
-impl DockerfileGenerator for Add {
-    fn generate_dockerfile_lines(
-        &self,
-        context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
-        let mut options: Vec<InstructionOption> = vec![];
-        if let Some(checksum) = &self.checksum {
-            options.push(InstructionOption::WithValue(
-                "checksum".into(),
-                checksum.into(),
-            ));
-        }
-        add_copy_options(&mut options, &self.options, context);
-
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
-            command: "ADD".into(),
-            content: copy_paths_into(
-                self.files
-                    .iter()
-                    .map(|file| file.to_string())
-                    .collect::<Vec<String>>(),
-                &self.options.target,
-            ),
-            options,
-        })])
-    }
-}
-
-impl DockerfileGenerator for AddGitRepo {
-    fn generate_dockerfile_lines(
-        &self,
-        context: &mut GenerationContext,
-    ) -> Result<Vec<DockerfileLine>> {
-        let mut options: Vec<InstructionOption> = vec![];
-        add_copy_options(&mut options, &self.options, context);
-
-        for path in self.exclude.iter() {
-            options.push(InstructionOption::WithValue("exclude".into(), path.clone()));
-        }
-        if let Some(keep_git_dir) = &self.keep_git_dir {
-            options.push(InstructionOption::WithValue(
-                "keep-git-dir".into(),
-                keep_git_dir.to_string(),
-            ));
-        }
-
-        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
-            command: "ADD".into(),
-            content: copy_paths_into(vec![self.repo.clone()], &self.options.target),
-            options,
-        })])
-    }
-}
-
 impl DockerfileGenerator for Dofigen {
     fn generate_dockerfile_lines(
         &self,
@@ -469,6 +323,13 @@ impl DockerfileGenerator for Dofigen {
             "syntax=docker/dockerfile:{}",
             DOCKERFILE_VERSION
         ))];
+
+        // Arg
+        if !self.global_arg.is_empty() {
+            lines.push(DockerfileLine::Empty);
+            let args = generate_arg_command(&self.global_arg);
+            lines.extend(args);
+        }
 
         let builder_names = context.lint_session.get_sorted_builders();
 
@@ -587,20 +448,8 @@ impl DockerfileGenerator for Stage {
 
         // Arg
         if !self.arg.is_empty() {
-            let mut keys = self.arg.keys().collect::<Vec<&String>>();
-            keys.sort();
-            keys.iter().for_each(|key| {
-                let value = self.arg.get(*key).unwrap();
-                lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
-                    command: "ARG".into(),
-                    content: if value.is_empty() {
-                        key.to_string()
-                    } else {
-                        format!("{}={}", key, value)
-                    },
-                    options: vec![],
-                }));
-            });
+            let args = generate_arg_command(&self.arg);
+            lines.extend(args);
         }
 
         // Label
@@ -804,6 +653,154 @@ impl DockerfileGenerator for Run {
     }
 }
 
+impl DockerfileGenerator for CopyResource {
+    fn generate_dockerfile_lines(
+        &self,
+        context: &mut GenerationContext,
+    ) -> Result<Vec<DockerfileLine>> {
+        match self {
+            CopyResource::Copy(copy) => copy.generate_dockerfile_lines(context),
+            CopyResource::Content(content) => content.generate_dockerfile_lines(context),
+            CopyResource::Add(add_web_file) => add_web_file.generate_dockerfile_lines(context),
+            CopyResource::AddGitRepo(add_git_repo) => {
+                add_git_repo.generate_dockerfile_lines(context)
+            }
+        }
+    }
+}
+
+fn add_copy_options(
+    inst_options: &mut Vec<InstructionOption>,
+    copy_options: &CopyOptions,
+    context: &GenerationContext,
+) {
+    if let Some(chown) = copy_options.chown.as_ref().or(context.user.as_ref().into()) {
+        inst_options.push(InstructionOption::WithValue("chown".into(), chown.into()));
+    }
+    if let Some(chmod) = &copy_options.chmod {
+        inst_options.push(InstructionOption::WithValue("chmod".into(), chmod.into()));
+    }
+    if *copy_options.link.as_ref().unwrap_or(&true) {
+        inst_options.push(InstructionOption::Flag("link".into()));
+    }
+}
+
+impl DockerfileGenerator for Copy {
+    fn generate_dockerfile_lines(
+        &self,
+        context: &mut GenerationContext,
+    ) -> Result<Vec<DockerfileLine>> {
+        let mut options: Vec<InstructionOption> = vec![];
+
+        let from = match &self.from {
+            FromContext::FromImage(image) => Some(image.to_string()),
+            FromContext::FromBuilder(builder) => Some(builder.clone()),
+            FromContext::FromContext(context) => context.clone(),
+        };
+        if let Some(from) = from {
+            options.push(InstructionOption::WithValue("from".into(), from));
+        }
+        add_copy_options(&mut options, &self.options, context);
+
+        for path in self.exclude.iter() {
+            options.push(InstructionOption::WithValue("exclude".into(), path.clone()));
+        }
+
+        if self.parents.unwrap_or(false) {
+            options.push(InstructionOption::Flag("parents".into()));
+        }
+
+        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+            command: "COPY".into(),
+            content: copy_paths_into(self.paths.to_vec(), &self.options.target),
+            options,
+        })])
+    }
+}
+
+impl DockerfileGenerator for CopyContent {
+    fn generate_dockerfile_lines(
+        &self,
+        context: &mut GenerationContext,
+    ) -> Result<Vec<DockerfileLine>> {
+        let mut options: Vec<InstructionOption> = vec![];
+
+        add_copy_options(&mut options, &self.options, context);
+
+        let mut start_delimiter = "EOF".to_string();
+        if !self.substitute.clone().unwrap_or(true) {
+            start_delimiter = format!("\"{start_delimiter}\"");
+        }
+        let target = self.options.target.clone().ok_or(Error::Custom(
+            "The target file must be defined when coying content".into(),
+        ))?;
+        let content = format!(
+            "<<{start_delimiter} {target}\n{}\nEOF",
+            self.content.clone()
+        );
+
+        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+            command: "COPY".into(),
+            content,
+            options,
+        })])
+    }
+}
+
+impl DockerfileGenerator for Add {
+    fn generate_dockerfile_lines(
+        &self,
+        context: &mut GenerationContext,
+    ) -> Result<Vec<DockerfileLine>> {
+        let mut options: Vec<InstructionOption> = vec![];
+        if let Some(checksum) = &self.checksum {
+            options.push(InstructionOption::WithValue(
+                "checksum".into(),
+                checksum.into(),
+            ));
+        }
+        add_copy_options(&mut options, &self.options, context);
+
+        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+            command: "ADD".into(),
+            content: copy_paths_into(
+                self.files
+                    .iter()
+                    .map(|file| file.to_string())
+                    .collect::<Vec<String>>(),
+                &self.options.target,
+            ),
+            options,
+        })])
+    }
+}
+
+impl DockerfileGenerator for AddGitRepo {
+    fn generate_dockerfile_lines(
+        &self,
+        context: &mut GenerationContext,
+    ) -> Result<Vec<DockerfileLine>> {
+        let mut options: Vec<InstructionOption> = vec![];
+        add_copy_options(&mut options, &self.options, context);
+
+        for path in self.exclude.iter() {
+            options.push(InstructionOption::WithValue("exclude".into(), path.clone()));
+        }
+        if let Some(keep_git_dir) = &self.keep_git_dir {
+            options.push(InstructionOption::WithValue(
+                "keep-git-dir".into(),
+                keep_git_dir.to_string(),
+            ));
+        }
+
+        Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
+            command: "ADD".into(),
+            content: copy_paths_into(vec![self.repo.clone()], &self.options.target),
+            options,
+        })])
+    }
+}
+
 fn copy_paths_into(paths: Vec<String>, target: &Option<String>) -> String {
     let mut parts = paths.clone();
     parts.push(target.clone().unwrap_or("./".into()));
@@ -823,6 +820,25 @@ fn string_vec_into(string_vec: Vec<String>) -> String {
             .collect::<Vec<String>>()
             .join(", ")
     )
+}
+
+fn generate_arg_command(arg: &HashMap<String, String>) -> Vec<DockerfileLine> {
+    let mut lines = vec![];
+    let mut keys = arg.keys().collect::<Vec<&String>>();
+    keys.sort();
+    keys.iter().for_each(|key| {
+        let value = arg.get(*key).unwrap();
+        lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
+            command: "ARG".into(),
+            content: if value.is_empty() {
+                key.to_string()
+            } else {
+                format!("{}={}", key, value)
+            },
+            options: vec![],
+        }));
+    });
+    lines
 }
 
 #[cfg(test)]

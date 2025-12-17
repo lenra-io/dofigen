@@ -1,10 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::dofigen_struct::*;
-
-const WARN_MESSAGE_FROM_CONTEXT: &str =
-    "Prefer to use fromImage and fromBuilder instead of fromContext";
-const WARN_MESSAGE_FROM_CONTEXT_UNLESS: &str = "(unless it's really from a build context: https://docs.docker.com/reference/cli/docker/buildx/build/#build-context)";
+use crate::{context, dofigen_struct::*};
 
 #[derive(Debug, Clone, PartialEq)]
 struct StageDependency {
@@ -96,11 +92,7 @@ impl Linter for Stage {
         );
 
         // Check the use of fromContext
-        if let FromContext::FromContext(Some(_)) = self.from {
-            linter_path!(session, "fromContext".into(), {
-                session.add_message(MessageLevel::Warn, WARN_MESSAGE_FROM_CONTEXT.to_string());
-            });
-        }
+        self.from.analyze(session);
 
         linter_path!(session, "copy".into(), {
             for (position, copy) in self.copy.iter().enumerate() {
@@ -143,20 +135,7 @@ impl Linter for CopyResource {
 
 impl Linter for Copy {
     fn analyze(&self, session: &mut LintSession) {
-        match &self.from {
-            FromContext::FromContext(Some(_)) => {
-                linter_path!(session, "fromContext".into(), {
-                    session.add_message(
-                        MessageLevel::Warn,
-                        format!(
-                            "{} {}",
-                            WARN_MESSAGE_FROM_CONTEXT, WARN_MESSAGE_FROM_CONTEXT_UNLESS
-                        ),
-                    );
-                });
-            }
-            _ => {}
-        }
+        self.from.analyze(session);
     }
 }
 
@@ -198,17 +177,7 @@ impl Linter for Run {
         linter_path!(session, "bind".into(), {
             for (position, bind) in self.bind.iter().enumerate() {
                 linter_path!(session, position.to_string(), {
-                    if let FromContext::FromContext(Some(_)) = bind.from {
-                        linter_path!(session, "fromContext".into(), {
-                            session.add_message(
-                                MessageLevel::Warn,
-                                format!(
-                                    "{} {}",
-                                    WARN_MESSAGE_FROM_CONTEXT, WARN_MESSAGE_FROM_CONTEXT_UNLESS
-                                ),
-                            );
-                        });
-                    }
+                    bind.from.analyze(session);
                 });
             }
         });
@@ -216,20 +185,71 @@ impl Linter for Run {
         linter_path!(session, "cache".into(), {
             for (position, cache) in self.cache.iter().enumerate() {
                 linter_path!(session, position.to_string(), {
-                    if let FromContext::FromContext(Some(_)) = cache.from {
-                        linter_path!(session, "fromContext".into(), {
-                            session.add_message(
-                                MessageLevel::Warn,
-                                format!(
-                                    "{} {}",
-                                    WARN_MESSAGE_FROM_CONTEXT, WARN_MESSAGE_FROM_CONTEXT_UNLESS
-                                ),
-                            );
-                        });
-                    }
+                    cache.from.analyze(session);
                 });
             }
         });
+    }
+}
+
+impl Linter for FromContext {
+    fn analyze(&self, session: &mut LintSession) {
+        match self {
+            FromContext::FromImage(image) => {
+                linter_path!(session, "fromImage".into(), {
+                    image.analyze(session);
+                });
+            }
+            FromContext::FromBuilder(builder) => {
+                linter_path!(session, "fromBuilder".into(), {
+                    check_from_arg_placeholders(session, builder);
+                });
+            }
+            FromContext::FromContext(Some(context)) => {
+                if contains_arg_placeholder(context) {
+                    return;
+                }
+                let mut message =
+                    "Prefer to use fromImage and fromBuilder instead of fromContext".to_string();
+                // Check if it's main stage `FROM` or builder stage `FROM` (builders/<name>/from)
+                let is_stage_from = session.current_path.is_empty()
+                    || session.current_path[0] == "builders" && session.current_path.len() == 2;
+                if !is_stage_from {
+                    message.push_str(" (unless it's really from a build context: https://docs.docker.com/reference/cli/docker/buildx/build/#build-context)");
+                }
+                linter_path!(session, "fromContext".into(), {
+                    session.add_message(MessageLevel::Warn, message);
+                });
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Linter for ImageName {
+    fn analyze(&self, session: &mut LintSession) {
+        if let Some(host) = &self.host {
+            linter_path!(session, "host".into(), {
+                check_from_arg_placeholders(session, host);
+            });
+        }
+        linter_path!(session, "path".into(), {
+            check_from_arg_placeholders(session, &self.path);
+        });
+        if let Some(version) = &self.version {
+            match version {
+                ImageVersion::Tag(tag) => {
+                    linter_path!(session, "tag".into(), {
+                        check_from_arg_placeholders(session, tag);
+                    });
+                }
+                ImageVersion::Digest(digest) => {
+                    linter_path!(session, "digest".into(), {
+                        check_from_arg_placeholders(session, digest);
+                    });
+                }
+            }
+        }
     }
 }
 
@@ -547,6 +567,19 @@ impl LintSession {
 
         session
     }
+}
+
+pub fn check_from_arg_placeholders(session: &mut LintSession, value: &str) {
+    if contains_arg_placeholder(value) {
+        session.add_message(
+            MessageLevel::Error,
+            "Use fromContext when using global arg.".to_string(),
+        );
+    }
+}
+
+pub fn contains_arg_placeholder(value: &str) -> bool {
+    value.contains("$")
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1217,14 +1250,14 @@ mod test {
 
             let lint_session = LintSession::analyze(&dofigen);
 
-            assert_eq_sorted!(lint_session.messages, vec![LintMessage {
-                    level: MessageLevel::Warn,
-                    path: vec![
-                        "fromImage".into(),
-                        "tag".into(),
-                    ],
-                    message: "Prefer to use fromContext when using global arg.".into(),
-                }]);
+            assert_eq_sorted!(
+                lint_session.messages,
+                vec![LintMessage {
+                    level: MessageLevel::Error,
+                    path: vec!["fromImage".into(), "tag".into(),],
+                    message: "Use fromContext when using global arg.".into(),
+                }]
+            );
         }
     }
 
