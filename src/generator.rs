@@ -632,6 +632,85 @@ impl DockerfileGenerator for Run {
             ));
         }
 
+        // Mount tmpfs
+        self.tmpfs.iter().for_each(|mount| {
+            let mut mount_options = vec![
+                InstructionOptionOption::new("type", "tmpfs".into()),
+                InstructionOptionOption::new("target", mount.target.clone()),
+            ];
+            if let Some(size) = mount.size.as_ref() {
+                mount_options.push(InstructionOptionOption::new("size", size.clone()));
+            }
+            options.push(InstructionOption::WithOptions(
+                "mount".into(),
+                mount_options,
+            ));
+        });
+
+        // Mount secrets
+        self.secret.iter().for_each(|mount| {
+            let mut mount_options = vec![InstructionOptionOption::new("type", "secret".into())];
+            if let Some(id) = mount.id.as_ref() {
+                mount_options.push(InstructionOptionOption::new("id", id.clone()));
+            }
+            if let Some(target) = mount.target.as_ref() {
+                mount_options.push(InstructionOptionOption::new("target", target.clone()));
+            }
+            if let Some(env) = mount.env.as_ref() {
+                mount_options.push(InstructionOptionOption::new("env", env.clone()));
+            }
+            if let Some(required) = mount.required.as_ref() {
+                mount_options.push(InstructionOptionOption::new(
+                    "required",
+                    required.to_string(),
+                ));
+            }
+            if let Some(mode) = mount.mode.as_ref() {
+                mount_options.push(InstructionOptionOption::new("mode", mode.to_string()));
+            }
+            if let Some(uid) = mount.uid.as_ref() {
+                mount_options.push(InstructionOptionOption::new("uid", uid.to_string()));
+            }
+            if let Some(gid) = mount.gid.as_ref() {
+                mount_options.push(InstructionOptionOption::new("gid", gid.to_string()));
+            }
+
+            options.push(InstructionOption::WithOptions(
+                "mount".into(),
+                mount_options,
+            ));
+        });
+
+        // Mount ssh
+        self.ssh.iter().for_each(|mount| {
+            let mut mount_options = vec![InstructionOptionOption::new("type", "ssh".into())];
+            if let Some(id) = mount.id.as_ref() {
+                mount_options.push(InstructionOptionOption::new("id", id.clone()));
+            }
+            if let Some(target) = mount.target.as_ref() {
+                mount_options.push(InstructionOptionOption::new("target", target.clone()));
+            }
+            if let Some(required) = mount.required.as_ref() {
+                mount_options.push(InstructionOptionOption::new(
+                    "required",
+                    required.to_string(),
+                ));
+            }
+            if let Some(mode) = mount.mode.as_ref() {
+                mount_options.push(InstructionOptionOption::new("mode", mode.to_string()));
+            }
+            if let Some(uid) = mount.uid.as_ref() {
+                mount_options.push(InstructionOptionOption::new("uid", uid.to_string()));
+            }
+            if let Some(gid) = mount.gid.as_ref() {
+                mount_options.push(InstructionOptionOption::new("gid", gid.to_string()));
+            }
+            options.push(InstructionOption::WithOptions(
+                "mount".into(),
+                mount_options,
+            ));
+        });
+
         let mut lines = vec![];
 
         // Shell

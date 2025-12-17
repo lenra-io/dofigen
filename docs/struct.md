@@ -17,6 +17,9 @@ For example, some objects can be parsed from string and all arrays can be parsed
 	- [Run](#run)
 	- [Cache](#cache)
 	- [Bind](#bind)
+	- [TmpFs](#tmpfs)
+	- [Secret](#secret)
+	- [Ssh](#ssh)
 	- [Healthcheck](#healthcheck)
 	- [ImageName](#imagename)
 	- [Copy](#copy)
@@ -141,6 +144,47 @@ It can be parsed from string.
 | `from...` | [FromContext](#fromcontext) | The base of the cache mount. |
 | `source` | string | Subpath in the from to mount. |
 | `readwrite` | boolean | Defines if the bind is read and write. |
+
+## TmpFs
+
+This mount type allows [mounting tmpfs](https://docs.docker.com/reference/dockerfile/#run---mounttypetmpfs) in the build container.
+
+It can be parsed from string.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `target` | string | Mount path. |
+| `size` | string | Specify an upper limit on the size of the filesystem. |
+
+## Secret
+
+This mount type allows the build container to access secret values, such as tokens rivate keys, without baking them into the image.
+By default, the secret is mounted as a file. You can also mount the secret as an ronment variable by setting the env option.
+See https://docs.docker.com/reference/dockerfile/#run---mounttypesecret
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | ID of the secret. Defaults to basename of the target path. |
+| `target` | string | Mount the secret to the specified path. Defaults to /run/secrets/ + id if unset and if env is also unset. |
+| `env` | string | Mount the secret to an environment variable instead of a file, or both. |
+| `required` | string | If set to true, the instruction errors out when the secret is unavailable. Defaults to false. |
+| `mode` | string | File mode for secret file in octal. Default `0400`. |
+| `uid` | int | User ID for secret file. Default 0. |
+| `gid` | int | Group ID for secret file. Default 0. |
+
+## Ssh
+
+This mount type allows the build container to access SSH keys via SSH agents, with support for passphrases.
+See https://docs.docker.com/reference/dockerfile/#run---mounttypessh
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | string | ID of SSH agent socket or key. Defaults to "default". |
+| `target` | string | SSH agent socket path. Defaults to /run/buildkit/ssh_agent.${N}. |
+| `required` | If set to true, the instruction errors out when the key is unavailable. Defaults to false. |
+| `mode` | string | File mode for socket in octal. Default `0600`. |
+| `uid` | int | User ID for socket. Default 0. |
+| `gid` | int | Group ID for socket. Default 0. |
 
 
 ## Healthcheck

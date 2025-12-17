@@ -249,6 +249,32 @@ pub struct Run {
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "binds"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub bind: Vec<Bind>,
+
+    /// This mount type allows [mounting tmpfs](https://docs.docker.com/reference/dockerfile/#run---mounttypetmpfs) in the build container.
+    #[cfg_attr(
+        feature = "permissive",
+        patch(name = "VecDeepPatch<TmpFs, ParsableStruct<TmpFsPatch>>")
+    )]
+    #[cfg_attr(
+        not(feature = "permissive"),
+        patch(name = "VecDeepPatch<TmpFs, TmpFsPatch>")
+    )]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tmpfs: Vec<TmpFs>,
+
+    /// This allows the build container to access secret values, such as tokens or private keys, without baking them into the image.
+    /// By default, the secret is mounted as a file. You can also mount the secret as an environment variable by setting the env option.
+    /// See https://docs.docker.com/reference/dockerfile/#run---mounttypesecret
+    #[patch(name = "VecDeepPatch<Secret, SecretPatch>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "secrets"))))]
+    pub secret: Vec<Secret>,
+
+    /// This allows the build container to access SSH keys via SSH agents, with support for passphrases.
+    /// See https://docs.docker.com/reference/dockerfile/#run---mounttypessh
+    #[patch(name = "VecDeepPatch<Ssh, SshPatch>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ssh: Vec<Ssh>,
 }
 
 /// Represents a cache definition during a run
@@ -348,6 +374,115 @@ pub struct Bind {
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "rw"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readwrite: Option<bool>,
+}
+
+/// This mount type allows [mounting tmpfs](https://docs.docker.com/reference/dockerfile/#run---mounttypetmpfs) in the build container.
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypetmpfs
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "TmpFs", rename = "TmpFs"))
+    )
+)]
+pub struct TmpFs {
+    /// Mount path of the tmpfs
+    pub target: String,
+
+    /// Specify an upper limit on the size of the filesystem.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<String>,
+}
+
+/// This mount type allows the build container to access secret values, such as tokens or private keys, without baking them into the image.
+/// By default, the secret is mounted as a file. You can also mount the secret as an environment variable by setting the env option.
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypesecret
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Secret", rename = "Secret"))
+    )
+)]
+pub struct Secret {
+    /// ID of the secret. Defaults to basename of the target path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// Mount the secret to the specified path. Defaults to /run/secrets/ + id if unset and if env is also unset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+
+    /// Mount the secret to an environment variable instead of a file, or both.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env: Option<String>,
+
+    /// If set to true, the instruction errors out when the secret is unavailable. Defaults to false.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub required: Option<bool>,
+
+    /// File mode for secret file in octal. Default `0400`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+
+    /// User ID for secret file. Default 0.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uid: Option<u16>,
+
+    /// Group ID for secret file. Default 0.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gid: Option<u16>,
+}
+
+/// This mount type allows the build container to access SSH keys via SSH agents, with support for passphrases.
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypessh
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Ssh", rename = "Ssh"))
+    )
+)]
+pub struct Ssh {
+    
+    /// ID of SSH agent socket or key. Defaults to "default".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// SSH agent socket path. Defaults to /run/buildkit/ssh_agent.${N}.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+
+    /// If set to true, the instruction errors out when the key is unavailable. Defaults to false.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub required: Option<bool>,
+
+    /// File mode for socket in octal. Default `0600`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+
+    /// User ID for socket. Default 0.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uid: Option<u16>,
+
+    /// Group ID for socket. Default 0.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gid: Option<u16>,
 }
 
 /// Represents the Dockerfile healthcheck instruction
