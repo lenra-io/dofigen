@@ -36,6 +36,7 @@ It extends the [Extend](#extend) and [Stage](#stage) structures.
 | --- | --- | --- |
 | `context` | string[] | The context of the Docker build. This is used to generate a `.dockerignore` file. |
 | `ignore` | string[] | The elements to ignore from the build context. This is used to generate a `.dockerignore` file. |
+| `globalArg` | map<string, string> | The build args that can be used in the global scope. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#arg) and [variable scoping](https://docs.docker.com/build/building/variables/#scoping). |
 | `builders` | map<string, [Stage](#stage)> | The builder stages of the Dockerfile. |
 | `entrypoint` | string[] | The entrypoint of the Dockerfile. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#entrypoint). |
 | `cmd` | string[] | The default command of the Dockerfile. See [Dockerfile reference](https://docs.docker.com/reference/dockerfile/#cmd). |
