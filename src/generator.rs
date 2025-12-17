@@ -300,6 +300,25 @@ impl ToString for CacheSharing {
     }
 }
 
+impl ToString for Network {
+    fn to_string(&self) -> String {
+        match self {
+            Network::Default => "default".into(),
+            Network::None => "none".into(),
+            Network::Host => "host".into(),
+        }
+    }
+}
+
+impl ToString for Security {
+    fn to_string(&self) -> String {
+        match self {
+            Security::Sandbox => "sandbox".into(),
+            Security::Insecure => "insecure".into(),
+        }
+    }
+}
+
 impl ToString for FromContext {
     fn to_string(&self) -> String {
         match self {
@@ -731,6 +750,20 @@ impl DockerfileGenerator for Run {
                 content: string_vec_into(self.shell.to_vec()),
                 options: vec![],
             }));
+        }
+
+        if let Some(network) = &self.network {
+            options.push(InstructionOption::WithValue(
+                "network".into(),
+                network.to_string(),
+            ));
+        }
+
+        if let Some(security) = &self.security {
+            options.push(InstructionOption::WithValue(
+                "security".into(),
+                security.to_string(),
+            ));
         }
 
         lines.push(DockerfileLine::Instruction(DockerfileInsctruction {

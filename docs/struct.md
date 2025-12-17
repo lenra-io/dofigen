@@ -255,6 +255,7 @@ Can be parsed from string.
 | --- | --- | --- |
 | `repo` | string | The URL of the Git repository. |
 | `keepGitDir` | boolean | Keep the git directory. See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir |
+| `checksum` | string | The checksum of the files. |
 
 ## Add
 
@@ -268,6 +269,7 @@ Can be parsed from string.
 | --- | --- | --- |
 | `files` | string[] | The source files to add. |
 | `checksum` | string | The checksum of the files. See https://docs.docker.com/reference/dockerfile/#add---checksum |
+| `unpack` | boolean | The unpack flag controls whether or not to automatically unpack tar archives (including compressed formats like gzip or bzip2) when adding them to the image. |
 
 ## CopyOptions
 

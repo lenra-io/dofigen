@@ -275,6 +275,16 @@ pub struct Run {
     #[patch(name = "VecDeepPatch<Ssh, SshPatch>")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ssh: Vec<Ssh>,
+
+    /// This allows control over which networking environment the command is run in.
+    /// See https://docs.docker.com/reference/dockerfile/#run---network
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network: Option<Network>,
+
+    /// The default security mode is sandbox. With `security: insecure`, the builder runs the command without sandbox in insecure mode, which allows to run flows requiring elevated privileges (e.g. containerd).
+    /// See https://docs.docker.com/reference/dockerfile/#run---security
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub security: Option<Security>,
 }
 
 /// Represents a cache definition during a run
@@ -858,6 +868,28 @@ pub enum PortProtocol {
 pub enum Resource {
     Url(Url),
     File(PathBuf),
+}
+
+/// Represents a network configuration
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum Network {
+    /// Run in the default network.
+    Default,
+    /// Run with no network access.
+    None,
+    /// Run in the host's network environment.
+    Host,
+}
+
+/// Represents a security mode
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum Security {
+    Sandbox,
+    Insecure,
 }
 
 ///////////////// Enum Patches //////////////////
