@@ -300,6 +300,25 @@ impl ToString for CacheSharing {
     }
 }
 
+impl ToString for Network {
+    fn to_string(&self) -> String {
+        match self {
+            Network::Default => "default".into(),
+            Network::None => "none".into(),
+            Network::Host => "host".into(),
+        }
+    }
+}
+
+impl ToString for Security {
+    fn to_string(&self) -> String {
+        match self {
+            Security::Sandbox => "sandbox".into(),
+            Security::Insecure => "insecure".into(),
+        }
+    }
+}
+
 impl ToString for FromContext {
     fn to_string(&self) -> String {
         match self {
@@ -733,6 +752,20 @@ impl DockerfileGenerator for Run {
             }));
         }
 
+        if let Some(network) = &self.network {
+            options.push(InstructionOption::WithValue(
+                "network".into(),
+                network.to_string(),
+            ));
+        }
+
+        if let Some(security) = &self.security {
+            options.push(InstructionOption::WithValue(
+                "security".into(),
+                security.to_string(),
+            ));
+        }
+
         lines.push(DockerfileLine::Instruction(DockerfileInsctruction {
             command: "RUN".into(),
             content,
@@ -849,6 +882,12 @@ impl DockerfileGenerator for Add {
                 checksum.into(),
             ));
         }
+        if let Some(unpack) = &self.unpack {
+            options.push(InstructionOption::WithValue(
+                "unpack".into(),
+                unpack.to_string(),
+            ));
+        }
         add_copy_options(&mut options, &self.options, context);
 
         Ok(vec![DockerfileLine::Instruction(DockerfileInsctruction {
@@ -880,6 +919,12 @@ impl DockerfileGenerator for AddGitRepo {
             options.push(InstructionOption::WithValue(
                 "keep-git-dir".into(),
                 keep_git_dir.to_string(),
+            ));
+        }
+        if let Some(checksum) = &self.checksum {
+            options.push(InstructionOption::WithValue(
+                "checksum".into(),
+                checksum.into(),
             ));
         }
 

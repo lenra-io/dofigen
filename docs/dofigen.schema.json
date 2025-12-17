@@ -162,6 +162,18 @@
         }
       ]
     },
+    "network": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Network"
+        },
+        {
+          "type": "null",
+          "nullable": true
+        }
+      ],
+      "default": null
+    },
     "root": {
       "anyOf": [
         {
@@ -194,6 +206,18 @@
           "nullable": true
         }
       ]
+    },
+    "security": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Security"
+        },
+        {
+          "type": "null",
+          "nullable": true
+        }
+      ],
+      "default": null
     },
     "shell": {
       "anyOf": [
@@ -362,6 +386,14 @@
           ],
           "default": null,
           "nullable": true
+        },
+        "unpack": {
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null,
+          "nullable": true
         }
       },
       "additionalProperties": false
@@ -370,6 +402,14 @@
       "title": "AddGitRepo",
       "type": "object",
       "properties": {
+        "checksum": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "default": null,
+          "nullable": true
+        },
         "chmod": {
           "type": [
             "string",
@@ -1004,6 +1044,26 @@
         }
       ]
     },
+    "Network": {
+      "description": "Represents a network configuration",
+      "oneOf": [
+        {
+          "description": "Run in the default network.",
+          "type": "string",
+          "const": "default"
+        },
+        {
+          "description": "Run with no network access.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Run in the host's network environment.",
+          "type": "string",
+          "const": "host"
+        }
+      ]
+    },
     "OneOrMany_Resource": {
       "title": "OneOrMany<Resource>",
       "oneOf": [
@@ -1170,6 +1230,18 @@
             }
           ]
         },
+        "network": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Network"
+            },
+            {
+              "type": "null",
+              "nullable": true
+            }
+          ],
+          "default": null
+        },
         "run": {
           "anyOf": [
             {
@@ -1191,6 +1263,18 @@
               "nullable": true
             }
           ]
+        },
+        "security": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Security"
+            },
+            {
+              "type": "null",
+              "nullable": true
+            }
+          ],
+          "default": null
         },
         "shell": {
           "anyOf": [
@@ -1292,6 +1376,14 @@
           "nullable": true
         }
       }
+    },
+    "Security": {
+      "description": "Represents a security mode",
+      "type": "string",
+      "enum": [
+        "sandbox",
+        "insecure"
+      ]
     },
     "Ssh": {
       "title": "Ssh",
@@ -1421,6 +1513,18 @@
             }
           ]
         },
+        "network": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Network"
+            },
+            {
+              "type": "null",
+              "nullable": true
+            }
+          ],
+          "default": null
+        },
         "root": {
           "anyOf": [
             {
@@ -1453,6 +1557,18 @@
               "nullable": true
             }
           ]
+        },
+        "security": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Security"
+            },
+            {
+              "type": "null",
+              "nullable": true
+            }
+          ],
+          "default": null
         },
         "shell": {
           "anyOf": [

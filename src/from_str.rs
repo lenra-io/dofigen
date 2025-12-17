@@ -122,6 +122,7 @@ impl_parsable_patch!(AddGitRepo, AddGitRepoPatch, s, {
             link: Some(None),
         }),
         keep_git_dir: Some(None),
+        checksum: Some(None),
         exclude: Some(VecPatch::default()),
     })
 });
@@ -151,6 +152,7 @@ impl_parsable_patch!(Add, AddPatch, s, {
             link: Some(None),
         }),
         checksum: Some(None),
+        unpack: Some(None),
     })
 });
 
@@ -406,6 +408,7 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     keep_git_dir: Some(None),
+                    checksum: Some(None),
                     exclude: Some(VecPatch::default()),
                 }
             );
@@ -426,6 +429,7 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     keep_git_dir: Some(None),
+                    checksum: Some(None),
                     exclude: Some(VecPatch::default()),
                 }
             );
@@ -446,6 +450,7 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     keep_git_dir: Some(None),
+                    checksum: Some(None),
                     exclude: Some(VecPatch::default()),
                 }
             );
@@ -466,6 +471,7 @@ mod test_from_str {
                         link: Some(None),
                     }),
                     keep_git_dir: Some(None),
+                    checksum: Some(None),
                     exclude: Some(VecPatch::default()),
                 }
             );

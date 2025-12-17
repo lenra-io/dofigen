@@ -275,6 +275,16 @@ pub struct Run {
     #[patch(name = "VecDeepPatch<Ssh, SshPatch>")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ssh: Vec<Ssh>,
+
+    /// This allows control over which networking environment the command is run in.
+    /// See https://docs.docker.com/reference/dockerfile/#run---network
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network: Option<Network>,
+
+    /// The default security mode is sandbox. With `security: insecure`, the builder runs the command without sandbox in insecure mode, which allows to run flows requiring elevated privileges (e.g. containerd).
+    /// See https://docs.docker.com/reference/dockerfile/#run---security
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub security: Option<Security>,
 }
 
 /// Represents a cache definition during a run
@@ -663,6 +673,11 @@ pub struct AddGitRepo {
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_git_dir: Option<bool>,
+
+    /// The checksum of the files
+    /// See https://docs.docker.com/reference/dockerfile/#add---checksum
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksum: Option<String>,
 }
 
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
@@ -694,6 +709,12 @@ pub struct Add {
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
+
+    /// The unpack flag controls whether or not to automatically unpack tar archives (including compressed formats like gzip or bzip2) when adding them to the image.
+    /// Local tar archives are unpacked by default, whereas remote tar archives (where src is a URL) are downloaded without unpacking.
+    /// See https://docs.docker.com/reference/dockerfile/#add---unpack
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unpack: Option<bool>,
 }
 
 /// Represents the options of a COPY/ADD instructions
@@ -847,6 +868,28 @@ pub enum PortProtocol {
 pub enum Resource {
     Url(Url),
     File(PathBuf),
+}
+
+/// Represents a network configuration
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum Network {
+    /// Run in the default network.
+    Default,
+    /// Run with no network access.
+    None,
+    /// Run in the host's network environment.
+    Host,
+}
+
+/// Represents a security mode
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum Security {
+    Sandbox,
+    Insecure,
 }
 
 ///////////////// Enum Patches //////////////////
@@ -1276,7 +1319,8 @@ mod test {
             },
             "chmod": "755",
             "link": true,
-            "keepGitDir": true
+            "keepGitDir": true,
+            "checksum": "sha256:abcdef123456"
         }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
@@ -1297,6 +1341,7 @@ mod test {
                         },
                         keep_git_dir: Some(true),
                         exclude: vec![].into(),
+                        checksum: Some("sha256:abcdef123456".into()),
                     })
                 );
             }
@@ -1312,7 +1357,8 @@ mod test {
                 "group": "root"
             },
             "chmod": "755",
-            "link": true
+            "link": true,
+            "unpack": false
         }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
@@ -1336,6 +1382,7 @@ mod test {
                             link: Some(true),
                         },
                         checksum: Some("sha256:abcdef123456".into()),
+                        unpack: Some(false),
                     })
                 );
             }
