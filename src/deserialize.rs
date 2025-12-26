@@ -782,17 +782,21 @@ where
                             pos
                         );
                     }
-                    if pos >= initial_len {
+                    if pos >= initial_len && initial_len > 0 {
                         panic!("Position {} is out of bounds", pos);
                     }
                     for i in current_position..=pos {
                         current_position = i;
-                        position_adaptation += adapted_positions[i];
+                        if adapted_positions.len() > 0 {
+                            position_adaptation += adapted_positions[i];
+                        }
                     }
                     let adapted_position = current_position + position_adaptation;
                     let added = elements.len();
                     self.splice(adapted_position..adapted_position, elements);
-                    adapted_positions[pos as usize] += added;
+                    if adapted_positions.len() > 0 {
+                        adapted_positions[pos as usize] += added;
+                    }
                 }
                 VecDeepPatchCommand::InsertAfter(pos, elements) => {
                     if reset {
@@ -1533,13 +1537,13 @@ where
         let mut commands: Vec<VecDeepPatchCommand<T, P>> = vec![];
 
         let mut self_it = self.commands.iter();
-        let mut rhs_it = other.commands.iter();
+        let mut other_it = other.commands.iter();
 
         let mut self_next = self_it.next();
-        let mut rhs_next = rhs_it.next();
+        let mut other_next = other_it.next();
 
-        while let (Some(self_command), Some(rhs_command)) = (self_next, rhs_next) {
-            match (self_command.clone(), rhs_command.clone()) {
+        while let (Some(self_command), Some(other_command)) = (self_next, other_next) {
+            match (self_command.clone(), other_command.clone()) {
                 (VecDeepPatchCommand::ReplaceAll(_), _)
                 | (_, VecDeepPatchCommand::ReplaceAll(_)) => {
                     panic!("Cannot combine a replace all with other commands");
@@ -1554,7 +1558,7 @@ where
                     elements.extend(rhs_elements);
                     commands.push(VecDeepPatchCommand::Append(elements));
                     self_next = self_it.next();
-                    rhs_next = rhs_it.next();
+                    other_next = other_it.next();
                 }
                 (self_command, VecDeepPatchCommand::Append(_)) => {
                     commands.push(self_command);
@@ -1562,7 +1566,7 @@ where
                 }
                 (VecDeepPatchCommand::Append(_), rhs_command) => {
                     commands.push(rhs_command);
-                    rhs_next = rhs_it.next();
+                    other_next = other_it.next();
                 }
                 (
                     VecDeepPatchCommand::Replace(self_pos, self_val),
@@ -1571,13 +1575,13 @@ where
                     if self_pos == rhs_pos {
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecDeepPatchCommand::Replace(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1589,13 +1593,13 @@ where
                         val.apply(rhs_val);
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, val));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecDeepPatchCommand::Replace(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecDeepPatchCommand::Patch(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1605,13 +1609,13 @@ where
                     if self_pos == rhs_pos {
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecDeepPatchCommand::Patch(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1621,13 +1625,13 @@ where
                     if self_pos == rhs_pos {
                         commands.push(VecDeepPatchCommand::Patch(rhs_pos, self_val.merge(rhs_val)));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecDeepPatchCommand::Patch(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecDeepPatchCommand::Patch(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1643,15 +1647,15 @@ where
                         // For insert before, the position is the position of the first element added by the self patch
                         // For insert after, the position does not change so we append rhs elements after the elements, after that the self elements are added
                         rhs_val.extend(self_val);
-                        commands.push(rhs_command.clone());
+                        commands.push(other_command.clone());
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(self_command.clone());
                         self_next = self_it.next();
                     } else {
-                        commands.push(rhs_command.clone());
-                        rhs_next = rhs_it.next();
+                        commands.push(other_command.clone());
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1664,22 +1668,23 @@ where
                     | VecDeepPatchCommand::InsertBefore(_, _)
                     | VecDeepPatchCommand::InsertAfter(_, _),
                 ) => {
-                    if sort_commands(self_command, rhs_command) == Ordering::Less {
+                    if sort_commands(self_command, other_command) == Ordering::Less {
                         commands.push(self_command.clone());
                         self_next = self_it.next();
                     } else {
-                        commands.push(rhs_command.clone());
-                        rhs_next = rhs_it.next();
+                        commands.push(other_command.clone());
+                        other_next = other_it.next();
                     }
                 }
             }
         }
 
-        let remaining_commands = if self_next.is_some() {
-            std::iter::once(self_next.unwrap()).chain(self_it)
-        } else {
-            std::iter::once(rhs_next.unwrap()).chain(self_it)
-        };
+        let remaining_commands = self_it.chain(other_it);
+        if self_next.is_some() {
+            commands.push(self_next.unwrap().clone());
+        } else if other_next.is_some() {
+            commands.push(other_next.unwrap().clone());
+        }
         remaining_commands.for_each(|c| commands.push(c.clone()));
 
         Self { commands }
