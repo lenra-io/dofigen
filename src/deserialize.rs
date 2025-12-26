@@ -2821,6 +2821,171 @@ mod test {
                 }
             );
         }
+
+        #[test]
+        fn merge_many_append() {
+            let patch1 = r#"
+                subs:
+                  +:
+                    name: item1
+                    num: 0
+            "#;
+
+            let patch2 = r#"
+                subs:
+                  +:
+                    name: item2
+                    num: 0
+            "#;
+
+            let patch1_data: TestStructPatch = serde_yaml::from_str(patch1).unwrap();
+            let patch2_data = serde_yaml::from_str(patch2).unwrap();
+
+            let merged = patch1_data.merge(patch2_data);
+
+            let list_patch = merged.subs.clone().unwrap();
+            let mut list: Vec<SubTestStruct> = vec![];
+            list.apply(list_patch);
+
+            assert_eq_sorted!(
+                list,
+                vec![
+                    SubTestStruct {
+                        name: "item1".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0
+                    },
+                ]
+            );
+        }
+
+        #[test]
+        fn merge_with_same_size() {
+            let a: VecDeepPatch<SubTestStruct, SubTestStructPatch> = VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::Append(vec![SubTestStruct {
+                    name: "item1".to_string(),
+                    num: 0,
+                }])],
+            };
+            let b = VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::Append(vec![SubTestStruct {
+                    name: "item2".to_string(),
+                    num: 0,
+                }])],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<SubTestStruct> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(
+                list,
+                vec![
+                    SubTestStruct {
+                        name: "item1".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0
+                    },
+                ]
+            );
+        }
+
+        #[test]
+        fn merge_with_a_greater() {
+            let a: VecDeepPatch<SubTestStruct, SubTestStructPatch> = VecDeepPatch {
+                commands: vec![
+                    VecDeepPatchCommand::InsertBefore(
+                        0,
+                        vec![SubTestStruct {
+                            name: "item1".to_string(),
+                            num: 0,
+                        }],
+                    ),
+                    VecDeepPatchCommand::Append(vec![SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0,
+                    }]),
+                ],
+            };
+            let b = VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::Append(vec![SubTestStruct {
+                    name: "item3".to_string(),
+                    num: 0,
+                }])],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<SubTestStruct> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(
+                list,
+                vec![
+                    SubTestStruct {
+                        name: "item1".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item3".to_string(),
+                        num: 0
+                    },
+                ]
+            );
+        }
+
+        #[test]
+        fn merge_with_b_greater() {
+            let a: VecDeepPatch<SubTestStruct, SubTestStructPatch> = VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::Append(vec![SubTestStruct {
+                    name: "item2".to_string(),
+                    num: 0,
+                }])],
+            };
+            let b = VecDeepPatch {
+                commands: vec![
+                    VecDeepPatchCommand::InsertBefore(
+                        0,
+                        vec![SubTestStruct {
+                            name: "item1".to_string(),
+                            num: 0,
+                        }],
+                    ),
+                    VecDeepPatchCommand::Append(vec![SubTestStruct {
+                        name: "item3".to_string(),
+                        num: 0,
+                    }]),
+                ],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<SubTestStruct> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(
+                list,
+                vec![
+                    SubTestStruct {
+                        name: "item1".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item3".to_string(),
+                        num: 0
+                    },
+                ]
+            );
+        }
     }
 
     mod hashmap_patch {
