@@ -124,7 +124,7 @@ mod test {
 
             use super::*;
 
-            #[derive(Deserialize, Patch)]
+            #[derive(Deserialize, Debug, Clone, PartialEq, Default, Patch)]
             #[patch(
                 attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
                 attribute(serde(default))
@@ -199,6 +199,19 @@ mod test {
                             ..Default::default()
                         },
                         ..Default::default()
+                    }
+                );
+
+                let merged = extend.merge(&mut DofigenContext::new()).unwrap();
+
+                let mut resulting = TestStruct::default();
+                resulting.apply(merged);
+
+                assert_eq_sorted!(
+                    resulting,
+                    TestStruct {
+                        name: None,
+                        sub: TestSubStruct { level: 1 },
                     }
                 );
             }
