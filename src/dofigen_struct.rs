@@ -51,7 +51,9 @@ pub struct Dofigen {
 
     /// The builder stages of the Dockerfile
     #[patch(name = "HashMapDeepPatch<String, StagePatch>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "builder"))))]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
+    // TODO: deprecated. Replace builders by builder
     pub builders: HashMap<String, Stage>,
 
     /// The runtime stage of the Dockerfile
