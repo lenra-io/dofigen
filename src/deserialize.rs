@@ -638,17 +638,21 @@ where
                             pos
                         );
                     }
-                    if pos >= initial_len {
+                    if pos >= initial_len && initial_len > 0 {
                         panic!("Position {} is out of bounds", pos);
                     }
                     for i in current_position..=pos {
                         current_position = i;
-                        position_adaptation += adapted_positions[i];
+                        if adapted_positions.len() > 0 {
+                            position_adaptation += adapted_positions[i];
+                        }
                     }
                     let added = elements.len();
                     let adapted_position = current_position + position_adaptation;
                     self.splice(adapted_position..adapted_position, elements);
-                    adapted_positions[pos as usize] += added;
+                    if adapted_positions.len() > 0 {
+                        adapted_positions[pos as usize] += added;
+                    }
                 }
                 VecPatchCommand::InsertAfter(pos, elements) => {
                     if reset {
@@ -1390,13 +1394,13 @@ where
         let mut commands: Vec<VecPatchCommand<T>> = vec![];
 
         let mut self_it = self.commands.iter();
-        let mut rhs_it = other.commands.iter();
+        let mut other_it = other.commands.iter();
 
         let mut self_next = self_it.next();
-        let mut rhs_next = rhs_it.next();
+        let mut other_next = other_it.next();
 
-        while let (Some(self_command), Some(rhs_command)) = (self_next, rhs_next) {
-            match (self_command.clone(), rhs_command.clone()) {
+        while let (Some(self_command), Some(other_command)) = (self_next, other_next) {
+            match (self_command.clone(), other_command.clone()) {
                 (VecPatchCommand::ReplaceAll(_), _) | (_, VecPatchCommand::ReplaceAll(_)) => {
                     panic!("Cannot combine a replace all with other commands");
                 }
@@ -1407,7 +1411,7 @@ where
                     elements.extend(rhs_elements);
                     commands.push(VecPatchCommand::Append(elements));
                     self_next = self_it.next();
-                    rhs_next = rhs_it.next();
+                    other_next = other_it.next();
                 }
                 (self_command, VecPatchCommand::Append(_)) => {
                     commands.push(self_command);
@@ -1415,7 +1419,7 @@ where
                 }
                 (VecPatchCommand::Append(_), rhs_command) => {
                     commands.push(rhs_command);
-                    rhs_next = rhs_it.next();
+                    other_next = other_it.next();
                 }
                 (
                     VecPatchCommand::Replace(self_pos, self_val),
@@ -1424,13 +1428,13 @@ where
                     if self_pos == rhs_pos {
                         commands.push(VecPatchCommand::Replace(rhs_pos, rhs_val));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecPatchCommand::Replace(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecPatchCommand::Replace(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1446,15 +1450,15 @@ where
                         // For insert before, the position is the position of the first element added by the self patch
                         // For insert after, the position does not change so we append rhs elements after the elements, after that the self elements are added
                         rhs_val.extend(self_val);
-                        commands.push(rhs_command.clone());
+                        commands.push(other_command.clone());
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(self_command.clone());
                         self_next = self_it.next();
                     } else {
-                        commands.push(rhs_command.clone());
-                        rhs_next = rhs_it.next();
+                        commands.push(other_command.clone());
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1466,7 +1470,7 @@ where
                     | VecPatchCommand::InsertAfter(rhs_pos, _),
                 ) => {
                     if self_pos == rhs_pos {
-                        match (self_command, rhs_command) {
+                        match (self_command, other_command) {
                             (VecPatchCommand::InsertBefore(_, _), _)
                             | (_, VecPatchCommand::InsertAfter(_, _)) => {
                                 commands.push(self_command.clone());
@@ -1474,8 +1478,8 @@ where
                             }
                             (_, VecPatchCommand::InsertBefore(_, _))
                             | (VecPatchCommand::InsertAfter(_, _), _) => {
-                                commands.push(rhs_command.clone());
-                                rhs_next = rhs_it.next();
+                                commands.push(other_command.clone());
+                                other_next = other_it.next();
                             }
                             _ => panic!("This case should have been reached"),
                         }
@@ -1483,18 +1487,19 @@ where
                         commands.push(self_command.clone());
                         self_next = self_it.next();
                     } else {
-                        commands.push(rhs_command.clone());
-                        rhs_next = rhs_it.next();
+                        commands.push(other_command.clone());
+                        other_next = other_it.next();
                     }
                 }
             }
         }
 
-        let remaining_commands = if self_next.is_some() {
-            std::iter::once(self_next.unwrap()).chain(self_it)
-        } else {
-            std::iter::once(rhs_next.unwrap()).chain(self_it)
-        };
+        if self_next.is_some() {
+            commands.push(self_next.unwrap().clone());
+        } else if other_next.is_some() {
+            commands.push(other_next.unwrap().clone());
+        }
+        let remaining_commands = self_it.chain(other_it);
         remaining_commands.for_each(|c| commands.push(c.clone()));
 
         Self { commands }
