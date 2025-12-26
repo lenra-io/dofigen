@@ -2184,6 +2184,43 @@ mod test {
                 }
             );
         }
+
+        #[test]
+        fn append_both_patches() {
+            let base = r#"
+                name: patch1
+                sub:
+                  list:
+                    +: item1
+            "#;
+
+            let patch = r#"
+                sub:
+                  list:
+                    +: item2
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    sub: Some(SubTestStruct {
+                        list: vec![
+                            "item1".into(),
+                            "item2".into(),
+                        ],
+                        num: None
+                    })
+                }
+            );
+        }
     }
 
     mod vec_deep_patch {
