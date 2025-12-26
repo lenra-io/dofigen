@@ -208,4 +208,54 @@ Usage: dofigen <COMMAND>"#,
 
         temp.close().unwrap();
     }
+
+    #[test]
+    fn extend_append_context_in_many_patches() {
+        let temp = assert_fs::TempDir::new().unwrap();
+
+        let file = temp.child("dofigen.yml");
+        file.write_str(
+            r#"extend:
+  - file1.yml
+  - file2.yml
+"#,
+        )
+        .unwrap();
+
+        let file1 = temp.child("file1.yml");
+        file1.write_str(
+            r#"context:
+  +: src/
+"#,
+        )
+        .unwrap();
+
+        let file2 = temp.child("file2.yml");
+        file2.write_str(
+            r#"context:
+  +: Cargo.*
+"#,
+        )
+        .unwrap();
+
+        let mut cmd = BIN.command();
+        cmd.current_dir(temp.path());
+        cmd.arg("effective");
+
+        let output = cmd.unwrap().stdout;
+        let output = str::from_utf8(&output).unwrap();
+
+        assert_eq_sorted!(
+            output,
+            r#"context:
+- src/
+- Cargo.*
+label:
+  io.dofigen.version: 0.0.0
+
+"#
+        );
+
+        temp.close().unwrap();
+    }
 }
