@@ -226,7 +226,8 @@ Usage: dofigen <COMMAND>"#,
         file1
             .write_str(
                 r#"context:
-  +: src/
+  +:
+    - src/
 "#,
             )
             .unwrap();
@@ -235,7 +236,8 @@ Usage: dofigen <COMMAND>"#,
         file2
             .write_str(
                 r#"context:
-  +: Cargo.*
+  +:
+    - Cargo.*
 "#,
             )
             .unwrap();
