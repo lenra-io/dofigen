@@ -2212,14 +2212,94 @@ mod test {
                 TestStruct {
                     name: "patch1".into(),
                     sub: Some(SubTestStruct {
-                        list: vec![
-                            "item1".into(),
-                            "item2".into(),
-                        ],
+                        list: vec!["item1".into(), "item2".into(),],
                         num: None
                     })
                 }
             );
+        }
+
+        #[test]
+        fn merge_many_append() {
+            let patch1 = r#"
+                sub:
+                  list:
+                    +: item1
+            "#;
+
+            let patch2 = r#"
+                sub:
+                  list:
+                    +: item2
+            "#;
+
+            let patch1_data: TestStructPatch = serde_yaml::from_str(patch1).unwrap();
+            let patch2_data = serde_yaml::from_str(patch2).unwrap();
+
+            let merged = patch1_data.merge(patch2_data);
+
+            let list_patch = merged
+                .sub
+                .as_ref()
+                .and_then(|s| s.as_ref())
+                .and_then(|s| s.list.as_ref())
+                .unwrap()
+                .clone();
+            let mut list: Vec<String> = vec![];
+            list.apply(list_patch);
+
+            assert_eq_sorted!(list, vec!["item1", "item2",]);
+        }
+
+        #[test]
+        fn merge_with_same_size() {
+            let a = VecPatch {
+                commands: vec![VecPatchCommand::Append(vec!["item1".to_string()])],
+            };
+            let b = VecPatch {
+                commands: vec![VecPatchCommand::Append(vec!["item2".to_string()])],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<String> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(list, vec!["item1", "item2",]);
+        }
+
+        #[test]
+        fn merge_with_a_greater() {
+            let a = VecPatch {
+                commands: vec![
+                    VecPatchCommand::InsertBefore(0, vec!["item1".to_string()]),
+                    VecPatchCommand::Append(vec!["item2".to_string()]),
+                ],
+            };
+            let b = VecPatch {
+                commands: vec![VecPatchCommand::Append(vec!["item3".to_string()])],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<String> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(list, vec!["item1", "item2", "item3",]);
+        }
+
+        #[test]
+        fn merge_with_b_greater() {
+            let a = VecPatch {
+                commands: vec![VecPatchCommand::Append(vec!["item2".to_string()])],
+            };
+            let b = VecPatch {
+                commands: vec![
+                    VecPatchCommand::InsertBefore(0, vec!["item1".to_string()]),
+                    VecPatchCommand::Append(vec!["item3".to_string()]),
+                ],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<String> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(list, vec!["item1", "item2", "item3",]);
         }
     }
 
