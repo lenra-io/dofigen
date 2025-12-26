@@ -2201,13 +2201,15 @@ mod test {
                 name: patch1
                 sub:
                   list:
-                    +: item1
+                    +:
+                      - item1
             "#;
 
             let patch = r#"
                 sub:
                   list:
-                    +: item2
+                    +:
+                      - item2
             "#;
 
             let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
@@ -2234,13 +2236,15 @@ mod test {
             let patch1 = r#"
                 sub:
                   list:
-                    +: item1
+                    +:
+                      - item1
             "#;
 
             let patch2 = r#"
                 sub:
                   list:
-                    +: item2
+                    +:
+                      - item2
             "#;
 
             let patch1_data: TestStructPatch = serde_yaml::from_str(patch1).unwrap();
@@ -2832,15 +2836,15 @@ mod test {
             let patch1 = r#"
                 subs:
                   +:
-                    name: item1
-                    num: 0
+                    - name: item1
+                      num: 0
             "#;
 
             let patch2 = r#"
                 subs:
                   +:
-                    name: item2
-                    num: 0
+                    - name: item2
+                      num: 0
             "#;
 
             let patch1_data: TestStructPatch = serde_yaml::from_str(patch1).unwrap();
