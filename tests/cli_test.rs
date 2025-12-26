@@ -223,20 +223,22 @@ Usage: dofigen <COMMAND>"#,
         .unwrap();
 
         let file1 = temp.child("file1.yml");
-        file1.write_str(
-            r#"context:
+        file1
+            .write_str(
+                r#"context:
   +: src/
 "#,
-        )
-        .unwrap();
+            )
+            .unwrap();
 
         let file2 = temp.child("file2.yml");
-        file2.write_str(
-            r#"context:
+        file2
+            .write_str(
+                r#"context:
   +: Cargo.*
 "#,
-        )
-        .unwrap();
+            )
+            .unwrap();
 
         let mut cmd = BIN.command();
         cmd.current_dir(temp.path());
