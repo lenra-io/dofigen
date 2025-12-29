@@ -65,8 +65,8 @@ jobs:
       shell: bash
       run: |
         curl -O -L -f -s -H 'Accept: application/vnd.github.v3.raw' https://github.com/SchemaStore/schemastore/raw/refs/heads/master/.prettierrc.cjs
-        npm i -g prettier prettier-plugin-sort-json prettier-plugin-toml
-        prettier --config .prettierrc.cjs --write docs/dofigen.schema.json
+        npm i -D prettier prettier-plugin-sort-json prettier-plugin-toml
+        npx prettier --config .prettierrc.cjs --write docs/dofigen.schema.json
 
     - name: Check for changes
       run: |
