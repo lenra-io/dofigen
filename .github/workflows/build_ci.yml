@@ -42,6 +42,41 @@ jobs:
         command: fmt
         args: --all -- --check
 
+  json-schema:
+    name: Is JSON Schema up to date
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: Generate JSON Schema
+      shell: bash
+      run: cargo run -F json_schema -- schema > docs/dofigen.schema.json
+
+    - name: Format with SchemaStore Prettier config
+      shell: bash
+      run: |
+        curl -O -L -f -s -H 'Accept: application/vnd.github.v3.raw' https://github.com/SchemaStore/schemastore/raw/refs/heads/master/.prettierrc.cjs
+        npm i -D prettier prettier-plugin-sort-json prettier-plugin-toml
+        npx prettier --config .prettierrc.cjs --write docs/dofigen.schema.json
+
+    - name: Check for changes
+      run: |
+        if [[ $(git status --porcelain docs/dofigen.schema.json) ]]; then
+          echo "JSON Schema is not up to date. Please run the JSON Schema generation step locally and commit the changes.";
+          exit 1;
+        else
+          echo "JSON Schema is up to date.";
+        fi
+
   test-base:
     name: Test base
     needs: [style]

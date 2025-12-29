@@ -241,7 +241,14 @@ grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html 
 To generate the JSON schema of the Dofigen file structure, use the following command:
 
 ```bash
+# Generate the JSON Schema
 cargo run -F json_schema -- schema > docs/dofigen.schema.json
+# Download the SchemaStore's Prettier configuration
+curl -O -L -f -s -H 'Accept: application/vnd.github.v3.raw' https://github.com/SchemaStore/schemastore/raw/refs/heads/master/.prettierrc.cjs
+# Install Prettier if you don't have it
+npm i -g prettier prettier-plugin-sort-json prettier-plugin-toml
+# Format the JSON Schema
+npx prettier --config .prettierrc.cjs --write docs/dofigen.schema.json
 ```
 
 <p align="right">(<a href="#top">back to top</a>)</p>
