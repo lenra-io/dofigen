@@ -5,8 +5,9 @@ use struct_patch::{Merge, Patch};
 use crate::{
     AddPatch, Copy, CopyOptions, CopyOptionsPatch, CopyResourcePatch, DockerFile,
     DockerFileCommand, DockerFileInsctruction, DockerFileLine, DockerIgnore, DockerIgnoreLine,
-    Dofigen, Error, FromContext, FromContextPatch, ImageNamePatch, LintMessage, MessageLevel,
-    Result, Run, Stage, User, UserPatch,
+    Dofigen, DofigenPatch, Error, FromContext, FromContextPatch, HealthcheckPatch, ImageNamePatch,
+    LintMessage, MessageLevel, Port, PortPatch, Result, Run, Stage, User, UserPatch, VecDeepPatch,
+    VecDeepPatchCommand, VecPatch, VecPatchCommand,
 };
 use std::collections::HashMap;
 
@@ -46,7 +47,9 @@ impl Dofigen {
         let mut current_stage: Option<Stage> = None;
         let mut current_root: Option<Run> = None;
         let mut last_inscruction: Option<DockerFileInsctruction> = None;
+        let mut current_shell: Option<Vec<String>> = None;
         let mut builders: HashMap<String, Stage> = HashMap::new();
+        let mut builder_dofigen_patches: HashMap<String, DofigenPatch> = HashMap::new();
 
         for line in instructions {
             if let DockerFileLine::Instruction(instruction) = line.clone() {
@@ -57,6 +60,7 @@ impl Dofigen {
                     DockerFileCommand::FROM => {
                         add_root(&mut current_stage, &mut current_root)?;
                         current_root = None;
+                        current_shell = None;
 
                         if let Some(previous_stage) = current_stage {
                             builders.insert(
@@ -121,7 +125,16 @@ impl Dofigen {
                         )?);
                     }
                     DockerFileCommand::MAINTAINER => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        // Transform to LABEL org.opencontainers.image.authors
+                        let stage = get_stage(&mut current_stage, &instruction)?;
+                        messages.extend(add_entries(
+                            &mut stage.label,
+                            vec![stage_name.clone(), "MAINTAINER".to_string()],
+                            format!(
+                                "{}={}",
+                                "org.opencontainers.image.authors", instruction.content,
+                            ),
+                        )?);
                     }
                     DockerFileCommand::RUN => {
                         let run = if let Some(run) = current_root.as_mut() {
@@ -133,6 +146,9 @@ impl Dofigen {
                         if !run.is_empty() {
                             todo!("Many RUN instructions are not managed yet");
                         } else {
+                            if let Some(shell) = &current_shell {
+                                run.shell = shell.clone();
+                            }
                             if !instruction.options.is_empty() {
                                 todo!("RUN options are not managed yet");
                             }
@@ -146,10 +162,13 @@ impl Dofigen {
                                 lines.remove(lines.len() - 1);
                                 run.run.append(&mut lines);
                             } else {
-                                todo!(
-                                    "Not heredoc RUN is not managed yet: {:?}",
-                                    instruction.content
-                                );
+                                let mut commands = instruction
+                                    .content
+                                    .split("&&")
+                                    .map(str::trim)
+                                    .map(str::to_string)
+                                    .collect::<Vec<_>>();
+                                run.run.append(&mut commands);
                             }
                         }
                     }
@@ -207,7 +226,9 @@ impl Dofigen {
                                 crate::InstructionOption::WithOptions(
                                     name,
                                     instruction_option_options,
-                                ) => todo!("Unknown COPY option {name} with sub options: {instruction_option_options:?}"),
+                                ) => todo!(
+                                    "Unknown COPY option {name} with sub options: {instruction_option_options:?}"
+                                ),
                             }
                         }
                         copy.options = options;
@@ -230,22 +251,25 @@ impl Dofigen {
                             println!("add_git: {add_git:?}");
                             for option in not_managed_options.iter() {
                                 match option {
-                                crate::InstructionOption::Flag(name) => match name.as_str() {
-                                    _ => unreachable!("Unknown ADD flag option: {name}"),
-                                },
-                                crate::InstructionOption::WithValue(name, value) => {
-                                    match name.as_str() {
-                                        "keep-git-dir" => {
-                                            add_git.keep_git_dir = Some(Some(value.parse().map_err(Error::from)?));
+                                    crate::InstructionOption::Flag(name) => match name.as_str() {
+                                        _ => unreachable!("Unknown ADD flag option: {name}"),
+                                    },
+                                    crate::InstructionOption::WithValue(name, value) => {
+                                        match name.as_str() {
+                                            "keep-git-dir" => {
+                                                add_git.keep_git_dir =
+                                                    Some(Some(value.parse().map_err(Error::from)?));
+                                            }
+                                            _ => unreachable!("Unknown ADD option: {name}"),
                                         }
-                                        _ => unreachable!("Unknown ADD option: {name}"),
                                     }
+                                    crate::InstructionOption::WithOptions(
+                                        name,
+                                        instruction_option_options,
+                                    ) => todo!(
+                                        "Unknown ADD option {name} with sub options: {instruction_option_options:?}"
+                                    ),
                                 }
-                                crate::InstructionOption::WithOptions(
-                                    name,
-                                    instruction_option_options,
-                                ) => todo!("Unknown ADD option {name} with sub options: {instruction_option_options:?}"),
-                            }
                             }
                             copy_resource
                         } else {
@@ -253,22 +277,24 @@ impl Dofigen {
 
                             for option in not_managed_options.iter() {
                                 match option {
-                                crate::InstructionOption::Flag(name) => match name.as_str() {
-                                    _ => unreachable!("Unknown ADD flag option: {name}"),
-                                },
-                                crate::InstructionOption::WithValue(name, value) => {
-                                    match name.as_str() {
-                                        "checksum" => {
-                                            add.checksum = Some(Some(value.clone()));
+                                    crate::InstructionOption::Flag(name) => match name.as_str() {
+                                        _ => unreachable!("Unknown ADD flag option: {name}"),
+                                    },
+                                    crate::InstructionOption::WithValue(name, value) => {
+                                        match name.as_str() {
+                                            "checksum" => {
+                                                add.checksum = Some(Some(value.clone()));
+                                            }
+                                            _ => unreachable!("Unknown ADD option: {name}"),
                                         }
-                                        _ => unreachable!("Unknown ADD option: {name}"),
                                     }
+                                    crate::InstructionOption::WithOptions(
+                                        name,
+                                        instruction_option_options,
+                                    ) => todo!(
+                                        "Unknown ADD option {name} with sub options: {instruction_option_options:?}"
+                                    ),
                                 }
-                                crate::InstructionOption::WithOptions(
-                                    name,
-                                    instruction_option_options,
-                                ) => todo!("Unknown ADD option {name} with sub options: {instruction_option_options:?}"),
-                            }
                             }
                             CopyResourcePatch::Add(add)
                         };
@@ -295,7 +321,32 @@ impl Dofigen {
                         )?);
                     }
                     DockerFileCommand::EXPOSE => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        let dofigen_patch = get_dofigen_patch(
+                            &current_stage_name,
+                            &mut builder_dofigen_patches,
+                            &instruction,
+                        )?;
+                        let ports = instruction
+                            .content
+                            .clone()
+                            .split_whitespace()
+                            .map(|port_str| {
+                                port_str.parse().map_err(Error::from).map(
+                                    |port_patch: PortPatch| {
+                                        let mut port = Port::default();
+                                        port.apply(port_patch);
+                                        port
+                                    },
+                                )
+                            })
+                            .collect::<Result<Vec<Port>>>()?;
+                        let expose = if let Some(expose) = dofigen_patch.expose.as_mut() {
+                            expose
+                        } else {
+                            dofigen_patch.expose = Some(VecDeepPatch::default());
+                            &mut dofigen_patch.expose.as_mut().unwrap()
+                        };
+                        expose.commands.push(VecDeepPatchCommand::Append(ports));
                     }
                     DockerFileCommand::USER => {
                         let stage = get_stage(&mut current_stage, &instruction)?;
@@ -320,19 +371,102 @@ impl Dofigen {
                         }
                     }
                     DockerFileCommand::VOLUME => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        let dofigen_patch = get_dofigen_patch(
+                            &current_stage_name,
+                            &mut builder_dofigen_patches,
+                            &instruction,
+                        )?;
+                        let volumes = parse_json_array(&instruction.content)?;
+                        let volume = if let Some(volume) = dofigen_patch.volume.as_mut() {
+                            volume
+                        } else {
+                            dofigen_patch.volume = Some(VecPatch::default());
+                            &mut dofigen_patch.volume.as_mut().unwrap()
+                        };
+                        volume.commands.push(VecPatchCommand::Append(volumes));
                     }
                     DockerFileCommand::SHELL => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        current_shell = Some(parse_json_array(&instruction.content)?);
                     }
                     DockerFileCommand::HEALTHCHECK => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        let dofigen_patch = get_dofigen_patch(
+                            &current_stage_name,
+                            &mut builder_dofigen_patches,
+                            &instruction,
+                        )?;
+                        let mut healthcheck = HealthcheckPatch {
+                            cmd: Some(parse_json_array(&instruction.content)?.join(" ")),
+                            interval: Some(None),
+                            retries: Some(None),
+                            start: Some(None),
+                            timeout: Some(None),
+                        };
+                        instruction.options.iter().for_each(|option| {
+                            match option {
+                                crate::InstructionOption::WithValue(name, value) => {
+                                    match name.as_str() {
+                                        "interval" => {
+                                            healthcheck.interval = Some(Some(value.clone()));
+                                            return;
+                                        }
+                                        "retries" => {
+                                            if let Ok(parsed) = value.parse() {
+                                                healthcheck.retries = Some(Some(parsed));
+                                            } else {
+                                                messages.push(LintMessage {
+                                    level: MessageLevel::Error,
+                                    message: format!("Could not parse healthcheck {} option for value: '{}'", name, value),
+                                    path: vec![stage_name.clone(), "HEALTHCHECK".to_string()],
+                                });
+                                            }
+                                            return;
+                                        }
+                                        "start-period" => {
+                                            healthcheck.start = Some(Some(value.clone()));
+                                            return;
+                                        }
+                                        "timeout" => {
+                                            healthcheck.timeout = Some(Some(value.clone()));
+                                            return;
+                                        }
+                                        _ => {}
+                                    }
+                                }
+                                _ => {}
+                            }
+                            messages.push(LintMessage {
+                                level: MessageLevel::Warn,
+                                message: format!(
+                                    "HEALTHCHECK option '{option:?}' is not managed yet"
+                                ),
+                                path: vec![stage_name.clone(), "HEALTHCHECK".to_string()],
+                            });
+                        });
+                        dofigen_patch.healthcheck = Some(Some(healthcheck));
                     }
                     DockerFileCommand::CMD => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        let dofigen_patch = get_dofigen_patch(
+                            &current_stage_name,
+                            &mut builder_dofigen_patches,
+                            &instruction,
+                        )?;
+                        dofigen_patch.cmd = Some(VecPatch {
+                            commands: vec![VecPatchCommand::ReplaceAll(parse_json_array(
+                                &instruction.content,
+                            )?)],
+                        });
                     }
                     DockerFileCommand::ENTRYPOINT => {
-                        todo!("{:?} instruction is not managed yet", instruction.command)
+                        let dofigen_patch = get_dofigen_patch(
+                            &current_stage_name,
+                            &mut builder_dofigen_patches,
+                            &instruction,
+                        )?;
+                        dofigen_patch.entrypoint = Some(VecPatch {
+                            commands: vec![VecPatchCommand::ReplaceAll(parse_json_array(
+                                &instruction.content,
+                            )?)],
+                        });
                     }
                     DockerFileCommand::Unknown(command) => {
                         todo!("Unknown instruction {:?} is not managed yet", command)
@@ -342,15 +476,49 @@ impl Dofigen {
             }
         }
 
+        // Get runtime informations
+        let runtime_stage = current_stage
+            .clone()
+            .ok_or(Error::Custom("No FROM instruction found".to_string()))?;
+        let runtime_name =
+            current_stage_name.ok_or(Error::Custom("No FROM instruction found".to_string()))?;
+
+        // Get base instructions in from builders
+        let mut dofigen_patches = builder_dofigen_patches
+            .remove(&runtime_name)
+            .into_iter()
+            .collect::<Vec<_>>();
+        let mut searching_stage = runtime_stage.clone();
+        while let FromContext::FromBuilder(builder_name) = searching_stage.from.clone() {
+            if let Some(builder_dofigen_patch) = builder_dofigen_patches.remove(&builder_name) {
+                dofigen_patches.insert(0, builder_dofigen_patch);
+            }
+            searching_stage = builders
+                .get(&builder_name)
+                .ok_or(Error::Custom(format!(
+                    "Builder '{}' not found",
+                    builder_name
+                )))?
+                .clone();
+        }
+
+        // Apply merged patches
+        if !dofigen_patches.is_empty() {
+            dofigen_patches.iter().for_each(|dofigen_patch| {
+                dofigen.apply(dofigen_patch.clone());
+            });
+        }
+
+        // Set builders
         if !builders.is_empty() {
             dofigen.builders = builders;
         }
 
         add_root(&mut current_stage, &mut current_root)?;
 
-        dofigen.stage =
-            current_stage.ok_or(Error::Custom("No FROM instruction found".to_string()))?;
+        dofigen.stage = runtime_stage;
 
+        // Handle lint messages
         messages.iter().for_each(|message| {
             eprintln!(
                 "{}[path={}]: {}",
@@ -399,6 +567,19 @@ fn add_root<'a>(stage: &'a mut Option<Stage>, root: &'a mut Option<Run>) -> Resu
         }
     }
     Ok(())
+}
+
+fn get_dofigen_patch<'a>(
+    stage_name: &'a Option<String>,
+    stage_dofigen_patches: &'a mut HashMap<String, DofigenPatch>,
+    instruction: &'a DockerFileInsctruction,
+) -> Result<&'a mut DofigenPatch> {
+    Ok(stage_dofigen_patches
+        .entry(stage_name.clone().ok_or(Error::Custom(format!(
+            "No FROM instruction found before line: {:?}",
+            instruction
+        )))?)
+        .or_insert_with(DofigenPatch::default))
 }
 
 fn get_stage<'a>(
@@ -470,6 +651,14 @@ fn parse_key_value_entries(content: String) -> Result<(HashMap<String, String>, 
         entries.insert(key, value);
     }
     Ok((entries, messages))
+}
+
+fn parse_json_array(content: &str) -> Result<Vec<String>> {
+    return if content.starts_with('[') && content.ends_with(']') {
+        serde_json::from_str(content).map_err(Error::from)
+    } else {
+        Ok(vec![content.to_string()])
+    };
 }
 
 #[cfg(test)]
@@ -605,6 +794,50 @@ mod tests {
                 })
             );
             assert_eq_sorted!(dofigen.stage.from, FromContext::FromContext(None));
+        }
+
+        #[test]
+        fn from_builder() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04 as test".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "test".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.builders,
+                HashMap::from([(
+                    "test".to_string(),
+                    Stage {
+                        from: FromContext::FromImage(ImageName {
+                            path: "ubuntu".to_string(),
+                            version: Some(crate::ImageVersion::Tag("25.04".to_string())),
+                            ..Default::default()
+                        })
+                        .into(),
+                        ..Default::default()
+                    }
+                )])
+            );
+
+            assert_eq_sorted!(
+                dofigen.stage.from,
+                FromContext::FromBuilder("test".to_string())
+            );
         }
 
         #[test]
@@ -789,6 +1022,680 @@ mod tests {
                 ])
             );
         }
+
+        #[test]
+        fn from_maintainer() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::MAINTAINER,
+                        content: "taorepoara".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let result = Dofigen::from_dockerfile(dockerfile, None);
+            let dofigen = result.unwrap();
+
+            assert_eq!(dofigen.ignore.len(), 0);
+            assert_eq!(dofigen.builders.len(), 0);
+            assert_eq_sorted!(
+                dofigen.stage.label,
+                HashMap::from([(
+                    "org.opencontainers.image.authors".to_string(),
+                    "taorepoara".to_string()
+                )])
+            );
+        }
+    }
+
+    mod expose {
+        use crate::Port;
+
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::EXPOSE,
+                        content: "80".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.expose,
+                vec![Port {
+                    port: 80,
+                    protocol: None,
+                }]
+            );
+        }
+
+        #[test]
+        fn multiple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::EXPOSE,
+                        content: "80".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::EXPOSE,
+                        content: "443".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.expose,
+                vec![
+                    Port {
+                        port: 80,
+                        protocol: None,
+                    },
+                    Port {
+                        port: 443,
+                        protocol: None,
+                    }
+                ]
+            );
+        }
+
+        #[test]
+        fn from_builder() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04 as test".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::EXPOSE,
+                        content: "80".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "test".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.expose,
+                vec![Port {
+                    port: 80,
+                    protocol: None,
+                }]
+            );
+        }
+    }
+
+    mod volume {
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::VOLUME,
+                        content: "/data".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.volume, vec!["/data".to_string()]);
+        }
+
+        #[test]
+        fn multiple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::VOLUME,
+                        content: "/data".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::VOLUME,
+                        content: "/app".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.volume,
+                vec!["/data".to_string(), "/app".to_string()]
+            );
+        }
+
+        #[test]
+        fn json_array() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::VOLUME,
+                        content: r#"["/data", "/app"]"#.to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.volume,
+                vec!["/data".to_string(), "/app".to_string()]
+            );
+        }
+
+        #[test]
+        fn from_builder() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04 as test".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::VOLUME,
+                        content: "/data".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "test".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.volume, vec!["/data".to_string()]);
+        }
+    }
+
+    mod shell {
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::SHELL,
+                        content: r#"["/bin/sh", "-c"]"#.to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo coucou".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    shell: vec!["/bin/sh".to_string(), "-c".to_string()],
+                    run: vec!["echo coucou".to_string()],
+                    ..Default::default()
+                }
+            );
+        }
+    }
+
+    mod healthcheck {
+        use crate::Healthcheck;
+
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::HEALTHCHECK,
+                        content: "/check.sh".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.healthcheck,
+                Some(Healthcheck {
+                    cmd: "/check.sh".to_string(),
+                    ..Default::default()
+                })
+            );
+        }
+
+        #[test]
+        fn multiple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::HEALTHCHECK,
+                        content: "/check.sh".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::HEALTHCHECK,
+                        content: "/new_check.sh".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.healthcheck,
+                Some(Healthcheck {
+                    cmd: "/new_check.sh".to_string(),
+                    ..Default::default()
+                })
+            );
+        }
+
+        #[test]
+        fn json_array() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::HEALTHCHECK,
+                        content: r#"["/check.sh", "--test"]"#.to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.healthcheck,
+                Some(Healthcheck {
+                    cmd: "/check.sh --test".to_string(),
+                    ..Default::default()
+                })
+            );
+        }
+
+        #[test]
+        fn from_builder() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04 as test".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::HEALTHCHECK,
+                        content: "/check.sh".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "test".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(
+                dofigen.healthcheck,
+                Some(Healthcheck {
+                    cmd: "/check.sh".to_string(),
+                    ..Default::default()
+                })
+            );
+        }
+    }
+
+    mod cmd {
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::CMD,
+                        content: "--help".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.cmd, vec!["--help".to_string()]);
+        }
+
+        #[test]
+        fn multiple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::CMD,
+                        content: "--help".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::CMD,
+                        content: "gen".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.cmd, vec!["gen".to_string()]);
+        }
+
+        #[test]
+        fn json_array() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::CMD,
+                        content: r#"["gen", "--help"]"#.to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.cmd, vec!["gen".to_string(), "--help".to_string()]);
+        }
+
+        #[test]
+        fn from_builder() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04 as test".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::CMD,
+                        content: "--help".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "test".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.cmd, vec!["--help".to_string()]);
+        }
+    }
+
+    mod entrypoint {
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ENTRYPOINT,
+                        content: "/entrypoint.sh".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.entrypoint, vec!["/entrypoint.sh".to_string()]);
+        }
+
+        #[test]
+        fn multiple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ENTRYPOINT,
+                        content: "/entrypoint.sh".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ENTRYPOINT,
+                        content: "/new_entrypoint.sh".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.entrypoint, vec!["/new_entrypoint.sh".to_string()]);
+        }
+
+        #[test]
+        fn json_array() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ENTRYPOINT,
+                        content: r#"["/entrypoint.sh", "-c"]"#.to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.entrypoint, vec!["/entrypoint.sh".to_string(), "-c".to_string()]);
+        }
+
+        #[test]
+        fn from_builder() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04 as test".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ENTRYPOINT,
+                        content: "/entrypoint.sh".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "test".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
+
+            let dofigen = result.unwrap();
+
+            assert_eq_sorted!(dofigen.entrypoint, vec!["/entrypoint.sh".to_string()]);
+        }
     }
 
     mod from_string {
@@ -797,7 +1704,7 @@ mod tests {
         use super::*;
 
         #[test]
-        #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
+        // #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
         fn php_dockerfile() {
             let dockerfile_content = r#"# syntax=docker/dockerfile:1.11
 # This file is generated by Dofigen v0.0.0
@@ -886,15 +1793,20 @@ EOF
     fromImage: composer:latest
 fromBuilder: install-php-ext
 workdir: /
-user: www-data
+user:
+  user: www-data
 copy:
 - fromBuilder: get-composer
   paths: "/usr/bin/composer"
   target: "/bin/"
-  chown: www-data
+  chown:
+    user: www-data
+  link: true
 - repo: 'https://github.com/pelican-dev/panel.git'
   target: '/tmp/pelican'
-  chown: www-data
+  chown:
+    user: www-data
+  link: true
 run:
   - cd /tmp/pelican
   - cp .env.example .env
@@ -1057,12 +1969,12 @@ run:
                 ..Default::default()
             });
 
-            // let dofigen_from_string: Dofigen = DofigenContext::new()
-            //     .parse_from_string(yaml)
-            //     .map_err(Error::from)
-            //     .unwrap();
+            let dofigen_from_string: Dofigen = DofigenContext::new()
+                .parse_from_string(yaml)
+                .map_err(Error::from)
+                .unwrap();
 
-            // assert_eq_sorted!(dofigen_from_dockerfile, dofigen_from_string);
+            assert_eq_sorted!(dofigen_from_dockerfile, dofigen_from_string);
         }
     }
 }

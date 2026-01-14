@@ -72,11 +72,11 @@ pub struct VecPatch<T>
 where
     T: Clone,
 {
-    commands: Vec<VecPatchCommand<T>>,
+    pub(crate) commands: Vec<VecPatchCommand<T>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum VecPatchCommand<T> {
+pub(crate) enum VecPatchCommand<T> {
     ReplaceAll(Vec<T>),
     Replace(usize, T),
     InsertBefore(usize, Vec<T>),
@@ -101,11 +101,11 @@ where
     T: Clone + Patch<P> + From<P>,
     P: Clone,
 {
-    commands: Vec<VecDeepPatchCommand<T, P>>,
+    pub(crate) commands: Vec<VecDeepPatchCommand<T, P>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum VecDeepPatchCommand<T, P>
+pub(crate) enum VecDeepPatchCommand<T, P>
 where
     T: Clone,
 {

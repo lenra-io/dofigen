@@ -62,7 +62,7 @@ pub enum DockerFileCommand {
     FROM,
     ARG,
     LABEL,
-    // Deprecated
+    // Deprecated, see https://docs.docker.com/engine/reference/builder/#maintainer-deprecated
     MAINTAINER,
     RUN,
     COPY,

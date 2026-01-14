@@ -1318,6 +1318,62 @@ fromImage:
             }
 
             #[test]
+            fn copy_with_chown_regression() {
+                let yaml = r#"
+fromContext: get-composer
+paths: "/usr/bin/composer"
+target: "/bin/"
+chown:
+  user: test
+link: true
+"#;
+
+                let copy_resource: CopyResourcePatch = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResourcePatch::Copy(CopyPatch {
+                        from: Some(FromContextPatch::FromContext(Some("get-composer".into()))),
+                        paths: Some(VecPatch {
+                            commands: vec![VecPatchCommand::ReplaceAll(
+                                vec!["/usr/bin/composer".to_string()].into()
+                            )]
+                        }),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(Some("/bin/".into())),
+                            chown: Some(Some(UserPatch {
+                                user: Some("test".into()),
+                                group: None
+                            })),
+                            link: Some(Some(true)),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    })
+                );
+
+                let copy_resource: CopyResource = copy_resource.into();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResource::Copy(Copy {
+                        from: FromContext::FromContext(Some("get-composer".into())),
+                        paths: vec!["/usr/bin/composer".into()].into(),
+                        options: CopyOptions {
+                            target: Some("/bin/".into()),
+                            chown: Some(User {
+                                user: "test".into(),
+                                group: None
+                            }),
+                            link: Some(true),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                );
+            }
+
+            #[test]
             fn copy_content() {
                 let json_data = r#"{
     "content": "echo coucou",
@@ -1432,18 +1488,19 @@ fromImage:
             }
 
             #[test]
-            #[ignore = "Not managed yet by serde because of multilevel flatten: https://serde.rs/field-attrs.html#flatten"]
             fn copy_in_dofigen() {
                 let yaml_data = r#"
 copy:
 - fromContext: get-composer
   paths: "/usr/bin/composer"
   target: "/bin/"
-  chown: test
+  chown:
+    user: test
   link: true
 - repo: 'https://github.com/pelican-dev/panel.git'
   target: '/tmp/pelican'
-  chown: test
+  chown:
+    user: test
   link: true
 "#;
 
@@ -1477,6 +1534,7 @@ copy:
                                             user: "test".into(),
                                             group: None
                                         }),
+                                        link: Some(true),
                                         ..Default::default()
                                     },
                                     ..Default::default()
