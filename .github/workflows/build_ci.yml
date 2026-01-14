@@ -151,6 +151,40 @@ jobs:
         command: test
         args: --no-default-features -F permissive -F json_schema -F cli
 
+  test-parse:
+    name: Test parse
+    needs: [style]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    - name: "-F parse"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F parse
+
+    - name: "-F parse -F json_schema"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F parse -F json_schema
+
+    - name: "-F parse -F json_schema -F cli"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F parse -F json_schema -F cli
+
   test-strict:
     name: Test strict
     needs: [style]

@@ -49,7 +49,10 @@ macro_rules! impl_parsable_patch {
 impl_parsable_patch!(ImageName, ImageNamePatch, s, {
     let regex = Regex::new(r"^(?:(?<host>[^:\/.]+(?:\.[^:\/.]+)+)(?::(?<port>\d{1,5}))?\/)?(?<path>[a-zA-Z0-9-]{1,63}(?:\/[a-zA-Z0-9-]{1,63})*)(?:(?<version_char>[:@])(?<version_value>[a-zA-Z0-9_.:-]{1,128}))?$").unwrap();
     let Some(captures) = regex.captures(s) else {
-        return Err(Error::custom("Not matching image name pattern"));
+        return Err(Error::custom(format!(
+            "String '{}' is not matching image name pattern",
+            s
+        )));
     };
     Ok(ImageNamePatch {
         host: Some(captures.name("host").map(|m| m.as_str().into())),
@@ -72,7 +75,7 @@ impl_parsable_patch!(ImageName, ImageNamePatch, s, {
 
 impl_parsable_patch!(CopyResource, CopyResourcePatch, s, {
     let parts_regex = format!(
-        r"^(?:(?<git>(?:{git_http}|{git_ssh}))|(?<url>{url})|\S+)(?: (?:{git_http}|{git_ssh}|{url}|\S+))*(?: \S+)?$",
+        r#"^(?:(?<git>(?:{git_http}|"{git_http}"|'{git_http}'|{git_ssh}|"{git_ssh}"|'{git_ssh}'))|(?<url>{url}|"{url}"|'{url}')|\S+)(?: (?:"\S+"|'\S+'|\S+))*(?: (?:"\S+"|'\S+'|\S+))?$"#,
         git_http = GIT_HTTP_REPO_REGEX,
         git_ssh = GIT_SSH_REPO_REGEX,
         url = URL_REGEX
@@ -91,7 +94,7 @@ impl_parsable_patch!(CopyResource, CopyResourcePatch, s, {
 });
 
 impl_parsable_patch!(Copy, CopyPatch, s, {
-    let mut parts: Vec<String> = s.split(" ").map(|s| s.into()).collect();
+    let mut parts: Vec<String> = collect_path_list(s);
     let target = if parts.len() > 1 { parts.pop() } else { None };
     Ok(Self {
         paths: Some(parts.into_patch()),
@@ -108,15 +111,16 @@ impl_parsable_patch!(Copy, CopyPatch, s, {
 });
 
 impl_parsable_patch!(AddGitRepo, AddGitRepoPatch, s, {
-    let (repo, target) = match &s.split(" ").collect::<Vec<&str>>().as_slice() {
-        &[repo, target] => (repo.to_string(), Some(target.to_string())),
-        &[repo] => (repo.to_string(), None),
+    let paths = collect_path_list(s);
+    let (repo, target) = match paths.as_slice() {
+        [repo, target] => (repo, Some(target)),
+        [repo] => (repo, None),
         _ => return Err(Error::custom("Invalid add git repo format")),
     };
     Ok(Self {
-        repo: Some(repo),
+        repo: Some(repo.clone()),
         options: Some(CopyOptionsPatch {
-            target: Some(target),
+            target: Some(target.cloned()),
             chmod: Some(None),
             chown: Some(None),
             link: Some(None),
@@ -128,12 +132,8 @@ impl_parsable_patch!(AddGitRepo, AddGitRepoPatch, s, {
 });
 
 impl_parsable_patch!(Add, AddPatch, s, {
-    let mut parts: Vec<_> = s.split(" ").collect();
-    let target = if parts.len() > 1 {
-        parts.pop().map(str::to_string)
-    } else {
-        None
-    };
+    let mut parts = collect_path_list(s);
+    let target = if parts.len() > 1 { parts.pop() } else { None };
     let parts: Vec<_> = parts
         .iter()
         .map(|s| {
@@ -155,6 +155,31 @@ impl_parsable_patch!(Add, AddPatch, s, {
         unpack: Some(None),
     })
 });
+
+fn collect_path_list(s: &str) -> Vec<String> {
+    let regex = Regex::new(r#"(?:"(?:\\"|[^"])*"|'(?:\\'|[^'])*'|\S+)"#).unwrap();
+    regex
+        .find_iter(s)
+        .map(|m| {
+            let mut m = m.as_str().to_string();
+            let first = m.chars().next().unwrap();
+            if first == '"' || first == '\'' {
+                // Remove the surrounding quotes
+                m = m[1..m.len() - 1].to_string();
+                while let Some(pos) = m.find(format!("\\{}", first).as_str()) {
+                    // Replace escaped quotes with a single quote
+                    m = format!("{}{}", &m[..pos], &m[pos + 1..]);
+                }
+            } else {
+                while let Some(pos) = m.find("\\\"").or(m.find("\\'")) {
+                    // Replace escaped quotes with a single quote
+                    m = format!("{}{}", &m[..pos], &m[pos + 1..]);
+                }
+            }
+            m
+        })
+        .collect()
+}
 
 impl_parsable_patch!(User, UserPatch, s, {
     let regex = Regex::new(r"^(?<user>[a-zA-Z0-9_-]+)(?::(?<group>[a-zA-Z0-9_-]+))?$").unwrap();
@@ -252,448 +277,513 @@ impl_parsable_patch!(TmpFs, TmpFsPatch, s, {
 });
 
 #[cfg(test)]
-mod test_from_str {
+mod test {
     use super::*;
     use pretty_assertions_sorted::assert_eq_sorted;
-
-    mod image_name {
-        use pretty_assertions_sorted::assert_eq_sorted;
-
+    mod from_str {
         use super::*;
 
-        #[test]
-        fn simple() {
-            let input = "example/image";
-            let result = ImageNamePatch::from_str(input).unwrap();
-            assert_eq_sorted!(result.host, Some(None));
-            assert_eq_sorted!(result.path, Some("example/image".into()));
-            assert_eq_sorted!(result.port, Some(None));
-            assert_eq_sorted!(result.version, Some(None));
+        mod image_name {
+            use pretty_assertions_sorted::assert_eq_sorted;
+
+            use super::*;
+
+            #[test]
+            fn simple() {
+                let input = "example/image";
+                let result = ImageNamePatch::from_str(input).unwrap();
+                assert_eq_sorted!(result.host, Some(None));
+                assert_eq_sorted!(result.path, Some("example/image".into()));
+                assert_eq_sorted!(result.port, Some(None));
+                assert_eq_sorted!(result.version, Some(None));
+            }
+
+            #[test]
+            fn with_host() {
+                let input = "docker.io/example/image";
+                let result = ImageNamePatch::from_str(input).unwrap();
+                assert_eq_sorted!(result.host, Some(Some("docker.io".into())));
+                assert_eq_sorted!(result.path, Some("example/image".into()));
+                assert_eq_sorted!(result.port, Some(None));
+                assert_eq_sorted!(result.version, Some(None));
+            }
+
+            #[test]
+            fn with_tag() {
+                let input = "example/image:tag";
+                let result = ImageNamePatch::from_str(input).unwrap();
+                assert_eq_sorted!(result.host, Some(None));
+                assert_eq_sorted!(result.path, Some("example/image".into()));
+                assert_eq_sorted!(result.port, Some(None));
+                assert_eq_sorted!(result.version, Some(Some(ImageVersion::Tag("tag".into()))));
+            }
+
+            #[test]
+            fn with_digest() {
+                let input = "example/image@sha256:my-sha";
+                let result = ImageNamePatch::from_str(input).unwrap();
+                assert_eq_sorted!(result.host, Some(None));
+                assert_eq_sorted!(result.path, Some("example/image".into()));
+                assert_eq_sorted!(result.port, Some(None));
+                assert_eq_sorted!(
+                    result.version,
+                    Some(Some(ImageVersion::Digest("sha256:my-sha".into())))
+                );
+            }
+
+            #[test]
+            fn full() {
+                let input = "registry.my-host.io:5001/example/image:stable";
+                let result = ImageNamePatch::from_str(input).unwrap();
+                assert_eq_sorted!(result.host, Some(Some("registry.my-host.io".into())));
+                assert_eq_sorted!(result.path, Some("example/image".into()));
+                assert_eq_sorted!(result.port, Some(Some(5001)));
+                assert_eq_sorted!(
+                    result.version,
+                    Some(Some(ImageVersion::Tag("stable".into())))
+                );
+            }
+
+            #[test]
+            fn with_arg() {
+                let input = "example/image:${VERSION}";
+                let result = ImageNamePatch::from_str(input);
+                assert!(result.is_err());
+            }
         }
 
-        #[test]
-        fn with_host() {
-            let input = "docker.io/example/image";
-            let result = ImageNamePatch::from_str(input).unwrap();
-            assert_eq_sorted!(result.host, Some(Some("docker.io".into())));
-            assert_eq_sorted!(result.path, Some("example/image".into()));
-            assert_eq_sorted!(result.port, Some(None));
-            assert_eq_sorted!(result.version, Some(None));
+        mod copy {
+
+            use super::*;
+
+            #[test]
+            fn simple() {
+                let result = CopyPatch::from_str("src").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyPatch {
+                        paths: Some(vec!["src".to_string()].into_patch()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(None),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        from: Some(FromContextPatch::default()),
+                        exclude: Some(VecPatch::default()),
+                        parents: Some(None),
+                    }
+                );
+            }
+
+            #[test]
+            fn with_target_option() {
+                let result = CopyPatch::from_str("src /app").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyPatch {
+                        paths: Some(vec!["src".to_string()].into_patch()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(Some("/app".into())),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        from: Some(FromContextPatch::default()),
+                        exclude: Some(VecPatch::default()),
+                        parents: Some(None),
+                    }
+                );
+            }
+
+            #[test]
+            fn with_multiple_sources_and_target() {
+                let result = CopyPatch::from_str("src1 src2 /app").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyPatch {
+                        paths: Some(vec!["src1".to_string(), "src2".to_string()].into_patch()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(Some("/app".into())),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        from: Some(FromContextPatch::default()),
+                        exclude: Some(VecPatch::default()),
+                        parents: Some(None),
+                    }
+                );
+            }
         }
 
-        #[test]
-        fn with_tag() {
-            let input = "example/image:tag";
-            let result = ImageNamePatch::from_str(input).unwrap();
-            assert_eq_sorted!(result.host, Some(None));
-            assert_eq_sorted!(result.path, Some("example/image".into()));
-            assert_eq_sorted!(result.port, Some(None));
-            assert_eq_sorted!(result.version, Some(Some(ImageVersion::Tag("tag".into()))));
+        mod add_git_repo {
+
+            use super::*;
+
+            #[test]
+            fn ssh() {
+                let result =
+                    AddGitRepoPatch::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    AddGitRepoPatch {
+                        repo: Some("git@github.com:lenra-io/dofigen.git".into()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(None),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        keep_git_dir: Some(None),
+                        exclude: Some(VecPatch::default()),
+                        checksum: Some(None),
+                    }
+                );
+            }
+
+            #[test]
+            fn ssh_with_target() {
+                let result =
+                    AddGitRepoPatch::from_str("git@github.com:lenra-io/dofigen.git /app").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    AddGitRepoPatch {
+                        repo: Some("git@github.com:lenra-io/dofigen.git".into()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(Some("/app".into())),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        keep_git_dir: Some(None),
+                        exclude: Some(VecPatch::default()),
+                        checksum: Some(None),
+                    }
+                );
+            }
+
+            #[test]
+            fn http() {
+                let result =
+                    AddGitRepoPatch::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    AddGitRepoPatch {
+                        repo: Some("https://github.com/lenra-io/dofigen.git".into()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(None),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        keep_git_dir: Some(None),
+                        exclude: Some(VecPatch::default()),
+                        checksum: Some(None),
+                    }
+                );
+            }
+
+            #[test]
+            fn http_with_target() {
+                let result =
+                    AddGitRepoPatch::from_str("https://github.com/lenra-io/dofigen.git /app")
+                        .unwrap();
+                assert_eq_sorted!(
+                    result,
+                    AddGitRepoPatch {
+                        repo: Some("https://github.com/lenra-io/dofigen.git".into()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(Some("/app".into())),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        keep_git_dir: Some(None),
+                        exclude: Some(VecPatch::default()),
+                        checksum: Some(None),
+                    }
+                );
+            }
         }
 
-        #[test]
-        fn with_digest() {
-            let input = "example/image@sha256:my-sha";
-            let result = ImageNamePatch::from_str(input).unwrap();
-            assert_eq_sorted!(result.host, Some(None));
-            assert_eq_sorted!(result.path, Some("example/image".into()));
-            assert_eq_sorted!(result.port, Some(None));
-            assert_eq_sorted!(
-                result.version,
-                Some(Some(ImageVersion::Digest("sha256:my-sha".into())))
-            );
-        }
+        mod add {
+            use struct_patch::Patch;
 
-        #[test]
-        fn full() {
-            let input = "registry.my-host.io:5001/example/image:stable";
-            let result = ImageNamePatch::from_str(input).unwrap();
-            assert_eq_sorted!(result.host, Some(Some("registry.my-host.io".into())));
-            assert_eq_sorted!(result.path, Some("example/image".into()));
-            assert_eq_sorted!(result.port, Some(Some(5001)));
-            assert_eq_sorted!(
-                result.version,
-                Some(Some(ImageVersion::Tag("stable".into())))
-            );
-        }
+            use crate::{CopyOptions, Resource};
 
-        #[test]
-        fn with_arg() {
-            let input = "example/image:${VERSION}";
-            let result = ImageNamePatch::from_str(input);
-            assert!(result.is_err());
-        }
-    }
+            use super::*;
 
-    mod copy {
-
-        use super::*;
-
-        #[test]
-        fn simple() {
-            let result = CopyPatch::from_str("src").unwrap();
-            assert_eq_sorted!(
-                result,
-                CopyPatch {
-                    paths: Some(vec!["src".to_string()].into_patch()),
-                    options: Some(CopyOptionsPatch {
-                        target: Some(None),
-                        chown: Some(None),
-                        chmod: Some(None),
-                        link: Some(None),
-                    }),
-                    from: Some(FromContextPatch::default()),
-                    exclude: Some(VecPatch::default()),
-                    parents: Some(None),
-                }
-            );
-        }
-
-        #[test]
-        fn with_target_option() {
-            let result = CopyPatch::from_str("src /app").unwrap();
-            assert_eq_sorted!(
-                result,
-                CopyPatch {
-                    paths: Some(vec!["src".to_string()].into_patch()),
-                    options: Some(CopyOptionsPatch {
-                        target: Some(Some("/app".into())),
-                        chown: Some(None),
-                        chmod: Some(None),
-                        link: Some(None),
-                    }),
-                    from: Some(FromContextPatch::default()),
-                    exclude: Some(VecPatch::default()),
-                    parents: Some(None),
-                }
-            );
-        }
-
-        #[test]
-        fn with_multiple_sources_and_target() {
-            let result = CopyPatch::from_str("src1 src2 /app").unwrap();
-            assert_eq_sorted!(
-                result,
-                CopyPatch {
-                    paths: Some(vec!["src1".to_string(), "src2".to_string()].into_patch()),
-                    options: Some(CopyOptionsPatch {
-                        target: Some(Some("/app".into())),
-                        chown: Some(None),
-                        chmod: Some(None),
-                        link: Some(None),
-                    }),
-                    from: Some(FromContextPatch::default()),
-                    exclude: Some(VecPatch::default()),
-                    parents: Some(None),
-                }
-            );
-        }
-    }
-
-    mod add_git_repo {
-
-        use super::*;
-
-        #[test]
-        fn ssh() {
-            let result = AddGitRepoPatch::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
-            assert_eq_sorted!(
-                result,
-                AddGitRepoPatch {
-                    repo: Some("git@github.com:lenra-io/dofigen.git".into()),
-                    options: Some(CopyOptionsPatch {
-                        target: Some(None),
-                        chown: Some(None),
-                        chmod: Some(None),
-                        link: Some(None),
-                    }),
-                    keep_git_dir: Some(None),
-                    checksum: Some(None),
-                    exclude: Some(VecPatch::default()),
-                }
-            );
-        }
-
-        #[test]
-        fn ssh_with_target() {
-            let result =
-                AddGitRepoPatch::from_str("git@github.com:lenra-io/dofigen.git /app").unwrap();
-            assert_eq_sorted!(
-                result,
-                AddGitRepoPatch {
-                    repo: Some("git@github.com:lenra-io/dofigen.git".into()),
-                    options: Some(CopyOptionsPatch {
-                        target: Some(Some("/app".into())),
-                        chown: Some(None),
-                        chmod: Some(None),
-                        link: Some(None),
-                    }),
-                    keep_git_dir: Some(None),
-                    checksum: Some(None),
-                    exclude: Some(VecPatch::default()),
-                }
-            );
-        }
-
-        #[test]
-        fn http() {
-            let result =
-                AddGitRepoPatch::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
-            assert_eq_sorted!(
-                result,
-                AddGitRepoPatch {
-                    repo: Some("https://github.com/lenra-io/dofigen.git".into()),
-                    options: Some(CopyOptionsPatch {
-                        target: Some(None),
-                        chown: Some(None),
-                        chmod: Some(None),
-                        link: Some(None),
-                    }),
-                    keep_git_dir: Some(None),
-                    checksum: Some(None),
-                    exclude: Some(VecPatch::default()),
-                }
-            );
-        }
-
-        #[test]
-        fn http_with_target() {
-            let result =
-                AddGitRepoPatch::from_str("https://github.com/lenra-io/dofigen.git /app").unwrap();
-            assert_eq_sorted!(
-                result,
-                AddGitRepoPatch {
-                    repo: Some("https://github.com/lenra-io/dofigen.git".into()),
-                    options: Some(CopyOptionsPatch {
-                        target: Some(Some("/app".into())),
-                        chown: Some(None),
-                        chmod: Some(None),
-                        link: Some(None),
-                    }),
-                    keep_git_dir: Some(None),
-                    checksum: Some(None),
-                    exclude: Some(VecPatch::default()),
-                }
-            );
-        }
-    }
-
-    mod add {
-        use struct_patch::Patch;
-
-        use crate::{CopyOptions, Resource};
-
-        use super::*;
-
-        #[test]
-        fn simple() {
-            let result =
-                AddPatch::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
-                    .unwrap();
-            assert_eq_sorted!(
-                result,
-                Add {
-                    files: vec![Resource::Url(
-                        "https://github.com/lenra-io/dofigen/raw/main/README.md"
-                            .parse()
-                            .unwrap()
-                    )],
-                    options: CopyOptions::default(),
-                    ..Default::default()
-                }
-                .into_patch()
-            );
-        }
-
-        #[test]
-        fn with_target_option() {
-            let result =
-                AddPatch::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md /app")
-                    .unwrap();
-            assert_eq_sorted!(
-                result,
-                Add {
-                    files: vec![Resource::Url(
-                        "https://github.com/lenra-io/dofigen/raw/main/README.md"
-                            .parse()
-                            .unwrap()
-                    )],
-                    options: CopyOptions {
-                        target: Some("/app".into()),
-                        ..Default::default()
-                    },
-                    ..Default::default()
-                }
-                .into_patch()
-            );
-        }
-
-        #[test]
-        fn with_multiple_sources_and_target() {
-            let result = AddPatch::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md https://github.com/lenra-io/dofigen/raw/main/LICENSE /app").unwrap();
-            assert_eq_sorted!(
-                result,
-                Add {
-                    files: vec![
-                        Resource::Url(
+            #[test]
+            fn simple() {
+                let result =
+                    AddPatch::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
+                        .unwrap();
+                assert_eq_sorted!(
+                    result,
+                    Add {
+                        files: vec![Resource::Url(
                             "https://github.com/lenra-io/dofigen/raw/main/README.md"
                                 .parse()
                                 .unwrap()
-                        ),
-                        Resource::Url(
-                            "https://github.com/lenra-io/dofigen/raw/main/LICENSE"
+                        )],
+                        options: CopyOptions::default(),
+                        ..Default::default()
+                    }
+                    .into_patch()
+                );
+            }
+
+            #[test]
+            fn with_target_option() {
+                let result = AddPatch::from_str(
+                    "https://github.com/lenra-io/dofigen/raw/main/README.md /app",
+                )
+                .unwrap();
+                assert_eq_sorted!(
+                    result,
+                    Add {
+                        files: vec![Resource::Url(
+                            "https://github.com/lenra-io/dofigen/raw/main/README.md"
                                 .parse()
                                 .unwrap()
-                        )
-                    ],
-                    options: CopyOptions {
-                        target: Some("/app".into()),
+                        )],
+                        options: CopyOptions {
+                            target: Some("/app".into()),
+                            ..Default::default()
+                        },
                         ..Default::default()
-                    },
-                    ..Default::default()
-                }
-                .into_patch()
-            );
+                    }
+                    .into_patch()
+                );
+            }
+
+            #[test]
+            fn with_multiple_sources_and_target() {
+                let result = AddPatch::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md https://github.com/lenra-io/dofigen/raw/main/LICENSE /app").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    Add {
+                        files: vec![
+                            Resource::Url(
+                                "https://github.com/lenra-io/dofigen/raw/main/README.md"
+                                    .parse()
+                                    .unwrap()
+                            ),
+                            Resource::Url(
+                                "https://github.com/lenra-io/dofigen/raw/main/LICENSE"
+                                    .parse()
+                                    .unwrap()
+                            )
+                        ],
+                        options: CopyOptions {
+                            target: Some("/app".into()),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
+                    .into_patch()
+                );
+            }
         }
-    }
 
-    mod copy_resources {
-        use super::*;
+        mod copy_resources {
+            use super::*;
 
-        #[test]
-        fn copy() {
-            let result = CopyResourcePatch::from_str("src").unwrap();
-            assert_eq_sorted!(
-                result,
-                CopyResourcePatch::Copy(CopyPatch::from_str("src").unwrap())
-            );
-        }
+            #[test]
+            fn copy() {
+                let result = CopyResourcePatch::from_str("src").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyResourcePatch::Copy(CopyPatch::from_str("src").unwrap())
+                );
+            }
 
-        #[test]
-        fn add_git_repo_ssh() {
-            let result =
-                CopyResourcePatch::from_str("git@github.com:lenra-io/dofigen.git").unwrap();
-            assert_eq_sorted!(
-                result,
-                CopyResourcePatch::AddGitRepo(
-                    AddGitRepoPatch::from_str("git@github.com:lenra-io/dofigen.git").unwrap()
+            #[test]
+            fn add_git_repo_ssh() {
+                let result =
+                    CopyResourcePatch::from_str("git@github.com:lenra-io/dofigen.git target")
+                        .unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyResourcePatch::AddGitRepo(
+                        AddGitRepoPatch::from_str("git@github.com:lenra-io/dofigen.git target")
+                            .unwrap()
+                    )
+                );
+            }
+
+            #[test]
+            fn add_quoted_git_repo_ssh() {
+                let result =
+                    CopyResourcePatch::from_str(r#""git@github.com:lenra-io/dofigen.git" target"#)
+                        .unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyResourcePatch::AddGitRepo(
+                        AddGitRepoPatch::from_str("git@github.com:lenra-io/dofigen.git target")
+                            .unwrap()
+                    )
+                );
+            }
+
+            #[test]
+            fn add_git_repo_http() {
+                let result =
+                    CopyResourcePatch::from_str("https://github.com/lenra-io/dofigen.git target")
+                        .unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyResourcePatch::AddGitRepo(
+                        AddGitRepoPatch::from_str("https://github.com/lenra-io/dofigen.git target")
+                            .unwrap()
+                    )
+                );
+            }
+
+            #[test]
+            fn add_quoted_git_repo_http() {
+                let result =
+                    CopyResourcePatch::from_str("'https://github.com/lenra-io/dofigen.git' target")
+                        .unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyResourcePatch::AddGitRepo(
+                        AddGitRepoPatch::from_str("https://github.com/lenra-io/dofigen.git target")
+                            .unwrap()
+                    )
+                );
+            }
+
+            #[test]
+            fn add() {
+                let result = CopyResourcePatch::from_str(
+                    "https://github.com/lenra-io/dofigen/raw/main/README.md",
                 )
-            );
-        }
-
-        #[test]
-        fn add_git_repo_http() {
-            let result =
-                CopyResourcePatch::from_str("https://github.com/lenra-io/dofigen.git").unwrap();
-            assert_eq_sorted!(
-                result,
-                CopyResourcePatch::AddGitRepo(
-                    AddGitRepoPatch::from_str("https://github.com/lenra-io/dofigen.git").unwrap()
-                )
-            );
-        }
-
-        #[test]
-        fn add() {
-            let result = CopyResourcePatch::from_str(
-                "https://github.com/lenra-io/dofigen/raw/main/README.md",
-            )
-            .unwrap();
-            assert_eq_sorted!(
-                result,
-                CopyResourcePatch::Add(
-                    AddPatch::from_str("https://github.com/lenra-io/dofigen/raw/main/README.md")
+                .unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyResourcePatch::Add(
+                        AddPatch::from_str(
+                            "https://github.com/lenra-io/dofigen/raw/main/README.md"
+                        )
                         .unwrap()
-                )
-            );
+                    )
+                );
+            }
+        }
+
+        mod user {
+            use pretty_assertions_sorted::assert_eq_sorted;
+
+            use super::*;
+
+            #[test]
+            fn user() {
+                let result = UserPatch::from_str("user").unwrap();
+
+                assert_eq_sorted!(result.user, Some("user".into()));
+                assert_eq_sorted!(result.group, Some(None));
+            }
+
+            #[test]
+            fn with_group() {
+                let result = UserPatch::from_str("user:group").unwrap();
+
+                assert_eq_sorted!(result.user, Some("user".into()));
+                assert_eq_sorted!(result.group, Some(Some("group".into())));
+            }
+
+            #[test]
+            fn uid() {
+                let result = UserPatch::from_str("1000").unwrap();
+
+                assert_eq_sorted!(result.user, Some("1000".into()));
+                assert_eq_sorted!(result.group, Some(None));
+            }
+
+            #[test]
+            fn uid_with_gid() {
+                let result = UserPatch::from_str("1000:1000").unwrap();
+
+                assert_eq_sorted!(result.user, Some("1000".into()));
+                assert_eq_sorted!(result.group, Some(Some("1000".into())));
+            }
+
+            #[test]
+            fn invalid_username() {
+                let result = UserPatch::from_str("user*name");
+
+                assert!(result.is_err());
+            }
+
+            #[test]
+            fn invalid_extra() {
+                let result = UserPatch::from_str("user:group:extra");
+
+                assert!(result.is_err());
+            }
+        }
+
+        mod port {
+
+            use super::*;
+
+            #[test]
+            fn simple() {
+                let result = PortPatch::from_str("80").unwrap();
+
+                assert_eq_sorted!(result.port, Some(80));
+                assert_eq_sorted!(result.protocol, Some(None));
+            }
+
+            #[test]
+            fn with_tcp_protocol() {
+                let result = PortPatch::from_str("80/tcp").unwrap();
+
+                assert_eq_sorted!(result.port, Some(80));
+                assert_eq_sorted!(result.protocol, Some(Some(PortProtocol::Tcp)));
+            }
+
+            #[test]
+            fn with_udp_protocol() {
+                let result = PortPatch::from_str("80/udp").unwrap();
+
+                assert_eq_sorted!(result.port, Some(80));
+                assert_eq_sorted!(result.protocol, Some(Some(PortProtocol::Udp)));
+            }
+
+            #[test]
+            fn invalid() {
+                let result = PortPatch::from_str("80/invalid");
+
+                assert!(result.is_err());
+            }
         }
     }
 
-    mod user {
-        use pretty_assertions_sorted::assert_eq_sorted;
-
-        use super::*;
-
-        #[test]
-        fn user() {
-            let result = UserPatch::from_str("user").unwrap();
-
-            assert_eq_sorted!(result.user, Some("user".into()));
-            assert_eq_sorted!(result.group, Some(None));
-        }
-
-        #[test]
-        fn with_group() {
-            let result = UserPatch::from_str("user:group").unwrap();
-
-            assert_eq_sorted!(result.user, Some("user".into()));
-            assert_eq_sorted!(result.group, Some(Some("group".into())));
-        }
-
-        #[test]
-        fn uid() {
-            let result = UserPatch::from_str("1000").unwrap();
-
-            assert_eq_sorted!(result.user, Some("1000".into()));
-            assert_eq_sorted!(result.group, Some(None));
-        }
-
-        #[test]
-        fn uid_with_gid() {
-            let result = UserPatch::from_str("1000:1000").unwrap();
-
-            assert_eq_sorted!(result.user, Some("1000".into()));
-            assert_eq_sorted!(result.group, Some(Some("1000".into())));
-        }
-
-        #[test]
-        fn invalid_username() {
-            let result = UserPatch::from_str("user*name");
-
-            assert!(result.is_err());
-        }
-
-        #[test]
-        fn invalid_extra() {
-            let result = UserPatch::from_str("user:group:extra");
-
-            assert!(result.is_err());
-        }
-    }
-
-    mod port {
-
+    mod collect_path_list {
         use super::*;
 
         #[test]
         fn simple() {
-            let result = PortPatch::from_str("80").unwrap();
-
-            assert_eq_sorted!(result.port, Some(80));
-            assert_eq_sorted!(result.protocol, Some(None));
+            let input = "path1 path2 path3";
+            let result = collect_path_list(input);
+            assert_eq!(result, vec!["path1", "path2", "path3"]);
         }
 
         #[test]
-        fn with_tcp_protocol() {
-            let result = PortPatch::from_str("80/tcp").unwrap();
-
-            assert_eq_sorted!(result.port, Some(80));
-            assert_eq_sorted!(result.protocol, Some(Some(PortProtocol::Tcp)));
+        fn with_quotes() {
+            let input = r#""path 1" 'path 2' path3"#;
+            let result = collect_path_list(input);
+            assert_eq!(result, vec!["path 1", "path 2", "path3"]);
         }
 
         #[test]
-        fn with_udp_protocol() {
-            let result = PortPatch::from_str("80/udp").unwrap();
-
-            assert_eq_sorted!(result.port, Some(80));
-            assert_eq_sorted!(result.protocol, Some(Some(PortProtocol::Udp)));
-        }
-
-        #[test]
-        fn invalid() {
-            let result = PortPatch::from_str("80/invalid");
-
-            assert!(result.is_err());
+        fn with_escaped_quotes() {
+            let input = r#""path\" 1" 'path\' 2' path\"3"#;
+            let result = collect_path_list(input);
+            assert_eq!(result, vec![r#"path" 1"#, "path' 2", r#"path"3"#]);
         }
     }
 }

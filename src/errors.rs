@@ -9,12 +9,19 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Error {
     #[error("Error while deserializing the document{loc}: {0}", loc = location_into(.0.location()))]
     Deserialize(#[from] serde_yaml::Error),
+    #[cfg(feature = "serde_json")]
+    #[error("Error while deserializing JSON: {0}")]
+    DeserializeJSON(#[from] serde_json::Error),
     #[error("Error while parsing: {0}")]
     ParseFromStr(#[from] serde::de::value::Error),
+    #[error("Error while parsing bool value: {0}")]
+    ParseBool(#[from] std::str::ParseBoolError),
     #[error("{0}")]
     Format(#[from] std::fmt::Error),
     #[error("{e}", e = report(.0))]
     Reqwest(#[from] reqwest::Error),
+    #[error("{0}")]
+    Regex(#[from] regex::Error),
     #[error("{0}")]
     Custom(String),
 }
