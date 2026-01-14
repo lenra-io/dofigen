@@ -3,7 +3,7 @@ use std::{str::FromStr, vec};
 use regex::Regex;
 use serde::Deserialize;
 
-use crate::{generator::*, Error};
+use crate::{Error, generator::*};
 
 macro_rules! simple_whitespace {
     () => {
