@@ -30,7 +30,7 @@ mod generator;
 mod json_schema;
 mod linter;
 pub mod lock;
-#[cfg(feature = "permissive")]
+#[cfg(feature = "parse")]
 mod parse;
 pub use {
     context::*, deserialize::*, dockerfile_struct::*, dofigen_struct::*, errors::*, extend::*,
