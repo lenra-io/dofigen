@@ -221,7 +221,7 @@ jobs:
 
   build:
     name: Build ${{ matrix.os }} ${{ matrix.arch }}
-    needs: [test-base, test-permissive, test-strict, get-version]
+    needs: [test-base, test-permissive, test-strict, test-parse, get-version]
     runs-on: "${{ matrix.runner }}"
     env:
       VERSION: ${{ needs.get-version.outputs.version }}
