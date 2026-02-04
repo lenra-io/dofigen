@@ -59,7 +59,7 @@ impl ParseContext {
         let stage = self.current_stage.clone().ok_or(Error::Custom(
             "No current stage to add as builder".to_string(),
         ))?;
-        // self.current_stage = None;
+        self.current_stage = None;
         self.dofigen.builders.insert(name, stage);
         Ok(())
     }
