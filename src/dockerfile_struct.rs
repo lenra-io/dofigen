@@ -1,8 +1,15 @@
 use std::{str::FromStr, vec};
 
 use regex::Regex;
+use serde::Deserialize;
 
-use crate::{generator::*, Error};
+use crate::{Error, generator::*};
+
+macro_rules! simple_whitespace {
+    () => {
+        r"[\f ]"
+    };
+}
 
 macro_rules! escaped_newline {
     () => {
@@ -12,7 +19,7 @@ macro_rules! escaped_newline {
 
 macro_rules! whitespace_or_escaped_newline {
     () => {
-        concat!(r"[^\S\r\n]|", escaped_newline!())
+        concat!(simple_whitespace!(), "|", escaped_newline!())
     };
 }
 macro_rules! whitespace_regex {
@@ -29,6 +36,7 @@ macro_rules! option_regex {
         )
     };
 }
+
 const DOCKERFILE_LINE_REGEX: &str = concat!(
     r"(?:",
     // Instruction
@@ -38,13 +46,9 @@ const DOCKERFILE_LINE_REGEX: &str = concat!(
     r"(?<options>",
     option_regex!(),
     r"*)",
-    r"(?:",
-    // TODO: manage more complex heredocs: https://docs.docker.com/reference/dockerfile/#here-documents
-    r#"<<-?(?:EOF|"EOF")\r?\n(?<eof_content>(?:.|\r?\n)+)(?:EOF|"EOF")"#,
-    r"|(?<content>(?:.|",
+    r"(?<content>(?:",
     escaped_newline!(),
-    r")+)",
-    r")",
+    r"|.)+)",
     // Blank lines
     r"|[^\S\r\n]*",
     // Comments
@@ -53,13 +57,85 @@ const DOCKERFILE_LINE_REGEX: &str = concat!(
     r")(?:\r?\n|$)",
 );
 
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+pub enum DockerFileCommand {
+    FROM,
+    ARG,
+    LABEL,
+    // Deprecated, see https://docs.docker.com/engine/reference/builder/#maintainer-deprecated
+    MAINTAINER,
+    RUN,
+    COPY,
+    ADD,
+    WORKDIR,
+    ENV,
+    EXPOSE,
+    USER,
+    VOLUME,
+    SHELL,
+    HEALTHCHECK,
+    CMD,
+    ENTRYPOINT,
+    Unknown(String),
+}
+
+impl ToString for DockerFileCommand {
+    fn to_string(&self) -> String {
+        match self {
+            DockerFileCommand::FROM => "FROM".to_string(),
+            DockerFileCommand::LABEL => "LABEL".to_string(),
+            DockerFileCommand::MAINTAINER => "MAINTAINER".to_string(),
+            DockerFileCommand::ARG => "ARG".to_string(),
+            DockerFileCommand::RUN => "RUN".to_string(),
+            DockerFileCommand::COPY => "COPY".to_string(),
+            DockerFileCommand::ADD => "ADD".to_string(),
+            DockerFileCommand::WORKDIR => "WORKDIR".to_string(),
+            DockerFileCommand::ENV => "ENV".to_string(),
+            DockerFileCommand::EXPOSE => "EXPOSE".to_string(),
+            DockerFileCommand::USER => "USER".to_string(),
+            DockerFileCommand::VOLUME => "VOLUME".to_string(),
+            DockerFileCommand::SHELL => "SHELL".to_string(),
+            DockerFileCommand::HEALTHCHECK => "HEALTHCHECK".to_string(),
+            DockerFileCommand::CMD => "CMD".to_string(),
+            DockerFileCommand::ENTRYPOINT => "ENTRYPOINT".to_string(),
+            DockerFileCommand::Unknown(command) => command.clone(),
+        }
+    }
+}
+
+impl FromStr for DockerFileCommand {
+    type Err = Error;
+
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        match string.to_uppercase().as_str() {
+            "FROM" => Ok(DockerFileCommand::FROM),
+            "ARG" => Ok(DockerFileCommand::ARG),
+            "LABEL" => Ok(DockerFileCommand::LABEL),
+            "MAINTAINER" => Ok(DockerFileCommand::MAINTAINER),
+            "RUN" => Ok(DockerFileCommand::RUN),
+            "COPY" => Ok(DockerFileCommand::COPY),
+            "ADD" => Ok(DockerFileCommand::ADD),
+            "WORKDIR" => Ok(DockerFileCommand::WORKDIR),
+            "ENV" => Ok(DockerFileCommand::ENV),
+            "EXPOSE" => Ok(DockerFileCommand::EXPOSE),
+            "USER" => Ok(DockerFileCommand::USER),
+            "VOLUME" => Ok(DockerFileCommand::VOLUME),
+            "HEALTHCHECK" => Ok(DockerFileCommand::HEALTHCHECK),
+            "CMD" => Ok(DockerFileCommand::CMD),
+            "ENTRYPOINT" => Ok(DockerFileCommand::ENTRYPOINT),
+            _ => Ok(DockerFileCommand::Unknown(string.into())),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct DockerFile {
     pub lines: Vec<DockerFileLine>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DockerFileLine {
-    Instruction(DockerfileInsctruction),
+    Instruction(DockerFileInsctruction),
     Comment(String),
     Empty,
 }
@@ -81,8 +157,8 @@ pub trait DockerfileContent {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DockerfileInsctruction {
-    pub command: String,
+pub struct DockerFileInsctruction {
+    pub command: DockerFileCommand,
     pub content: String,
     pub options: Vec<InstructionOption>,
 }
@@ -98,6 +174,13 @@ pub enum InstructionOption {
 pub struct InstructionOptionOption {
     pub name: String,
     pub value: Option<String>,
+}
+
+struct Heredoc {
+    name: String,
+    content: String,
+    ignore_leading: bool,
+    quoted_name: bool,
 }
 
 impl InstructionOptionOption {
@@ -130,14 +213,14 @@ impl DockerfileContent for DockerFileLine {
     }
 }
 
-impl DockerfileContent for DockerfileInsctruction {
+impl DockerfileContent for DockerFileInsctruction {
     fn generate_content(&self) -> String {
         let separator = if !self.options.is_empty() || self.content.contains("\\\n") {
             LINE_SEPARATOR
         } else {
             " "
         };
-        let mut content = vec![self.command.clone()];
+        let mut content = vec![self.command.to_string()];
         for option in &self.options {
             content.push(option.generate_content());
         }
@@ -181,23 +264,90 @@ impl DockerfileContent for InstructionOptionOption {
 impl FromStr for DockerFile {
     type Err = Error;
 
-    fn from_str(string: &str) -> Result<Self, Self::Err> {
+    fn from_str(file_content: &str) -> Result<Self, Self::Err> {
+        let mut heredocs: Vec<Heredoc> = vec![];
+        let mut file_content = file_content.to_string();
+        while let Some(pos) = file_content.find("<<") {
+            log::debug!("Found heredoc at position: {}", pos);
+            let subcontent = &file_content[pos..];
+            let len = subcontent.find('\n').expect("Heredoc must have a newline");
+            log::debug!("Heredoc line length: {}", len);
+            let line_end = pos + len;
+            let content_start = line_end + 1;
+            let line = file_content[pos..line_end].to_string();
+            log::debug!("Heredoc line: {}", line);
+            let ignore_leading = "-".eq(file_content[pos + 2..pos + 3].to_string().as_str());
+            let name_start = if ignore_leading { 3 } else { 2 };
+            let name_end = line.find(" ").unwrap_or(line.len());
+            let name = line[name_start..name_end].to_string();
+            let (name, quoted_name) = if name.starts_with('"') {
+                (name[1..name.len() - 1].to_string(), true)
+            } else {
+                (name, false)
+            };
+            log::debug!("Heredoc name: {}", name);
+            let subcontent = &file_content[content_start..];
+            let len = subcontent
+                .find(format!("\n{}\n", name).as_str())
+                .expect(format!("Heredoc end not found for name '{}'", name).as_str());
+            let content_end = content_start + len;
+            let heredoc_block_end = content_end + name.len() + 2;
+            let heredoc_content = file_content[content_start..content_end].to_string();
+            log::debug!("Heredoc content: {}", heredoc_content);
+            let heredoc_id = heredocs.len();
+            file_content = format!(
+                "{}heredoc<{}>{}{}",
+                &file_content[..pos],
+                heredoc_id,
+                &file_content[pos + name_end..content_start],
+                &file_content[heredoc_block_end..]
+            );
+            heredocs.push(Heredoc {
+                name,
+                content: heredoc_content,
+                ignore_leading,
+                quoted_name,
+            });
+        }
+        log::debug!("Final content: {}", file_content);
         let mut lines = vec![];
         let regex = Regex::new(DOCKERFILE_LINE_REGEX).expect("Failed to compile regex");
+        log::debug!("Regex: {}", regex);
         let option_content_regex = Regex::new(option_regex!()).expect("Failed to compile regex");
 
-        regex.find_iter(string).for_each(|m| {
+        let file_content = file_content.as_str();
+
+        for m in regex.find_iter(file_content) {
             let m = m.as_str();
-            println!("Match: {}", m);
             let captures = regex.captures(m).unwrap();
             if let Some(command) = captures.name("command") {
                 let command = command.as_str();
-                let content = captures
+                let mut content = captures
                     .name("content")
-                    .or_else(|| captures.name("eof_content"))
-                    .map(|c| c.as_str())
-                    .unwrap_or_default()
-                    .to_string();
+                    .map(|c| c.as_str().to_string())
+                    .ok_or(Error::Custom("Content not found".to_string()))?;
+                while let Some(pos) = content.find("heredoc<") {
+                    let close = content[pos..].find('>').unwrap();
+                    let heredoc_id = &content[pos + 8..pos + close];
+                    let heredoc_id: usize = heredoc_id.parse().unwrap();
+                    let heredoc = &heredocs[heredoc_id];
+                    log::debug!("Heredoc id: {} => {}", heredoc_id, heredoc.name);
+                    let mut heredoc_replacement = heredoc.name.clone();
+                    if heredoc.quoted_name {
+                        heredoc_replacement = format!("\"{}\"", heredoc_replacement);
+                    }
+                    if heredoc.ignore_leading {
+                        heredoc_replacement = format!("-{}", heredoc_replacement);
+                    }
+                    content = format!(
+                        "{}<<{}{}\n{}\n{}",
+                        &content[..pos],
+                        heredoc_replacement,
+                        &content[pos + close + 1..],
+                        heredoc.content,
+                        heredoc.name
+                    );
+                }
                 let options = captures
                     .name("options")
                     .map(|o| {
@@ -222,8 +372,8 @@ impl FromStr for DockerFile {
                     })
                     .unwrap_or_default();
 
-                lines.push(DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: command.to_string(),
+                lines.push(DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: command.parse()?,
                     content,
                     options,
                 }));
@@ -232,7 +382,7 @@ impl FromStr for DockerFile {
             } else if let Some(comment) = captures.name("comment") {
                 lines.push(DockerFileLine::Comment(comment.as_str().to_string()));
             }
-        });
+        }
         Ok(Self { lines })
     }
 }
@@ -297,8 +447,8 @@ mod test {
 
         #[test]
         fn instruction() {
-            let instruction = DockerfileInsctruction {
-                command: "RUN".into(),
+            let instruction = DockerFileInsctruction {
+                command: DockerFileCommand::RUN,
                 content: "echo 'Hello, World!'".into(),
                 options: vec![
                     InstructionOption::Flag("arg1".into()),
@@ -371,39 +521,39 @@ COPY --from=builder /hello-world /hello-world
             let lines = dockerfile.lines;
             assert_eq!(lines.len(), 6);
 
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[0],
-                DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "FROM".to_string(),
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::FROM,
                     content: "alpine:3.11 as builder".to_string(),
                     options: vec![]
                 })
             );
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[1],
-                DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "RUN".to_string(),
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::RUN,
                     content: "echo \"hello world\" > /hello-world".to_string(),
                     options: vec![]
                 })
             );
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[2],
                 DockerFileLine::Comment("This is a comment".to_string())
             );
             assert_eq!(lines[3], DockerFileLine::Empty);
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[4],
-                DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "FROM".to_string(),
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::FROM,
                     content: "scratch".to_string(),
                     options: vec![]
                 })
             );
-            assert_eq!(
+            assert_eq_sorted!(
                 lines[5],
-                DockerFileLine::Instruction(DockerfileInsctruction {
-                    command: "COPY".to_string(),
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::COPY,
                     content: "/hello-world /hello-world".to_string(),
                     options: vec![InstructionOption::WithValue(
                         "from".to_string(),
@@ -411,6 +561,303 @@ COPY --from=builder /hello-world /hello-world
                     )]
                 })
             );
+        }
+
+        #[test]
+        fn args() {
+            let dockerfile: DockerFile = r#"FROM alpine:3.11 as builder
+ARG arg1 \
+    arg2=value2
+ARG arg3=3
+"#
+            .parse()
+            .unwrap();
+
+            let lines = dockerfile.lines;
+            assert_eq!(lines.len(), 3);
+
+            assert_eq_sorted!(
+                lines[0],
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::FROM,
+                    content: "alpine:3.11 as builder".to_string(),
+                    options: vec![]
+                })
+            );
+            assert_eq_sorted!(
+                lines[1],
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::ARG,
+                    content: "arg1 \\\n    arg2=value2".to_string(),
+                    options: vec![]
+                })
+            );
+            assert_eq_sorted!(
+                lines[2],
+                DockerFileLine::Instruction(DockerFileInsctruction {
+                    command: DockerFileCommand::ARG,
+                    content: "arg3=3".to_string(),
+                    options: vec![]
+                })
+            );
+        }
+
+        mod full_file {
+            use super::*;
+
+            #[test]
+            fn php_dockerfile() {
+                let dockerfile: DockerFile = r#"# syntax=docker/dockerfile:1.11
+# This file is generated by Dofigen v0.0.0
+# See https://github.com/lenra-io/dofigen
+
+# get-composer
+FROM composer:latest AS get-composer
+
+# install-deps
+FROM php:8.3-fpm-alpine AS install-deps
+USER 0:0
+RUN <<EOF
+apt-get update
+apk add --no-cache --update ca-certificates dcron curl git supervisor tar unzip nginx libpng-dev libxml2-dev libzip-dev icu-dev mysql-client
+EOF
+
+# install-php-ext
+FROM install-deps AS install-php-ext
+USER 0:0
+RUN <<EOF
+docker-php-ext-configure zip
+docker-php-ext-install bcmath gd intl pdo_mysql zip
+EOF
+
+# runtime
+FROM install-php-ext AS runtime
+WORKDIR /
+COPY \
+    --from=get-composer \
+    --chown=www-data \
+    --link \
+    "/usr/bin/composer" "/bin/"
+ADD \
+    --chown=www-data \
+    --link \
+    "https://github.com/pelican-dev/panel.git" "/tmp/pelican"
+USER www-data
+RUN <<EOF
+cd /tmp/pelican
+cp .env.example .env
+mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache
+chmod 777 -R bootstrap storage
+composer install --no-dev --optimize-autoloader
+rm -rf .env bootstrap/cache/*.php
+mkdir -p /app/storage/logs/
+chown -R nginx:nginx .
+rm /usr/local/etc/php-fpm.conf
+echo "* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1" >> /var/spool/cron/crontabs/root
+mkdir -p /var/run/php /var/run/nginx
+mv .github/docker/default.conf /etc/nginx/http.d/default.conf
+mv .github/docker/supervisord.conf /etc/supervisord.conf
+EOF
+"#.parse().unwrap();
+
+                let lines = dockerfile.lines;
+                let mut line = 0;
+
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Comment("syntax=docker/dockerfile:1.11".to_string())
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Comment("This file is generated by Dofigen v0.0.0".to_string())
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Comment("See https://github.com/lenra-io/dofigen".to_string())
+                );
+                line += 1;
+                assert_eq_sorted!(lines[line], DockerFileLine::Empty);
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Comment("get-composer".to_string())
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "composer:latest AS get-composer".to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(lines[line], DockerFileLine::Empty);
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Comment("install-deps".to_string())
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "php:8.3-fpm-alpine AS install-deps".to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::USER,
+                        content: "0:0".to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: r#"<<EOF
+apt-get update
+apk add --no-cache --update ca-certificates dcron curl git supervisor tar unzip nginx libpng-dev libxml2-dev libzip-dev icu-dev mysql-client
+EOF"#.to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(lines[line], DockerFileLine::Empty);
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Comment("install-php-ext".to_string())
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "install-deps AS install-php-ext".to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::USER,
+                        content: "0:0".to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: r#"<<EOF
+docker-php-ext-configure zip
+docker-php-ext-install bcmath gd intl pdo_mysql zip
+EOF"#
+                            .to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(lines[line], DockerFileLine::Empty);
+                line += 1;
+                assert_eq_sorted!(lines[line], DockerFileLine::Comment("runtime".to_string()));
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "install-php-ext AS runtime".to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::WORKDIR,
+                        content: "/".to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::COPY,
+                        content: "\"/usr/bin/composer\" \"/bin/\"".to_string(),
+                        options: vec![
+                            InstructionOption::WithValue(
+                                "from".to_string(),
+                                "get-composer".to_string()
+                            ),
+                            InstructionOption::WithValue(
+                                "chown".to_string(),
+                                "www-data".to_string()
+                            ),
+                            InstructionOption::Flag("link".to_string())
+                        ]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ADD,
+                        content: r#""https://github.com/pelican-dev/panel.git" "/tmp/pelican""#
+                            .to_string(),
+                        options: vec![
+                            InstructionOption::WithValue(
+                                "chown".to_string(),
+                                "www-data".to_string()
+                            ),
+                            InstructionOption::Flag("link".to_string())
+                        ]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::USER,
+                        content: "www-data".to_string(),
+                        options: vec![]
+                    })
+                );
+                line += 1;
+                assert_eq_sorted!(
+                    lines[line],
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: r#"<<EOF
+cd /tmp/pelican
+cp .env.example .env
+mkdir -p bootstrap/cache/ storage/logs storage/framework/sessions storage/framework/views storage/framework/cache
+chmod 777 -R bootstrap storage
+composer install --no-dev --optimize-autoloader
+rm -rf .env bootstrap/cache/*.php
+mkdir -p /app/storage/logs/
+chown -R nginx:nginx .
+rm /usr/local/etc/php-fpm.conf
+echo "* * * * * /usr/local/bin/php /app/artisan schedule:run >> /dev/null 2>&1" >> /var/spool/cron/crontabs/root
+mkdir -p /var/run/php /var/run/nginx
+mv .github/docker/default.conf /etc/nginx/http.d/default.conf
+mv .github/docker/supervisord.conf /etc/supervisord.conf
+EOF"#.to_string(),
+                        options: vec![]
+                    })
+                );
+            }
         }
     }
 }
