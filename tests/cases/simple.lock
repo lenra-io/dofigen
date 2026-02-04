@@ -10,7 +10,7 @@ images:
           digest: sha256:123456789abcdef123456789abcdef123456789abcdef123456789abcdef1234
 resources:
   simple.yml:
-    hash: cb29cc6a75089ec2ea2002b6afc64663d3786996d02d221a4e7e3c5705eb7045
+    hash: fcccd71045117e6ced1bc8b6909f87d924507d5b8179e7c29569b96629a5d746
     content: |-
       fromImage:
         path: alpine

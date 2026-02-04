@@ -4,15 +4,13 @@
 
 use std::{fs, path::PathBuf};
 
-use crate::{
-    commands::generate::{DEFAULT_DOCKERFILE, DEFAULT_DOFIGEN_FILE},
-    *,
-};
+use crate::commands::{generate::DEFAULT_DOCKERFILE, get_file_path};
 pub use clap::Args;
-use commands::get_file_path;
 use dofigen_lib::{Dofigen, Error, Result};
 
 use crate::CliCommand;
+
+const DEFAULT_DOFIGEN_FILE: &str = "dofigen.yml";
 
 #[derive(Args, Debug, Default, Clone)]
 pub struct Parse {

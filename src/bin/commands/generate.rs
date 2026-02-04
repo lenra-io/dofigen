@@ -13,7 +13,6 @@ use dofigen_lib::{
 use std::{fs, path::PathBuf};
 
 pub(crate) const DEFAULT_DOCKERFILE: &str = "Dockerfile";
-pub(crate) const DEFAULT_DOFIGEN_FILE: &str = "dofigen.yml";
 
 #[derive(Args, Debug, Default, Clone)]
 pub struct Generate {
