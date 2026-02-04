@@ -12,7 +12,7 @@ use dofigen_lib::{
 };
 use std::{fs, path::PathBuf};
 
-const DEFAULT_DOCKERFILE: &str = "Dockerfile";
+pub(crate) const DEFAULT_DOCKERFILE: &str = "Dockerfile";
 
 #[derive(Args, Debug, Default, Clone)]
 pub struct Generate {

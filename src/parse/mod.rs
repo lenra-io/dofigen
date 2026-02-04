@@ -6,7 +6,7 @@ use struct_patch::Patch;
 
 use crate::{
     DockerFile, DockerFileCommand, DockerFileInsctruction, DockerFileLine, DockerIgnore,
-    DockerIgnoreLine, Dofigen, Error, FromContext, MessageLevel, Result,
+    DockerIgnoreLine, Dofigen, Error, FromContext, MessageLevel, Result, User,
     parse::context::ParseContext,
 };
 
@@ -93,7 +93,7 @@ impl ParseContext {
         self.apply_root()?;
 
         // Get runtime informations
-        let runtime_stage = self.current_stage.clone().ok_or(Error::Custom(
+        let mut runtime_stage = self.current_stage.clone().ok_or(Error::Custom(
             "No FROM instruction found in Dockerfile".to_string(),
         ))?;
         let runtime_name = self
@@ -130,6 +130,15 @@ impl ParseContext {
                 self.dofigen.apply(dofigen_patch.clone());
             });
         }
+
+        // If user is set as default, remove it
+        if let Some(user) = runtime_stage.user.as_ref() {
+            let default_user = User::new("1000");
+            if user.eq(&default_user) {
+                runtime_stage.user = None;
+            }
+        }
+
         self.dofigen.stage = runtime_stage;
 
         // Handle lint messages

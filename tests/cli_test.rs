@@ -35,6 +35,10 @@ mod cli {
         {
             cargo_build = cargo_build.features("json_schema");
         }
+        #[cfg(feature = "parse")]
+        {
+            cargo_build = cargo_build.features("parse");
+        }
 
         cargo_build.run().unwrap()
     }
@@ -259,6 +263,60 @@ label:
 
 "#
         );
+
+        temp.close().unwrap();
+    }
+
+    #[cfg(feature = "parse")]
+    #[test]
+    fn parse_specified_file() {
+        let temp = assert_fs::TempDir::new().unwrap();
+
+        let mut cmd = BIN.command();
+        cmd.current_dir(temp.path());
+        cmd.arg("parse").arg("-f");
+
+        temp.copy_from("tests/cases", &["simple.result.Dockerfile"])
+            .unwrap();
+        cmd.arg("simple.result.Dockerfile");
+
+        let output = cmd.unwrap();
+
+        assert!(output.status.success());
+
+        assert_output(&output.stdout, "");
+
+        let dofigen = temp.child("dofigen.yml");
+
+        dofigen.assert(predicates::path::is_file());
+
+        let dofigen_content = read_to_string(dofigen.path()).unwrap();
+
+        assert_eq_sorted!(
+            dofigen_content,
+            read_to_string("tests/cases/simple.yml").unwrap()
+        );
+
+        temp.close().unwrap();
+    }
+
+    #[cfg(feature = "parse")]
+    #[test]
+    fn parse_file_not_found() {
+        let temp = assert_fs::TempDir::new().unwrap();
+
+        let mut cmd = BIN.command();
+        cmd.current_dir(temp.path());
+        cmd.arg("parse");
+
+        let output = cmd.unwrap_err();
+        let output = output.as_output().unwrap();
+
+        assert!(!output.status.success());
+
+        assert!(output.stdout.is_empty());
+
+        output_starts_with(&output.stderr, "error: No Dockerfile file found");
 
         temp.close().unwrap();
     }
