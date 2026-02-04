@@ -72,11 +72,11 @@ pub struct VecPatch<T>
 where
     T: Clone,
 {
-    commands: Vec<VecPatchCommand<T>>,
+    pub(crate) commands: Vec<VecPatchCommand<T>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum VecPatchCommand<T> {
+pub(crate) enum VecPatchCommand<T> {
     ReplaceAll(Vec<T>),
     Replace(usize, T),
     InsertBefore(usize, Vec<T>),
@@ -101,11 +101,11 @@ where
     T: Clone + Patch<P> + From<P>,
     P: Clone,
 {
-    commands: Vec<VecDeepPatchCommand<T, P>>,
+    pub(crate) commands: Vec<VecDeepPatchCommand<T, P>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum VecDeepPatchCommand<T, P>
+pub(crate) enum VecDeepPatchCommand<T, P>
 where
     T: Clone,
 {
@@ -285,6 +285,15 @@ impl From<CopyResourcePatch> for CopyResource {
 impl<T: FromStr> From<T> for ParsableStruct<T> {
     fn from(value: T) -> Self {
         ParsableStruct(value)
+    }
+}
+
+#[cfg(feature = "permissive")]
+impl<T: FromStr> FromStr for ParsableStruct<T> {
+    type Err = <T as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(ParsableStruct(s.parse()?))
     }
 }
 
