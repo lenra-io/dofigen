@@ -90,6 +90,8 @@ impl ParseContext {
             self.apply(line)?;
         }
 
+        self.apply_root()?;
+
         // Get runtime informations
         let runtime_stage = self.current_stage.clone().ok_or(Error::Custom(
             "No FROM instruction found in Dockerfile".to_string(),
@@ -128,8 +130,6 @@ impl ParseContext {
                 self.dofigen.apply(dofigen_patch.clone());
             });
         }
-
-        self.apply_root()?;
         self.dofigen.stage = runtime_stage;
 
         // Handle lint messages

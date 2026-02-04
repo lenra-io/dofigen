@@ -293,7 +293,10 @@ impl ParseContext {
                     expose.commands.push(VecDeepPatchCommand::Append(ports));
                 }
                 DockerFileCommand::USER => {
-                    let stage = self.current_stage(&instruction)?;
+                    let has_not_applied_root = self.current_root.is_some();
+                    let stage = self.current_stage.as_ref();
+                    let has_user = stage.and_then(|s| s.user.as_ref()).is_some();
+                    let has_run = stage.map(|s| !s.run.is_empty()).unwrap_or(false);
                     let user = if let Some((user, group)) = instruction.content.split_once(":") {
                         User {
                             user: user.to_string(),
@@ -305,9 +308,16 @@ impl ParseContext {
                             group: None,
                         }
                     };
-                    if user.user == "0" {
+                    if has_user || has_run {
+                        self.split_current_stage()?;
+                    }
+                    if user.user == "0" || user.user.to_lowercase() == "root" {
+                        if has_not_applied_root {
+                            todo!("Many ROOT USER instructions are not managed yet");
+                        }
                         self.current_root = Some(Run::default());
                     } else {
+                        let stage = self.current_stage(&instruction)?;
                         stage.user = Some(user);
                         self.apply_root()?;
                     }
@@ -584,9 +594,7 @@ mod tests {
 
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
             assert_eq!(dofigen.builders.len(), 0);
@@ -619,9 +627,7 @@ mod tests {
 
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
             assert_eq!(dofigen.builders.len(), 1);
@@ -655,9 +661,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.builders,
@@ -717,9 +721,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
             assert_eq!(dofigen.builders.len(), 0);
@@ -747,9 +749,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
             assert_eq!(dofigen.builders.len(), 0);
@@ -781,9 +781,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
             assert_eq!(dofigen.builders.len(), 0);
@@ -916,9 +914,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
             assert_eq!(dofigen.builders.len(), 0);
@@ -958,9 +954,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
             assert_eq!(dofigen.builders.len(), 0);
@@ -988,7 +982,274 @@ mod tests {
         }
 
         #[test]
-        fn after_run() {
+        fn copy_and_add() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::COPY,
+                        content: "file1.txt /app/".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ADD,
+                        content: "file2.txt /app/".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dockerignore = None;
+
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
+
+            assert_eq!(dofigen.ignore.len(), 0);
+            assert_eq!(dofigen.builders.len(), 0);
+            assert_eq_sorted!(
+                dofigen.stage.copy,
+                vec![
+                    CopyResource::Copy(Copy {
+                        paths: vec!["file1.txt".to_string()],
+                        options: CopyOptions {
+                            target: Some("/app/".to_string()),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }),
+                    CopyResource::Add(Add {
+                        files: vec![Resource::File("file2.txt".into()),],
+                        options: CopyOptions {
+                            target: Some("/app/".to_string()),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                ]
+            );
+        }
+
+        #[test]
+        fn with_chown_chmod_link_flag() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::COPY,
+                        content: "file.txt /app/".to_string(),
+                        options: vec![
+                            crate::InstructionOption::Flag("link".to_string()),
+                            crate::InstructionOption::WithValue(
+                                "chown".to_string(),
+                                "user:group".to_string(),
+                            ),
+                            crate::InstructionOption::WithValue(
+                                "chmod".to_string(),
+                                "0755".to_string(),
+                            ),
+                        ],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+
+            assert_eq_sorted!(
+                dofigen.stage.copy,
+                vec![CopyResource::Copy(Copy {
+                    paths: vec!["file.txt".to_string()],
+                    options: CopyOptions {
+                        target: Some("/app/".to_string()),
+                        chown: Some(User {
+                            user: "user".to_string(),
+                            group: Some("group".to_string())
+                        }),
+                        chmod: Some("0755".to_string()),
+                        link: Some(true),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                })]
+            );
+        }
+
+        #[test]
+        fn with_exclude_parents_and_from_builder() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04 as builder".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::COPY,
+                        content: "file.txt /app/".to_string(),
+                        options: vec![
+                            crate::InstructionOption::WithValue(
+                                "exclude".to_string(),
+                                "*.log".to_string(),
+                            ),
+                            crate::InstructionOption::WithValue(
+                                "from".to_string(),
+                                "builder".to_string(),
+                            ),
+                            crate::InstructionOption::Flag("parents".to_string()),
+                        ],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+
+            assert_eq_sorted!(
+                dofigen.stage.copy,
+                vec![CopyResource::Copy(Copy {
+                    paths: vec!["file.txt".to_string()],
+                    options: CopyOptions {
+                        target: Some("/app/".to_string()),
+                        ..Default::default()
+                    },
+                    exclude: vec!["*.log".to_string()],
+                    parents: Some(true),
+                    from: FromContext::FromBuilder("builder".to_string()),
+                    ..Default::default()
+                })]
+            );
+        }
+
+        #[test]
+        fn add_with_checksum_option() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::ADD,
+                        content: "file2.txt /app/".to_string(),
+                        options: vec![crate::InstructionOption::WithValue(
+                            "checksum".to_string(),
+                            "sha256:abcd".to_string(),
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+
+            assert_eq_sorted!(
+                dofigen.stage.copy,
+                vec![CopyResource::Add(Add {
+                    files: vec![Resource::File("file2.txt".into())],
+                    options: CopyOptions {
+                        target: Some("/app/".to_string()),
+                        ..Default::default()
+                    },
+                    checksum: Some("sha256:abcd".to_string()),
+                    ..Default::default()
+                })]
+            );
+        }
+    }
+
+    mod run {
+        use super::*;
+
+        #[test]
+        fn simple() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo Hello World".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo Hello World".to_string()],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn run_heredoc() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "<<EOF\nline1\nline2\nEOF".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["line1".to_string(), "line2".to_string()],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn run_split_with_and_and() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo one &&   echo two".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo one".to_string(), "echo two".to_string()],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn before_copy() {
             let dockerfile = DockerFile {
                 lines: vec![
                     DockerFileLine::Instruction(DockerFileInsctruction {
@@ -1008,11 +1269,8 @@ mod tests {
                     }),
                 ],
             };
-            let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
 
             assert_eq!(dofigen.ignore.len(), 0);
             assert_eq!(dofigen.builders.len(), 1);
@@ -1051,13 +1309,125 @@ mod tests {
             );
         }
 
-        // TODO: test copy and add
-        // TODO: test copy with options
-        // TODO: test add with options
-        // TODO: test addGit
-    }
+        #[test]
+        fn before_root() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo before root".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::USER,
+                        content: "0".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo after root".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
 
-    // TODO: test run instruction parsing
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+
+            assert_eq!(dofigen.ignore.len(), 0);
+            assert_eq!(dofigen.builders.len(), 1);
+            assert_eq_sorted!(
+                dofigen,
+                Dofigen {
+                    builders: HashMap::from([(
+                        "runtime-builder-1".to_string(),
+                        Stage {
+                            from: FromContext::FromImage(ImageName {
+                                path: "ubuntu".to_string(),
+                                version: Some(ImageVersion::Tag("25.04".to_string(),),),
+                                ..Default::default()
+                            }),
+                            run: Run {
+                                run: vec!["echo before root".to_string()],
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        }
+                    )]),
+                    stage: Stage {
+                        from: FromContext::FromBuilder("runtime-builder-1".to_string()),
+                        root: Some(Run {
+                            run: vec!["echo after root".to_string()],
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn before_user() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo before user".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::USER,
+                        content: "1000".to_string(),
+                        options: vec![],
+                    }),
+                ],
+            };
+
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+
+            assert_eq!(dofigen.ignore.len(), 0);
+            assert_eq!(dofigen.builders.len(), 1);
+            assert_eq_sorted!(
+                dofigen,
+                Dofigen {
+                    builders: HashMap::from([(
+                        "runtime-builder-1".to_string(),
+                        Stage {
+                            from: FromContext::FromImage(ImageName {
+                                path: "ubuntu".to_string(),
+                                version: Some(ImageVersion::Tag("25.04".to_string(),),),
+                                ..Default::default()
+                            }),
+                            run: Run {
+                                run: vec!["echo before user".to_string()],
+                                ..Default::default()
+                            },
+                            ..Default::default()
+                        }
+                    )]),
+                    stage: Stage {
+                        from: FromContext::FromBuilder("runtime-builder-1".to_string()),
+                        user: Some(User {
+                            user: "1000".to_string(),
+                            group: None
+                        }),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                }
+            );
+        }
+    }
 
     mod expose {
         use super::*;
@@ -1080,9 +1450,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.expose,
@@ -1116,9 +1484,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.expose,
@@ -1158,9 +1524,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.expose,
@@ -1193,9 +1557,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(dofigen.volume, vec!["/data".to_string()]);
         }
@@ -1223,9 +1585,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.volume,
@@ -1251,9 +1611,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.volume,
@@ -1284,9 +1642,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(dofigen.volume, vec!["/data".to_string()]);
         }
@@ -1318,9 +1674,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.stage.run,
@@ -1354,9 +1708,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.healthcheck,
@@ -1390,9 +1742,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.healthcheck,
@@ -1421,9 +1771,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.healthcheck,
@@ -1457,9 +1805,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.healthcheck,
@@ -1492,9 +1838,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(dofigen.cmd, vec!["--help".to_string()]);
         }
@@ -1522,9 +1866,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(dofigen.cmd, vec!["gen".to_string()]);
         }
@@ -1547,9 +1889,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(dofigen.cmd, vec!["gen".to_string(), "--help".to_string()]);
         }
@@ -1577,9 +1917,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(dofigen.cmd, vec!["--help".to_string()]);
         }
@@ -1606,9 +1944,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(dofigen.entrypoint, vec!["/entrypoint.sh".to_string()]);
         }
@@ -1636,9 +1972,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(dofigen.entrypoint, vec!["/new_entrypoint.sh".to_string()]);
         }
@@ -1661,9 +1995,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(
                 dofigen.entrypoint,
@@ -1694,9 +2026,7 @@ mod tests {
             };
             let dockerignore = None;
 
-            let result = Dofigen::from_dockerfile(dockerfile, dockerignore);
-
-            let dofigen = result.unwrap();
+            let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore).unwrap();
 
             assert_eq_sorted!(dofigen.entrypoint, vec!["/entrypoint.sh".to_string()]);
         }
