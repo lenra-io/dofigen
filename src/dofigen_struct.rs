@@ -1321,7 +1321,8 @@ fromImage:
             fn copy_with_chown_regression() {
                 let yaml = r#"
 fromContext: get-composer
-paths: "/usr/bin/composer"
+paths:
+  - "/usr/bin/composer"
 target: "/bin/"
 chown:
   user: test
@@ -1492,7 +1493,8 @@ link: true
                 let yaml_data = r#"
 copy:
 - fromContext: get-composer
-  paths: "/usr/bin/composer"
+  paths:
+    - "/usr/bin/composer"
   target: "/bin/"
   chown:
     user: test
