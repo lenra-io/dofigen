@@ -103,6 +103,20 @@ You can download the Dofigen binary from [the release page](https://github.com/l
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
+### Migrate from an existing Dockerfile
+
+You can generate a Dofigen file from an existing Dockerfile using the `dofigen parse` command:
+
+```bash
+dofigen parse
+```
+
+This command will read the Dockerfile from the current directory and generate a `dofigen.yml` file.
+
+See the `dofigen parse --help` command for more options.
+
+<p align="right">(<a href="#top">back to top</a>)</p>
+
 ### How to use it
 
 To generate a Dockerfile, you need to create a Dofigen file `dofigen.yml` and run the next command:
