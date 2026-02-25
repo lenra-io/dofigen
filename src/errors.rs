@@ -23,6 +23,8 @@ pub enum Error {
     #[error("{0}")]
     Regex(#[from] regex::Error),
     #[error("{0}")]
+    ParseInt(#[from] std::num::ParseIntError),
+    #[error("{0}")]
     Custom(String),
 }
 
