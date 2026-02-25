@@ -433,3 +433,20 @@ jobs:
           sudo chown $USER:$USER .github/release.sh
           sudo chmod +x .github/release.sh
           .github/release.sh ${VERSION}
+  
+  publish-release-on-social-networks:
+    name: Publish release on social networks
+    needs: [release-github]
+    if: github.ref_name == 'main' && needs.get-version.outputs.version != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send post to Bluesky
+        id: bluesky_post
+        uses: cbrgm/bluesky-github-action@v1
+        with:
+          handle: ${{ secrets.BLUESKY_HANDLE }}
+          password: ${{ secrets.BLUESKY_PASSWORD }}
+          text: |
+            New release of Dofigen: ${{ needs.get-version.outputs.version }}! 🚀
+
+            Check it out on GitHub: https://github.com/lenra-io/dofigen/releases/tag/v${{ needs.get-version.outputs.version }}
