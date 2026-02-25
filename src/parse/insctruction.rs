@@ -4,18 +4,14 @@ use regex::Regex;
 use struct_patch::{Merge, Patch};
 
 use crate::{
-    AddPatch, Copy, CopyOptions, CopyOptionsPatch, CopyResourcePatch, DockerFileCommand,
-    DockerFileLine, Error, FromContext, FromContextPatch, HealthcheckPatch, ImageNamePatch,
-    LintMessage, MessageLevel, Port, PortPatch, Result, Run, Stage, User, UserPatch, VecDeepPatch,
-    VecDeepPatchCommand, VecPatch, VecPatchCommand,
+    AddPatch, Bind, Cache, CacheSharing, Copy, CopyOptions, CopyOptionsPatch, CopyResourcePatch,
+    DockerFileCommand, DockerFileLine, Error, HealthcheckPatch, InstructionOption, LintMessage,
+    MessageLevel, Network, Port, PortPatch, Result, Run, Security, Stage, TmpFs, User, UserPatch,
+    VecDeepPatch, VecDeepPatchCommand, VecPatch, VecPatchCommand,
     parse::{context::ParseContext, split_from},
 };
 
 impl ParseContext {
-    fn builder_exists(&self, name: &str) -> bool {
-        self.dofigen.builders.contains_key(name)
-    }
-
     pub(crate) fn apply(&mut self, line: &DockerFileLine) -> Result<()> {
         if let DockerFileLine::Instruction(instruction) = line {
             log::debug!("Applying instruction: {:?}", instruction);
@@ -34,16 +30,9 @@ impl ParseContext {
 
                     let (from_name, name) = split_from(&instruction.content);
                     self.current_stage_name = name.map(|n| n.to_string());
-                    let from: FromContextPatch = if from_name == "scratch" {
-                        FromContextPatch::FromContext(None)
-                    } else if self.dofigen.builders.contains_key(from_name) {
-                        FromContextPatch::FromBuilder(from_name.to_string())
-                    } else {
-                        FromContextPatch::FromImage(from_name.parse()?)
-                    };
 
                     self.current_stage = Some(Stage {
-                        from: from.into(),
+                        from: self.parse_from(from_name),
                         ..Default::default()
                     });
                 }
@@ -92,6 +81,7 @@ impl ParseContext {
                 }
                 DockerFileCommand::RUN => {
                     let current_shell = self.current_shell.clone();
+                    let context = self.clone();
                     let run = if let Some(run) = self.current_root.as_mut() {
                         run
                     } else {
@@ -102,9 +92,6 @@ impl ParseContext {
                     } else {
                         if let Some(shell) = current_shell {
                             run.shell = shell.clone();
-                        }
-                        if !instruction.options.is_empty() {
-                            todo!("RUN options are not managed yet");
                         }
                         if instruction.content.starts_with("<<EOF") {
                             let mut lines = instruction
@@ -124,6 +111,8 @@ impl ParseContext {
                                 .collect::<Vec<_>>();
                             run.run.append(&mut commands);
                         }
+                        let messages = run.apply_options(&context, instruction.options.clone())?;
+                        self.messages.extend(messages);
                     }
                 }
                 DockerFileCommand::COPY => {
@@ -156,20 +145,7 @@ impl ParseContext {
                             crate::InstructionOption::WithValue(name, value) => match name.as_str()
                             {
                                 "parents" => copy.parents = Some(true),
-                                "from" => {
-                                    if self.builder_exists(value) {
-                                        copy.from = FromContext::FromBuilder(value.clone());
-                                    } else if value == "scratch" {
-                                        copy.from = FromContext::FromContext(None);
-                                    } else {
-                                        if let Ok(image) = value.parse::<ImageNamePatch>() {
-                                            copy.from = FromContext::FromImage(image.into());
-                                        } else {
-                                            copy.from =
-                                                FromContext::FromContext(Some(value.clone()));
-                                        }
-                                    }
-                                }
+                                "from" => copy.from = self.parse_from(value.as_str()),
                                 _ => unreachable!("Unknown COPY option: {name}"),
                             },
                             crate::InstructionOption::WithOptions(
@@ -413,6 +389,245 @@ impl ParseContext {
         }
         Ok(())
     }
+}
+
+impl Run {
+    fn apply_options(
+        &mut self,
+        context: &ParseContext,
+        options: Vec<InstructionOption>,
+    ) -> Result<Vec<LintMessage>> {
+        let mut messages = vec![];
+        options.iter().map(|option| {
+            match option {
+                InstructionOption::Flag(name) => match name.as_str() {
+                    _ => return Err(Error::Custom(format!(
+                        "Unknown RUN flag option: {name}"
+                    ))),
+                },
+                InstructionOption::WithValue(name, value) => match name.as_str() {
+                    "network" => {
+                        self.network = Some(match value.as_str() {
+                            "default" => Network::Default,
+                            "none" => Network::None,
+                            "host" => Network::Host,
+                                other => {return Err(Error::Custom(format!(
+                        "Unknown RUN network option value: {other}"
+                            )))
+                        }});
+                    },
+                        "security" => {
+                            self.security = Some(match value.as_str() {
+                            "insecure" => Security::Insecure,
+                            "sandbox" => Security::Sandbox,
+                                other => {return Err(Error::Custom(format!(
+                        "Unknown RUN security option value: {other}"
+                            )))
+                        }});
+                        },
+                    _ => return Err(Error::Custom(format!(
+                        "Unknown RUN option: {name}"
+                    ))),
+                },
+                InstructionOption::WithOptions(
+                    name,
+                    options,
+                ) => match name.as_str() {
+                    "mount" => {
+                        let mount_type = options.iter()
+                        .find(|opt|opt.name=="type")
+                        .map(|opt|opt.value.clone())
+                        .flatten()
+                        .ok_or(Error::Custom(format!(
+                            "Mount type is not specified in the RUN option: {option:?}"
+                        )))?;
+                        match mount_type.as_str() {
+                            "bind" => {
+                                let mut bind = Bind::default();
+                                for opt in options.iter() {
+                                    match opt.name.as_str() {
+                                        "type" => {}
+                                        "source" => bind.source = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "target" | "dst" | "destination" => bind.target = opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?,
+                                        "from" => bind.from = context.parse_from(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?.as_str()),
+                                        "rw" | "readwrite" => bind.readwrite = Some(opt.value.clone()
+                                            .map(|str|str.parse())
+                                            .unwrap_or(Ok(true))?),
+                                        _ => return Err(Error::Custom(format!(
+                                            "Unknown RUN mount option: {}", opt.name
+                                        ))),
+                                    }
+                                }
+                                if bind.target.is_empty() {
+                                    messages.push(
+                                        LintMessage {
+                                            level: MessageLevel::Warn,
+                                            path: vec!["RUN".to_string(), format!("mount={mount_type}")], 
+                                            message: "Target is not specified for the bind mount in the RUN option".to_string()
+                                        }
+                                    );
+                                }
+                                self.bind.push(bind);
+                            }
+                            "cache" => {
+                                let mut cache = Cache::default();
+                                for opt in options.iter() {
+                                    match opt.name.as_str() {
+                                        "type" => {}
+                                        "id" => cache.id = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "target" | "dst" | "destination" => cache.target = opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?,
+                                        "ro" | "readonly" => cache.readonly = Some(opt.value.clone()
+                                            .map(|str|str.parse())
+                                            .unwrap_or(Ok(true))?),
+                                        "sharing" => cache.sharing = Some(match &opt.value {
+                                            Some(str) => match str.as_str() {
+                                                "shared" => CacheSharing::Shared,
+                                                "private" => CacheSharing::Private,
+                                                "locked" => CacheSharing::Locked,
+                                                other => return Err(Error::Custom(format!(
+                                                    "Unknown cache sharing option value: {other}"
+                                                ))),
+                                            },
+                                            None => return Err(none_mount_option_value_error( &mount_type, &opt.name)),
+                                        }),
+                                        "from" => cache.from = context.parse_from(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?.as_str()),
+                                        "source" => cache.source = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "mode" => cache.chmod = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "uid" => {
+                                            if cache.chown.is_none() {
+                                                cache.chown = Some(User::default());
+                                            }
+                                            cache.chown.as_mut().unwrap().user = opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?;
+                                        },
+                                        "gid" => {
+                                            if cache.chown.is_none() {
+                                                cache.chown = Some(User::default());
+                                            }
+                                            cache.chown.as_mut().unwrap().group = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?);
+                                        },
+                                        _ => return Err(Error::Custom(format!(
+                                            "Unknown RUN cache mount option: {}", opt.name
+                                        ))),
+                                    }
+                                }
+                                if cache.target.is_empty() {
+                                    messages.push(
+                                        LintMessage {
+                                            level: MessageLevel::Warn,
+                                            path: vec!["RUN".to_string(), format!("mount={mount_type}")],
+                                            message: "Target is not specified for the cache mount in the RUN option".to_string()
+                                        }
+                                    );
+                                }
+                                self.cache.push(cache);
+                            }
+                            "tmpfs" => {
+                                let mut tmpfs = TmpFs::default();
+                                for opt in options.iter() {
+                                    match opt.name.as_str() {
+                                        "type" => {}
+                                        "target" | "dst" | "destination" => tmpfs.target = opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?,
+                                        "size" => tmpfs.size = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        _ => return Err(Error::Custom(format!(
+                                            "Unknown RUN tmpfs mount option: {}", opt.name
+                                        ))),
+                                    }
+                                }
+                                if tmpfs.target.is_empty() {
+                                    messages.push(
+                                        LintMessage {
+                                            level: MessageLevel::Warn,
+                                            path: vec!["RUN".to_string(), format!("mount={mount_type}")],
+                                            message: "Target is not specified for the tmpfs mount in the RUN option".to_string()
+                                        }
+                                    );
+                                }
+                                self.tmpfs.push(tmpfs);
+                            }
+                            "secret" => {
+                                let mut secret = crate::Secret::default();
+                                for opt in options.iter() {
+                                    match opt.name.as_str() {
+                                        "type" => {}
+                                        "id" => secret.id = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "target" | "dst" | "destination" => secret.target = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "env" => secret.env = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "required" => secret.required = Some(opt.value.clone()
+                                            .map(|str|str.parse())
+                                            .unwrap_or(Ok(true))?),
+                                        "mode" => secret.mode = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "uid" => 
+                                            secret.uid = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?.parse().map_err(Error::from)?),
+                                        "gid" =>
+                                            secret.gid = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?.parse().map_err(Error::from)?),
+                                        _ => return Err(Error::Custom(format!(
+                                            "Unknown RUN secret mount option: {}", opt.name
+                                        ))),
+                                    }
+                                }
+                                if secret.target.is_none() && secret.env.is_none() && secret.id.is_none() {
+                                    messages.push(
+                                        LintMessage {
+                                            level: MessageLevel::Warn,
+                                            path: vec!["RUN".to_string(),
+                                            format!("mount={mount_type}")], message: "At least one of id, env or target must be specified for the secret mount in the RUN option".to_string()
+                                        }
+                                    );
+                                }
+                                self.secret.push(secret);
+                            }
+                            "ssh" => {
+                                let mut ssh = crate::Ssh::default();
+                                for opt in options.iter() {
+                                    match opt.name.as_str() {
+                                        "type" => {}
+                                        "id" => ssh.id = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "target" | "dst" | "destination" => ssh.target = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "required" => ssh.required = Some(opt.value.clone()
+                                            .map(|str|str.parse())
+                                            .unwrap_or(Ok(true))?),
+                                        "mode" => ssh.mode = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?),
+                                        "uid" => 
+                                            ssh.uid = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?.parse().map_err(Error::from)?),
+                                        "gid" =>
+                                            ssh.gid = Some(opt.value.clone().ok_or(none_mount_option_value_error( &mount_type, &opt.name))?.parse().map_err(Error::from)?),
+                                        _ => return Err(Error::Custom(format!(
+                                            "Unknown RUN ssh mount option: {}", opt.name
+                                        ))),
+                                    }
+                                }
+                                if ssh.target.is_none() && ssh.id.is_none() {
+                                    messages.push(
+                                        LintMessage {
+                                            level: MessageLevel::Warn,
+                                            path: vec!["RUN".to_string(), format!("mount={mount_type}")],
+                                            message: "At least one of id or target must be specified for the ssh mount in the RUN option".to_string()
+                                        }
+                                    );
+                                }
+                                self.ssh.push(ssh);
+                            }
+                            other => return Err(Error::Custom(format!(
+                                "Unknown RUN mount type: {other}"
+                            ))),
+                        }
+                    },
+                    _ => return Err(Error::Custom(format!(
+                    "Unknown RUN option {name} with sub options: {options:?}"
+                ))),
+                },
+            }
+
+                        Ok(())
+            }).collect::<Result<Vec<_>>>()?;
+        Ok(messages)
+    }
+}
+
+fn none_mount_option_value_error(mount_type: &String, option_name: &String) -> Error {
+    Error::Custom(format!(
+        "{option_name} is not specified for the {mount_type} mount in the RUN option"
+    ))
 }
 
 fn parse_copy_options(
@@ -1423,6 +1638,388 @@ mod tests {
                         }),
                         ..Default::default()
                     },
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn bind_file() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "cat dofigen.yml".to_string(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".to_string(),
+                            vec![
+                                InstructionOptionOption {
+                                    name: "type".to_string(),
+                                    value: Some("bind".to_string()),
+                                },
+                                InstructionOptionOption {
+                                    name: "source".to_string(),
+                                    value: Some("dofigen.yml".to_string()),
+                                },
+                                InstructionOptionOption {
+                                    name: "target".to_string(),
+                                    value: Some("dofigen.yml".to_string()),
+                                },
+                            ],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["cat dofigen.yml".to_string()],
+                    bind: vec![Bind {
+                        source: Some("dofigen.yml".to_string()),
+                        target: "dofigen.yml".to_string(),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn cache_dir() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "mkdir -p target && echo coucou >> target/log.txt".to_string(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".to_string(),
+                            vec![
+                                InstructionOptionOption {
+                                    name: "type".to_string(),
+                                    value: Some("cache".to_string()),
+                                },
+                                InstructionOptionOption {
+                                    name: "target".to_string(),
+                                    value: Some("target".to_string()),
+                                },
+                            ],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec![
+                        "mkdir -p target".to_string(),
+                        "echo coucou >> target/log.txt".to_string()
+                    ],
+                    cache: vec![Cache {
+                        target: "target".to_string(),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn with_script_and_caches_with_named_user() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo Hello".into(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".into(),
+                            vec![
+                                InstructionOptionOption::new("type", "cache".into()),
+                                InstructionOptionOption::new("target", "/path/to/cache".into()),
+                                InstructionOptionOption::new_flag("readonly"),
+                            ],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo Hello".into()].into(),
+                    cache: vec![Cache {
+                        target: "/path/to/cache".into(),
+                        readonly: Some(true),
+                        ..Default::default()
+                    }]
+                    .into(),
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn with_script_and_caches_with_uid_user() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo Hello".into(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".into(),
+                            vec![
+                                InstructionOptionOption::new("type", "cache".into()),
+                                InstructionOptionOption::new("target", "/path/to/cache".into()),
+                                InstructionOptionOption::new("uid", "1000".into()),
+                                InstructionOptionOption::new("gid", "1000".into()),
+                            ],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo Hello".into()].into(),
+                    cache: vec![Cache {
+                        target: "/path/to/cache".into(),
+                        chown: Some(User {
+                            user: "1000".into(),
+                            group: Some("1000".into())
+                        }),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn with_script_and_caches_with_uid_user_without_group() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo Hello".into(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".into(),
+                            vec![
+                                InstructionOptionOption::new("type", "cache".into()),
+                                InstructionOptionOption::new("target", "/path/to/cache".into()),
+                                InstructionOptionOption::new("uid", "1000".into()),
+                            ],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo Hello".into()].into(),
+                    cache: vec![Cache {
+                        target: "/path/to/cache".into(),
+                        chown: Some(User {
+                            user: "1000".into(),
+                            group: None
+                        }),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn with_tmpfs() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo Hello".into(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".into(),
+                            vec![
+                                InstructionOptionOption::new("type", "tmpfs".into()),
+                                InstructionOptionOption::new("target", "/path/to/tmpfs".into()),
+                            ],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo Hello".into()].into(),
+                    tmpfs: vec![TmpFs {
+                        target: "/path/to/tmpfs".into(),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn with_secret() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo Hello".into(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".into(),
+                            vec![
+                                InstructionOptionOption::new("type", "secret".into()),
+                                InstructionOptionOption::new("id", "test".into()),
+                            ],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo Hello".into()].into(),
+                    secret: vec![Secret {
+                        id: Some("test".into()),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn with_secret_empty() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo Hello".into(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".into(),
+                            vec![InstructionOptionOption::new("type", "secret".into())],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo Hello".into()].into(),
+                    secret: vec![Secret::default()],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn with_ssh() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo Hello".into(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".into(),
+                            vec![
+                                InstructionOptionOption::new("type", "ssh".into()),
+                                InstructionOptionOption::new("id", "test".into()),
+                            ],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo Hello".into()].into(),
+                    ssh: vec![Ssh {
+                        id: Some("test".into()),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                }
+            );
+        }
+
+        #[test]
+        fn with_ssh_empty() {
+            let dockerfile = DockerFile {
+                lines: vec![
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::FROM,
+                        content: "ubuntu:25.04".to_string(),
+                        options: vec![],
+                    }),
+                    DockerFileLine::Instruction(DockerFileInsctruction {
+                        command: DockerFileCommand::RUN,
+                        content: "echo Hello".into(),
+                        options: vec![InstructionOption::WithOptions(
+                            "mount".into(),
+                            vec![InstructionOptionOption::new("type", "ssh".into())],
+                        )],
+                    }),
+                ],
+            };
+            let dofigen = Dofigen::from_dockerfile(dockerfile, None).unwrap();
+            assert_eq_sorted!(
+                dofigen.stage.run,
+                Run {
+                    run: vec!["echo Hello".into()].into(),
+                    ssh: vec![Ssh::default()],
                     ..Default::default()
                 }
             );

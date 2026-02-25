@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     CopyResource, DockerFileInsctruction, DockerFileLine, Dofigen, DofigenPatch, Error,
-    FromContext, LintMessage, Result, Run, Stage,
+    FromContext, ImageNamePatch, LintMessage, Result, Run, Stage,
 };
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -108,5 +108,23 @@ impl ParseContext {
             stage.copy.push(copy);
         }
         Ok(())
+    }
+
+    pub(super) fn builder_exists(&self, name: &str) -> bool {
+        self.dofigen.builders.contains_key(name)
+    }
+
+    pub(super) fn parse_from(&self, name: &str) -> FromContext {
+        if self.builder_exists(name) {
+            FromContext::FromBuilder(name.to_string())
+        } else if name == "scratch" {
+            FromContext::FromContext(None)
+        } else {
+            if let Ok(image) = name.parse::<ImageNamePatch>() {
+                FromContext::FromImage(image.into())
+            } else {
+                FromContext::FromContext(Some(name.to_string()))
+            }
+        }
     }
 }
