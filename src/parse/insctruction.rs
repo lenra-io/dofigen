@@ -82,38 +82,44 @@ impl ParseContext {
                 DockerFileCommand::RUN => {
                     let current_shell = self.current_shell.clone();
                     let context = self.clone();
-                    let run = if let Some(run) = self.current_root.as_mut() {
+                    let is_root = self.current_root.is_some();
+                    let mut run = if let Some(run) = self.current_root.as_mut() {
                         run
                     } else {
                         &mut self.current_stage(&instruction)?.run
                     };
                     if !run.is_empty() {
-                        todo!("Many RUN instructions are not managed yet");
-                    } else {
-                        if let Some(shell) = current_shell {
-                            run.shell = shell.clone();
-                        }
-                        if instruction.content.starts_with("<<EOF") {
-                            let mut lines = instruction
-                                .content
-                                .lines()
-                                .map(str::to_string)
-                                .collect::<Vec<_>>();
-                            lines.remove(0);
-                            lines.remove(lines.len() - 1);
-                            run.run.append(&mut lines);
+                        self.split_current_stage()?;
+                        run = if is_root {
+                            self.current_root = Some(Run::default());
+                            self.current_root.as_mut().unwrap()
                         } else {
-                            let mut commands = instruction
-                                .content
-                                .split("&&")
-                                .map(str::trim)
-                                .map(str::to_string)
-                                .collect::<Vec<_>>();
-                            run.run.append(&mut commands);
-                        }
-                        let messages = run.apply_options(&context, instruction.options.clone())?;
-                        self.messages.extend(messages);
+                            &mut self.current_stage(&instruction)?.run
+                        };
                     }
+                    if let Some(shell) = current_shell {
+                        run.shell = shell.clone();
+                    }
+                    if instruction.content.starts_with("<<EOF") {
+                        let mut lines = instruction
+                            .content
+                            .lines()
+                            .map(str::to_string)
+                            .collect::<Vec<_>>();
+                        lines.remove(0);
+                        lines.remove(lines.len() - 1);
+                        run.run.append(&mut lines);
+                    } else {
+                        let mut commands = instruction
+                            .content
+                            .split("&&")
+                            .map(str::trim)
+                            .map(str::to_string)
+                            .collect::<Vec<_>>();
+                        run.run.append(&mut commands);
+                    }
+                    let messages = run.apply_options(&context, instruction.options.clone())?;
+                    self.messages.extend(messages);
                 }
                 DockerFileCommand::COPY => {
                     // TODO: manege heredocs
@@ -269,7 +275,6 @@ impl ParseContext {
                     expose.commands.push(VecDeepPatchCommand::Append(ports));
                 }
                 DockerFileCommand::USER => {
-                    let has_not_applied_root = self.current_root.is_some();
                     let stage = self.current_stage.as_ref();
                     let has_user = stage.and_then(|s| s.user.as_ref()).is_some();
                     let has_run = stage.map(|s| !s.run.is_empty()).unwrap_or(false);
@@ -288,7 +293,7 @@ impl ParseContext {
                         self.split_current_stage()?;
                     }
                     if user.user == "0" || user.user.to_lowercase() == "root" {
-                        if has_not_applied_root {
+                        if self.current_root.is_some() {
                             todo!("Many ROOT USER instructions are not managed yet");
                         }
                         self.current_root = Some(Run::default());

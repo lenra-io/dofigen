@@ -76,6 +76,7 @@ impl ParseContext {
     }
 
     pub fn split_current_stage(&mut self) -> Result<()> {
+        self.apply_root()?;
         let name = self
             .current_stage_name
             .clone()
