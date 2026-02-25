@@ -95,6 +95,32 @@ impl_parsable_patch!(CopyResource, CopyResourcePatch, s, {
 
 impl_parsable_patch!(Copy, CopyPatch, s, {
     let mut parts: Vec<String> = collect_path_list(s);
+    let from = if parts
+        .first()
+        .map(|s| {
+            s.starts_with('@')
+                || s.starts_with("image@")
+                || s.starts_with("builder@")
+                || s.starts_with("context@")
+        })
+        .unwrap_or(false)
+    {
+        let from_str = parts.remove(0);
+        let from_parts = from_str.split('@').collect::<Vec<_>>();
+        if from_parts.len() != 2 {
+            return Err(Error::custom("Invalid from context format"));
+        }
+        let from_type = from_parts[0];
+        let from_value = from_parts[1];
+        match from_type {
+            "image" => FromContextPatch::FromImage(from_value.parse()?),
+            "builder" => FromContextPatch::FromBuilder(from_value.into()),
+            "context" | "" => FromContextPatch::FromContext(Some(from_value.into())),
+            _ => return Err(Error::custom("Invalid from context type")),
+        }
+    } else {
+        FromContextPatch::default()
+    };
     let target = if parts.len() > 1 { parts.pop() } else { None };
     Ok(Self {
         paths: Some(parts.into_patch()),
@@ -104,7 +130,7 @@ impl_parsable_patch!(Copy, CopyPatch, s, {
             chown: Some(None),
             link: Some(None),
         }),
-        from: Some(FromContextPatch::default()),
+        from: Some(from),
         exclude: Some(VecPatch::default()),
         parents: Some(None),
     })
@@ -410,6 +436,68 @@ mod test {
                             link: Some(None),
                         }),
                         from: Some(FromContextPatch::default()),
+                        exclude: Some(VecPatch::default()),
+                        parents: Some(None),
+                    }
+                );
+            }
+
+            #[test]
+            fn with_target_option_and_from_image() {
+                let result = CopyPatch::from_str("image@alpine src /app").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyPatch {
+                        paths: Some(vec!["src".to_string()].into_patch()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(Some("/app".into())),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        from: Some(FromContextPatch::FromImage("alpine".parse().unwrap())),
+                        exclude: Some(VecPatch::default()),
+                        parents: Some(None),
+                    }
+                );
+            }
+
+            #[test]
+            fn with_target_option_and_from_builder() {
+                let result = CopyPatch::from_str("builder@my-builder src /app").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyPatch {
+                        paths: Some(vec!["src".to_string()].into_patch()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(Some("/app".into())),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        from: Some(FromContextPatch::FromBuilder("my-builder".to_string())),
+                        exclude: Some(VecPatch::default()),
+                        parents: Some(None),
+                    }
+                );
+            }
+
+            #[test]
+            fn with_target_option_and_from_context() {
+                let result = CopyPatch::from_str("@my-context src /app").unwrap();
+                assert_eq_sorted!(
+                    result,
+                    CopyPatch {
+                        paths: Some(vec!["src".to_string()].into_patch()),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(Some("/app".into())),
+                            chown: Some(None),
+                            chmod: Some(None),
+                            link: Some(None),
+                        }),
+                        from: Some(FromContextPatch::FromContext(Some(
+                            "my-context".to_string()
+                        ))),
                         exclude: Some(VecPatch::default()),
                         parents: Some(None),
                     }
