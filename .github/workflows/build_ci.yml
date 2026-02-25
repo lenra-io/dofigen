@@ -439,6 +439,8 @@ jobs:
     needs: [release-github]
     if: github.ref_name == 'main' && needs.get-version.outputs.version != ''
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.get-version.outputs.version }}
     steps:
       - name: Send post to Bluesky
         id: bluesky_post
@@ -447,6 +449,6 @@ jobs:
           handle: ${{ secrets.BLUESKY_HANDLE }}
           password: ${{ secrets.BLUESKY_PASSWORD }}
           text: |
-            New release of Dofigen: ${{ needs.get-version.outputs.version }}! 🚀
+            New release of Dofigen: ${VERSION}! 🚀
 
-            Check it out on GitHub: https://github.com/lenra-io/dofigen/releases/tag/v${{ needs.get-version.outputs.version }}
+            Check it out on GitHub: https://github.com/lenra-io/dofigen/releases/tag/v${VERSION}
