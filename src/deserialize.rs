@@ -1,7 +1,7 @@
-use crate::{dofigen_struct::*, Error};
+use crate::{Error, dofigen_struct::*};
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, de};
 use std::{
     cmp::Ordering,
     collections::{BTreeMap, HashMap},
@@ -34,10 +34,14 @@ impl_from_patch_and_add!(ImageName, ImageNamePatch);
 impl_from_patch_and_add!(Run, RunPatch);
 impl_from_patch_and_add!(Cache, CachePatch);
 impl_from_patch_and_add!(Bind, BindPatch);
+impl_from_patch_and_add!(TmpFs, TmpFsPatch);
+impl_from_patch_and_add!(Secret, SecretPatch);
+impl_from_patch_and_add!(Ssh, SshPatch);
 impl_from_patch_and_add!(Port, PortPatch);
 impl_from_patch_and_add!(User, UserPatch);
 impl_from_patch_and_add!(CopyOptions, CopyOptionsPatch);
 impl_from_patch_and_add!(Copy, CopyPatch);
+impl_from_patch_and_add!(CopyContent, CopyContentPatch);
 impl_from_patch_and_add!(Add, AddPatch);
 impl_from_patch_and_add!(AddGitRepo, AddGitRepoPatch);
 
@@ -68,11 +72,11 @@ pub struct VecPatch<T>
 where
     T: Clone,
 {
-    commands: Vec<VecPatchCommand<T>>,
+    pub(crate) commands: Vec<VecPatchCommand<T>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum VecPatchCommand<T> {
+pub(crate) enum VecPatchCommand<T> {
     ReplaceAll(Vec<T>),
     Replace(usize, T),
     InsertBefore(usize, Vec<T>),
@@ -97,11 +101,11 @@ where
     T: Clone + Patch<P> + From<P>,
     P: Clone,
 {
-    commands: Vec<VecDeepPatchCommand<T, P>>,
+    pub(crate) commands: Vec<VecDeepPatchCommand<T, P>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum VecDeepPatchCommand<T, P>
+pub(crate) enum VecDeepPatchCommand<T, P>
 where
     T: Clone,
 {
@@ -131,6 +135,22 @@ where
 {
     #[serde(flatten)]
     patches: HashMap<K, Option<V>>,
+}
+
+/// A multilevel key map
+#[cfg(not(feature = "strict"))]
+#[derive(Deserialize, Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub(crate) struct NestedMap<T>(HashMap<String, NestedMapValue<T>>);
+
+#[cfg(not(feature = "strict"))]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+#[serde(untagged)]
+enum NestedMapValue<T> {
+    Value(T),
+    Map(NestedMap<T>),
+    Null,
 }
 
 //////////////////////// Deserialization structures ////////////////////////
@@ -253,6 +273,7 @@ impl From<CopyResourcePatch> for CopyResource {
     fn from(patch: CopyResourcePatch) -> Self {
         match patch {
             CopyResourcePatch::Copy(p) => CopyResource::Copy(p.into()),
+            CopyResourcePatch::Content(p) => CopyResource::Content(p.into()),
             CopyResourcePatch::Add(p) => CopyResource::Add(p.into()),
             CopyResourcePatch::AddGitRepo(p) => CopyResource::AddGitRepo(p.into()),
             CopyResourcePatch::Unknown(p) => panic!("Unknown patch: {:?}", p),
@@ -264,6 +285,15 @@ impl From<CopyResourcePatch> for CopyResource {
 impl<T: FromStr> From<T> for ParsableStruct<T> {
     fn from(value: T) -> Self {
         ParsableStruct(value)
+    }
+}
+
+#[cfg(feature = "permissive")]
+impl<T: FromStr> FromStr for ParsableStruct<T> {
+    type Err = <T as FromStr>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(ParsableStruct(s.parse()?))
     }
 }
 
@@ -333,7 +363,7 @@ where
             VecDeepPatchCommand::Patch(pos, _) => {
                 return Err(Error::Custom(format!(
                     "VecPatch don't allow patching on {pos}: '{pos}<'"
-                )))
+                )));
             }
             VecDeepPatchCommand::InsertBefore(pos, v) => VecPatchCommand::InsertBefore(pos, v),
             VecDeepPatchCommand::InsertAfter(pos, v) => VecPatchCommand::InsertAfter(pos, v),
@@ -364,6 +394,27 @@ where
             VecDeepPatchDeserializable::Map(v) => VecDeepPatch {
                 commands: v.commands,
             },
+        }
+    }
+}
+
+#[cfg(not(feature = "strict"))]
+impl<T: Clone> NestedMap<T> {
+    fn flatten(&mut self) {
+        let keys = self.0.keys().cloned().collect::<Vec<_>>();
+        for key in keys {
+            if let Some(NestedMapValue::Map(nested_map)) = self.0.get_mut(&key) {
+                let mut nested_map = nested_map.clone();
+                self.0.remove(&key);
+                nested_map.flatten();
+                for (nested_key, nested_value) in nested_map.0 {
+                    let final_key = format!("{key}.{nested_key}");
+                    // Check if the key already exists in the map
+                    if !self.0.contains_key(&final_key) {
+                        self.0.insert(final_key, nested_value);
+                    }
+                }
+            }
         }
     }
 }
@@ -400,6 +451,8 @@ impl Patch<CopyResourcePatch> for CopyResource {
         match (self, patch) {
             (Self::Copy(s), CopyResourcePatch::Copy(p)) => s.apply(p),
             (Self::Copy(s), CopyResourcePatch::Unknown(p)) => s.apply(p),
+            (Self::Content(s), CopyResourcePatch::Content(p)) => s.apply(p),
+            (Self::Content(s), CopyResourcePatch::Unknown(p)) => s.apply(p),
             (Self::Add(s), CopyResourcePatch::Add(p)) => s.apply(p),
             (Self::Add(s), CopyResourcePatch::Unknown(p)) => s.apply(p),
             (Self::AddGitRepo(s), CopyResourcePatch::AddGitRepo(p)) => s.apply(p),
@@ -411,6 +464,7 @@ impl Patch<CopyResourcePatch> for CopyResource {
     fn into_patch(self) -> CopyResourcePatch {
         match self {
             CopyResource::Copy(s) => CopyResourcePatch::Copy(s.into_patch()),
+            CopyResource::Content(s) => CopyResourcePatch::Content(s.into_patch()),
             CopyResource::Add(s) => CopyResourcePatch::Add(s.into_patch()),
             CopyResource::AddGitRepo(s) => CopyResourcePatch::AddGitRepo(s.into_patch()),
         }
@@ -446,12 +500,40 @@ impl Patch<UnknownPatch> for Copy {
     fn into_patch(self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch()),
+            exclude: Some(self.exclude.into_patch()),
         }
     }
 
     fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: Some(self.exclude.into_patch_by_diff(previous_struct.exclude)),
+        }
+    }
+
+    fn new_empty_patch() -> UnknownPatch {
+        UnknownPatch::default()
+    }
+}
+
+impl Patch<UnknownPatch> for CopyContent {
+    fn apply(&mut self, patch: UnknownPatch) {
+        if let Some(options) = patch.options {
+            self.options.apply(options);
+        }
+    }
+
+    fn into_patch(self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch()),
+            exclude: None,
+        }
+    }
+
+    fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
+        UnknownPatch {
+            options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: None,
         }
     }
 
@@ -470,12 +552,14 @@ impl Patch<UnknownPatch> for Add {
     fn into_patch(self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch()),
+            exclude: None,
         }
     }
 
     fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: None,
         }
     }
 
@@ -494,12 +578,14 @@ impl Patch<UnknownPatch> for AddGitRepo {
     fn into_patch(self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch()),
+            exclude: Some(self.exclude.into_patch()),
         }
     }
 
     fn into_patch_by_diff(self, previous_struct: Self) -> UnknownPatch {
         UnknownPatch {
             options: Some(self.options.into_patch_by_diff(previous_struct.options)),
+            exclude: Some(self.exclude.into_patch_by_diff(previous_struct.exclude)),
         }
     }
 
@@ -520,7 +606,8 @@ where
         // save the number of elements added before the positions
         let mut adapted_positions: Vec<usize> = vec![0; self.len()];
         // save the current position and corresponding adapted position to avoid recomputing it
-        let mut current_position: (usize, usize) = (0, 0);
+        let mut current_position = 0;
+        let mut position_adaptation = 0;
 
         for command in patch.commands {
             match command {
@@ -540,13 +627,17 @@ where
                         panic!("Position {} is out of bounds", pos);
                     }
                     if pos == last_modified_position {
-                        panic!("Cannot replace element at position {} after another modification on it", pos);
+                        panic!(
+                            "Cannot replace element at position {} after another modification on it",
+                            pos
+                        );
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position..=pos {
+                        current_position = i;
+                        position_adaptation += adapted_positions[i];
                     }
-                    self[current_position.1] = elements;
+                    let adapted_position = current_position + position_adaptation;
+                    self[adapted_position] = elements;
                     last_modified_position = pos;
                 }
                 VecPatchCommand::InsertBefore(pos, elements) => {
@@ -556,17 +647,21 @@ where
                             pos
                         );
                     }
-                    if pos >= initial_len {
+                    if pos >= initial_len && initial_len > 0 {
                         panic!("Position {} is out of bounds", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position..=pos {
+                        current_position = i;
+                        if adapted_positions.len() > 0 {
+                            position_adaptation += adapted_positions[i];
+                        }
                     }
                     let added = elements.len();
-                    self.splice(current_position.1..current_position.1, elements);
-                    current_position.1 += added;
-                    adapted_positions[pos as usize] += added;
+                    let adapted_position = current_position + position_adaptation;
+                    self.splice(adapted_position..adapted_position, elements);
+                    if adapted_positions.len() > 0 {
+                        adapted_positions[pos as usize] += added;
+                    }
                 }
                 VecPatchCommand::InsertAfter(pos, elements) => {
                     if reset {
@@ -578,13 +673,13 @@ where
                     if pos >= initial_len {
                         panic!("Position {} is out of bounds", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position..=pos {
+                        current_position = i;
+                        position_adaptation += adapted_positions[i];
                     }
-                    let usize_pos = current_position.1 + 1;
+                    let adapted_position = current_position + position_adaptation + 1;
                     let added = elements.len();
-                    self.splice(usize_pos..usize_pos, elements);
+                    self.splice(adapted_position..adapted_position, elements);
                     if pos + 1 < initial_len {
                         adapted_positions[(pos + 1) as usize] = added;
                     } else {
@@ -631,7 +726,8 @@ where
         // save the number of elements added before the positions
         let mut adapted_positions: Vec<usize> = vec![0; self.len()];
         // save the current position and corresponding adapted position to avoid recomputing it
-        let mut current_position: (usize, usize) = (0, 0);
+        let mut current_position = 0;
+        let mut position_adaptation = 0;
 
         for command in patch.commands {
             match command {
@@ -654,13 +750,17 @@ where
                         panic!("Position {} is out of bounds", pos);
                     }
                     if pos == last_modified_position {
-                        panic!("Cannot replace element at position {} after another modification on it", pos);
+                        panic!(
+                            "Cannot replace element at position {} after another modification on it",
+                            pos
+                        );
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position..=pos {
+                        current_position = i;
+                        position_adaptation += adapted_positions[i];
                     }
-                    self[current_position.1] = element;
+                    let adapted_position = current_position + position_adaptation;
+                    self[adapted_position] = element;
                     last_modified_position = pos;
                 }
                 VecDeepPatchCommand::Patch(pos, element) => {
@@ -676,11 +776,12 @@ where
                             pos
                         );
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position..=pos {
+                        current_position = i;
+                        position_adaptation += adapted_positions[i];
                     }
-                    self[current_position.1].apply(element);
+                    let adapted_position = current_position + position_adaptation;
+                    self[adapted_position].apply(element);
                     last_modified_position = pos;
                 }
                 VecDeepPatchCommand::InsertBefore(pos, elements) => {
@@ -690,17 +791,21 @@ where
                             pos
                         );
                     }
-                    if pos >= initial_len {
+                    if pos >= initial_len && initial_len > 0 {
                         panic!("Position {} is out of bounds", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position..=pos {
+                        current_position = i;
+                        if adapted_positions.len() > 0 {
+                            position_adaptation += adapted_positions[i];
+                        }
                     }
+                    let adapted_position = current_position + position_adaptation;
                     let added = elements.len();
-                    self.splice(current_position.1..current_position.1, elements);
-                    current_position.1 += added;
-                    adapted_positions[pos as usize] += added;
+                    self.splice(adapted_position..adapted_position, elements);
+                    if adapted_positions.len() > 0 {
+                        adapted_positions[pos as usize] += added;
+                    }
                 }
                 VecDeepPatchCommand::InsertAfter(pos, elements) => {
                     if reset {
@@ -712,11 +817,12 @@ where
                     if pos >= initial_len {
                         panic!("Position {} is out of bounds", pos);
                     }
-                    for i in current_position.0..pos {
-                        current_position.0 = i;
-                        current_position.1 += adapted_positions[i + 1];
+                    for i in current_position..=pos {
+                        current_position = i;
+                        position_adaptation += adapted_positions[i];
                     }
-                    let usize_pos = current_position.1 + 1;
+                    let adapted_position = current_position + position_adaptation;
+                    let usize_pos = adapted_position + 1;
                     let added = elements.len();
                     self.splice(usize_pos..usize_pos, elements);
                     if pos + 1 < initial_len {
@@ -819,6 +925,61 @@ where
         HashMapDeepPatch {
             patches: HashMap::new(),
         }
+    }
+}
+
+#[cfg(not(feature = "strict"))]
+impl<T: Clone> From<NestedMap<T>> for HashMap<String, Option<T>> {
+    fn from(value: NestedMap<T>) -> Self {
+        let mut value = value.clone();
+        value.flatten();
+        return value
+            .0
+            .into_iter()
+            .map(|(key, value)| {
+                (
+                    key,
+                    match value {
+                        NestedMapValue::Value(value) => Some(value),
+                        NestedMapValue::Map(_) => unreachable!(),
+                        NestedMapValue::Null => None,
+                    },
+                )
+            })
+            .collect();
+    }
+}
+
+#[cfg(not(feature = "strict"))]
+impl<T> Patch<NestedMap<T>> for HashMap<String, T>
+where
+    T: Clone,
+{
+    fn apply(&mut self, patch: NestedMap<T>) {
+        let flatten: HashMap<String, Option<T>> = patch.into();
+        flatten.into_iter().for_each(|(key, opt)| {
+            if let Some(value) = opt {
+                self.insert(key, value);
+            } else {
+                self.remove(&key);
+            }
+        });
+    }
+
+    fn into_patch(self) -> NestedMap<T> {
+        NestedMap(
+            self.into_iter()
+                .map(|(key, value)| (key.clone(), NestedMapValue::Value(value)))
+                .collect(),
+        )
+    }
+
+    fn into_patch_by_diff(self, _previous_struct: Self) -> NestedMap<T> {
+        todo!()
+    }
+
+    fn new_empty_patch() -> NestedMap<T> {
+        NestedMap(HashMap::new())
     }
 }
 
@@ -1029,7 +1190,7 @@ where
                         }
                         key => {
                             if key.starts_with('+') {
-                                let pos = key[..key.len() - 1].parse::<usize>().unwrap();
+                                let pos = key[1..key.len()].parse::<usize>().unwrap();
                                 commands.push(VecDeepPatchCommand::InsertBefore(
                                     pos,
                                     map_vec(map.next_value()?),
@@ -1090,8 +1251,13 @@ where
     P: Clone,
 {
     match (a, b) {
+        // ReplaceAll should always be first
         (VecDeepPatchCommand::ReplaceAll(_), _) => std::cmp::Ordering::Less,
         (_, VecDeepPatchCommand::ReplaceAll(_)) => std::cmp::Ordering::Greater,
+        // Append should always be last
+        (VecDeepPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
+        (_, VecDeepPatchCommand::Append(_)) => std::cmp::Ordering::Less,
+        // Same type should be sorted by position
         (VecDeepPatchCommand::InsertBefore(a, _), VecDeepPatchCommand::InsertBefore(b, _))
         | (
             VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
@@ -1100,7 +1266,18 @@ where
         | (VecDeepPatchCommand::InsertAfter(a, _), VecDeepPatchCommand::InsertAfter(b, _)) => {
             a.cmp(b)
         }
+        /*
+        For a same position
+            InsertBefore should be before Replace, Patch and InsertAfter
+            Replace and Patch should be before InsertAfter
+        */
         (
+            VecDeepPatchCommand::InsertBefore(a, _),
+            VecDeepPatchCommand::Replace(b, _)
+            | VecDeepPatchCommand::Patch(b, _)
+            | VecDeepPatchCommand::InsertAfter(b, _),
+        )
+        | (
             VecDeepPatchCommand::Replace(a, _) | VecDeepPatchCommand::Patch(a, _),
             VecDeepPatchCommand::InsertAfter(b, _),
         ) => match a.cmp(b) {
@@ -1108,16 +1285,18 @@ where
             other => other,
         },
         (
+            VecDeepPatchCommand::Replace(a, _)
+            | VecDeepPatchCommand::Patch(a, _)
+            | VecDeepPatchCommand::InsertAfter(a, _),
+            VecDeepPatchCommand::InsertBefore(b, _),
+        )
+        | (
             VecDeepPatchCommand::InsertAfter(a, _),
             VecDeepPatchCommand::Replace(b, _) | VecDeepPatchCommand::Patch(b, _),
         ) => match a.cmp(b) {
             std::cmp::Ordering::Equal => std::cmp::Ordering::Greater,
             other => other,
         },
-        (VecDeepPatchCommand::InsertBefore(_, _), _) => std::cmp::Ordering::Less,
-        (_, VecDeepPatchCommand::InsertBefore(_, _)) => std::cmp::Ordering::Greater,
-        (VecDeepPatchCommand::Append(_), _) => std::cmp::Ordering::Greater,
-        (_, VecDeepPatchCommand::Append(_)) => std::cmp::Ordering::Less,
     }
 }
 
@@ -1125,7 +1304,7 @@ where
 
 // Can't use merge on option since it removes the previous value if it's none
 macro_rules! merge_option_patch {
-    ($opt_a: expr, $opt_b: expr) => {
+    ($opt_a: expr_2021, $opt_b: expr_2021) => {
         match ($opt_a, $opt_b) {
             (Some(a), Some(b)) => Some(a.merge(b)),
             (Some(a), None) => Some(a),
@@ -1190,6 +1369,7 @@ impl Merge for UnknownPatch {
     fn merge(self, other: Self) -> Self {
         Self {
             options: merge_option_patch!(self.options, other.options),
+            exclude: merge_option_patch!(self.exclude, other.exclude),
         }
     }
 }
@@ -1227,13 +1407,13 @@ where
         let mut commands: Vec<VecPatchCommand<T>> = vec![];
 
         let mut self_it = self.commands.iter();
-        let mut rhs_it = other.commands.iter();
+        let mut other_it = other.commands.iter();
 
         let mut self_next = self_it.next();
-        let mut rhs_next = rhs_it.next();
+        let mut other_next = other_it.next();
 
-        while let (Some(self_command), Some(rhs_command)) = (self_next, rhs_next) {
-            match (self_command.clone(), rhs_command.clone()) {
+        while let (Some(self_command), Some(other_command)) = (self_next, other_next) {
+            match (self_command.clone(), other_command.clone()) {
                 (VecPatchCommand::ReplaceAll(_), _) | (_, VecPatchCommand::ReplaceAll(_)) => {
                     panic!("Cannot combine a replace all with other commands");
                 }
@@ -1244,7 +1424,7 @@ where
                     elements.extend(rhs_elements);
                     commands.push(VecPatchCommand::Append(elements));
                     self_next = self_it.next();
-                    rhs_next = rhs_it.next();
+                    other_next = other_it.next();
                 }
                 (self_command, VecPatchCommand::Append(_)) => {
                     commands.push(self_command);
@@ -1252,7 +1432,7 @@ where
                 }
                 (VecPatchCommand::Append(_), rhs_command) => {
                     commands.push(rhs_command);
-                    rhs_next = rhs_it.next();
+                    other_next = other_it.next();
                 }
                 (
                     VecPatchCommand::Replace(self_pos, self_val),
@@ -1261,13 +1441,13 @@ where
                     if self_pos == rhs_pos {
                         commands.push(VecPatchCommand::Replace(rhs_pos, rhs_val));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecPatchCommand::Replace(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecPatchCommand::Replace(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1283,15 +1463,15 @@ where
                         // For insert before, the position is the position of the first element added by the self patch
                         // For insert after, the position does not change so we append rhs elements after the elements, after that the self elements are added
                         rhs_val.extend(self_val);
-                        commands.push(rhs_command.clone());
+                        commands.push(other_command.clone());
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(self_command.clone());
                         self_next = self_it.next();
                     } else {
-                        commands.push(rhs_command.clone());
-                        rhs_next = rhs_it.next();
+                        commands.push(other_command.clone());
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1303,7 +1483,7 @@ where
                     | VecPatchCommand::InsertAfter(rhs_pos, _),
                 ) => {
                     if self_pos == rhs_pos {
-                        match (self_command, rhs_command) {
+                        match (self_command, other_command) {
                             (VecPatchCommand::InsertBefore(_, _), _)
                             | (_, VecPatchCommand::InsertAfter(_, _)) => {
                                 commands.push(self_command.clone());
@@ -1311,8 +1491,8 @@ where
                             }
                             (_, VecPatchCommand::InsertBefore(_, _))
                             | (VecPatchCommand::InsertAfter(_, _), _) => {
-                                commands.push(rhs_command.clone());
-                                rhs_next = rhs_it.next();
+                                commands.push(other_command.clone());
+                                other_next = other_it.next();
                             }
                             _ => panic!("This case should have been reached"),
                         }
@@ -1320,18 +1500,19 @@ where
                         commands.push(self_command.clone());
                         self_next = self_it.next();
                     } else {
-                        commands.push(rhs_command.clone());
-                        rhs_next = rhs_it.next();
+                        commands.push(other_command.clone());
+                        other_next = other_it.next();
                     }
                 }
             }
         }
 
-        let remaining_commands = if self_next.is_some() {
-            std::iter::once(self_next.unwrap()).chain(self_it)
-        } else {
-            std::iter::once(rhs_next.unwrap()).chain(self_it)
-        };
+        if self_next.is_some() {
+            commands.push(self_next.unwrap().clone());
+        } else if other_next.is_some() {
+            commands.push(other_next.unwrap().clone());
+        }
+        let remaining_commands = self_it.chain(other_it);
         remaining_commands.for_each(|c| commands.push(c.clone()));
 
         Self { commands }
@@ -1365,13 +1546,13 @@ where
         let mut commands: Vec<VecDeepPatchCommand<T, P>> = vec![];
 
         let mut self_it = self.commands.iter();
-        let mut rhs_it = other.commands.iter();
+        let mut other_it = other.commands.iter();
 
         let mut self_next = self_it.next();
-        let mut rhs_next = rhs_it.next();
+        let mut other_next = other_it.next();
 
-        while let (Some(self_command), Some(rhs_command)) = (self_next, rhs_next) {
-            match (self_command.clone(), rhs_command.clone()) {
+        while let (Some(self_command), Some(other_command)) = (self_next, other_next) {
+            match (self_command.clone(), other_command.clone()) {
                 (VecDeepPatchCommand::ReplaceAll(_), _)
                 | (_, VecDeepPatchCommand::ReplaceAll(_)) => {
                     panic!("Cannot combine a replace all with other commands");
@@ -1386,7 +1567,7 @@ where
                     elements.extend(rhs_elements);
                     commands.push(VecDeepPatchCommand::Append(elements));
                     self_next = self_it.next();
-                    rhs_next = rhs_it.next();
+                    other_next = other_it.next();
                 }
                 (self_command, VecDeepPatchCommand::Append(_)) => {
                     commands.push(self_command);
@@ -1394,7 +1575,7 @@ where
                 }
                 (VecDeepPatchCommand::Append(_), rhs_command) => {
                     commands.push(rhs_command);
-                    rhs_next = rhs_it.next();
+                    other_next = other_it.next();
                 }
                 (
                     VecDeepPatchCommand::Replace(self_pos, self_val),
@@ -1403,13 +1584,13 @@ where
                     if self_pos == rhs_pos {
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecDeepPatchCommand::Replace(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1421,13 +1602,13 @@ where
                         val.apply(rhs_val);
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, val));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecDeepPatchCommand::Replace(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecDeepPatchCommand::Patch(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1437,13 +1618,13 @@ where
                     if self_pos == rhs_pos {
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecDeepPatchCommand::Patch(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecDeepPatchCommand::Replace(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1453,13 +1634,13 @@ where
                     if self_pos == rhs_pos {
                         commands.push(VecDeepPatchCommand::Patch(rhs_pos, self_val.merge(rhs_val)));
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(VecDeepPatchCommand::Patch(self_pos, self_val));
                         self_next = self_it.next();
                     } else {
                         commands.push(VecDeepPatchCommand::Patch(rhs_pos, rhs_val));
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1475,15 +1656,15 @@ where
                         // For insert before, the position is the position of the first element added by the self patch
                         // For insert after, the position does not change so we append rhs elements after the elements, after that the self elements are added
                         rhs_val.extend(self_val);
-                        commands.push(rhs_command.clone());
+                        commands.push(other_command.clone());
                         self_next = self_it.next();
-                        rhs_next = rhs_it.next();
+                        other_next = other_it.next();
                     } else if self_pos < rhs_pos {
                         commands.push(self_command.clone());
                         self_next = self_it.next();
                     } else {
-                        commands.push(rhs_command.clone());
-                        rhs_next = rhs_it.next();
+                        commands.push(other_command.clone());
+                        other_next = other_it.next();
                     }
                 }
                 (
@@ -1496,22 +1677,23 @@ where
                     | VecDeepPatchCommand::InsertBefore(_, _)
                     | VecDeepPatchCommand::InsertAfter(_, _),
                 ) => {
-                    if sort_commands(self_command, rhs_command) == Ordering::Less {
+                    if sort_commands(self_command, other_command) == Ordering::Less {
                         commands.push(self_command.clone());
                         self_next = self_it.next();
                     } else {
-                        commands.push(rhs_command.clone());
-                        rhs_next = rhs_it.next();
+                        commands.push(other_command.clone());
+                        other_next = other_it.next();
                     }
                 }
             }
         }
 
-        let remaining_commands = if self_next.is_some() {
-            std::iter::once(self_next.unwrap()).chain(self_it)
-        } else {
-            std::iter::once(rhs_next.unwrap()).chain(self_it)
-        };
+        let remaining_commands = self_it.chain(other_it);
+        if self_next.is_some() {
+            commands.push(self_next.unwrap().clone());
+        } else if other_next.is_some() {
+            commands.push(other_next.unwrap().clone());
+        }
         remaining_commands.for_each(|c| commands.push(c.clone()));
 
         Self { commands }
@@ -1559,6 +1741,22 @@ where
                     self.patches.remove(&key);
                 }
             }
+        }
+        self
+    }
+}
+
+#[cfg(not(feature = "strict"))]
+impl<T> Merge for NestedMap<T>
+where
+    T: Clone,
+{
+    fn merge(mut self, other: Self) -> Self {
+        let mut flatten = other.clone();
+        flatten.flatten();
+        self.flatten();
+        for (key, value) in flatten.0 {
+            self.0.insert(key.clone(), value.clone());
         }
         self
     }
@@ -1824,13 +2022,16 @@ mod test {
                   list:
                     - item1
                     - item2
+                    - item3
+                    - item4
                   num: 42
             "#;
 
             let patch = r#"
                 sub:
                     list:
-                        0: item3
+                        1: item5
+                        3: item6
             "#;
 
             let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
@@ -1845,11 +2046,283 @@ mod test {
                 TestStruct {
                     name: "patch1".into(),
                     sub: Some(SubTestStruct {
-                        list: vec!["item3".into(), "item2".into()],
+                        list: vec![
+                            "item1".into(),
+                            "item5".into(),
+                            "item3".into(),
+                            "item6".into()
+                        ],
                         num: Some(42)
                     })
                 }
             );
+        }
+
+        #[test]
+        fn test_vec_insert_before_patch() {
+            let base = r#"
+                name: patch1
+                sub:
+                  list:
+                    - item1
+                    - item2
+                    - item3
+                    - item4
+                  num: 42
+            "#;
+
+            let patch = r#"
+                sub:
+                    list:
+                        "+1": 
+                          - item5
+                          - item6
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    sub: Some(SubTestStruct {
+                        list: vec![
+                            "item1".into(),
+                            "item5".into(),
+                            "item6".into(),
+                            "item2".into(),
+                            "item3".into(),
+                            "item4".into()
+                        ],
+                        num: Some(42)
+                    })
+                }
+            );
+        }
+
+        #[test]
+        fn test_vec_insert_after_patch() {
+            let base = r#"
+                name: patch1
+                sub:
+                  list:
+                    - item1
+                    - item2
+                    - item3
+                    - item4
+                  num: 42
+            "#;
+
+            let patch = r#"
+                sub:
+                    list:
+                        1+: 
+                          - item5
+                          - item6
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    sub: Some(SubTestStruct {
+                        list: vec![
+                            "item1".into(),
+                            "item2".into(),
+                            "item5".into(),
+                            "item6".into(),
+                            "item3".into(),
+                            "item4".into()
+                        ],
+                        num: Some(42)
+                    })
+                }
+            );
+        }
+
+        #[test]
+        fn test_vec_many_operations_patch() {
+            let base = r#"
+                name: patch1
+                sub:
+                  list:
+                    - item1
+                    - item2
+                    - item3
+                    - item4
+                  num: 42
+            "#;
+
+            let patch = r#"
+                sub:
+                    list:
+                        "+2":
+                          - item6
+                        1+:
+                          - item5
+                        +:
+                          - item7
+                        0: item0
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    sub: Some(SubTestStruct {
+                        list: vec![
+                            "item0".into(),
+                            "item2".into(),
+                            "item5".into(),
+                            "item6".into(),
+                            "item3".into(),
+                            "item4".into(),
+                            "item7".into()
+                        ],
+                        num: Some(42)
+                    })
+                }
+            );
+        }
+
+        #[test]
+        fn append_both_patches() {
+            let base = r#"
+                name: patch1
+                sub:
+                  list:
+                    +:
+                      - item1
+            "#;
+
+            let patch = r#"
+                sub:
+                  list:
+                    +:
+                      - item2
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    sub: Some(SubTestStruct {
+                        list: vec!["item1".into(), "item2".into(),],
+                        num: None
+                    })
+                }
+            );
+        }
+
+        #[test]
+        fn merge_many_append() {
+            let patch1 = r#"
+                sub:
+                  list:
+                    +:
+                      - item1
+            "#;
+
+            let patch2 = r#"
+                sub:
+                  list:
+                    +:
+                      - item2
+            "#;
+
+            let patch1_data: TestStructPatch = serde_yaml::from_str(patch1).unwrap();
+            let patch2_data = serde_yaml::from_str(patch2).unwrap();
+
+            let merged = patch1_data.merge(patch2_data);
+
+            let list_patch = merged
+                .sub
+                .as_ref()
+                .and_then(|s| s.as_ref())
+                .and_then(|s| s.list.as_ref())
+                .unwrap()
+                .clone();
+            let mut list: Vec<String> = vec![];
+            list.apply(list_patch);
+
+            assert_eq_sorted!(list, vec!["item1", "item2",]);
+        }
+
+        #[test]
+        fn merge_with_same_size() {
+            let a = VecPatch {
+                commands: vec![VecPatchCommand::Append(vec!["item1".to_string()])],
+            };
+            let b = VecPatch {
+                commands: vec![VecPatchCommand::Append(vec!["item2".to_string()])],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<String> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(list, vec!["item1", "item2",]);
+        }
+
+        #[test]
+        fn merge_with_a_greater() {
+            let a = VecPatch {
+                commands: vec![
+                    VecPatchCommand::InsertBefore(0, vec!["item1".to_string()]),
+                    VecPatchCommand::Append(vec!["item2".to_string()]),
+                ],
+            };
+            let b = VecPatch {
+                commands: vec![VecPatchCommand::Append(vec!["item3".to_string()])],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<String> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(list, vec!["item1", "item2", "item3",]);
+        }
+
+        #[test]
+        fn merge_with_b_greater() {
+            let a = VecPatch {
+                commands: vec![VecPatchCommand::Append(vec!["item2".to_string()])],
+            };
+            let b = VecPatch {
+                commands: vec![
+                    VecPatchCommand::InsertBefore(0, vec!["item1".to_string()]),
+                    VecPatchCommand::Append(vec!["item3".to_string()]),
+                ],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<String> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(list, vec!["item1", "item2", "item3",]);
         }
     }
 
@@ -2087,7 +2560,7 @@ mod test {
 
             let patch = r#"
                 subs:
-                  0: 
+                  1: 
                     name: sub3
                     num: 3
             "#;
@@ -2105,12 +2578,12 @@ mod test {
                     name: "patch1".into(),
                     subs: vec![
                         SubTestStruct {
-                            name: "sub3".into(),
-                            num: 3
+                            name: "sub1".into(),
+                            num: 1
                         },
                         SubTestStruct {
-                            name: "sub2".into(),
-                            num: 2
+                            name: "sub3".into(),
+                            num: 3
                         },
                     ]
                 }
@@ -2156,6 +2629,379 @@ mod test {
                         },
                     ]
                 }
+            );
+        }
+
+        #[test]
+        fn test_vec_insert_before_patch() {
+            let base = r#"
+                name: patch1
+                subs:
+                  - name: sub1
+                    num: 1
+                  - name: sub2
+                    num: 2
+                  - name: sub3
+                    num: 3
+                  - name: sub4
+                    num: 4
+            "#;
+
+            let patch = r#"
+                subs:
+                    "+1":
+                        - name: sub5
+                          num: 5
+                        - name: sub6
+                          num: 6
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    subs: vec![
+                        SubTestStruct {
+                            name: "sub1".into(),
+                            num: 1
+                        },
+                        SubTestStruct {
+                            name: "sub5".into(),
+                            num: 5
+                        },
+                        SubTestStruct {
+                            name: "sub6".into(),
+                            num: 6
+                        },
+                        SubTestStruct {
+                            name: "sub2".into(),
+                            num: 2
+                        },
+                        SubTestStruct {
+                            name: "sub3".into(),
+                            num: 3
+                        },
+                        SubTestStruct {
+                            name: "sub4".into(),
+                            num: 4
+                        },
+                    ]
+                }
+            );
+        }
+
+        #[test]
+        fn test_vec_insert_after_patch() {
+            let base = r#"
+              name: patch1
+              subs:
+                - name: sub1
+                  num: 1
+                - name: sub2
+                  num: 2
+                - name: sub3
+                  num: 3
+                - name: sub4
+                  num: 4
+            "#;
+
+            let patch = r#"
+                subs:
+                  1+:
+                    - name: sub5
+                      num: 5
+                    - name: sub6
+                      num: 6
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    subs: vec![
+                        SubTestStruct {
+                            name: "sub1".into(),
+                            num: 1
+                        },
+                        SubTestStruct {
+                            name: "sub2".into(),
+                            num: 2
+                        },
+                        SubTestStruct {
+                            name: "sub5".into(),
+                            num: 5
+                        },
+                        SubTestStruct {
+                            name: "sub6".into(),
+                            num: 6
+                        },
+                        SubTestStruct {
+                            name: "sub3".into(),
+                            num: 3
+                        },
+                        SubTestStruct {
+                            name: "sub4".into(),
+                            num: 4
+                        },
+                    ]
+                }
+            );
+        }
+
+        #[test]
+        fn test_vec_many_operations_patch() {
+            let base = r#"
+              name: patch1
+              subs:
+                - name: sub1
+                  num: 1
+                - name: sub2
+                  num: 2
+                - name: sub3
+                  num: 3
+                - name: sub4
+                  num: 4
+            "#;
+
+            let patch = r#"
+                subs:
+                  "+2":
+                    - name: sub6
+                      num: 6
+                  1+:
+                    - name: sub5
+                      num: 5
+                  +:
+                    - name: sub7
+                      num: 7
+                  0:
+                    name: sub0
+                    num: 0
+                  1<:
+                    num: 1
+            "#;
+
+            let mut base_data: TestStruct = serde_yaml::from_str::<TestStructPatch>(base)
+                .unwrap()
+                .into();
+            let patch_data: TestStructPatch = serde_yaml::from_str(patch).unwrap();
+
+            base_data.apply(patch_data);
+
+            assert_eq_sorted!(
+                base_data,
+                TestStruct {
+                    name: "patch1".into(),
+                    subs: vec![
+                        SubTestStruct {
+                            name: "sub0".into(),
+                            num: 0
+                        },
+                        SubTestStruct {
+                            name: "sub2".into(),
+                            num: 1
+                        },
+                        SubTestStruct {
+                            name: "sub5".into(),
+                            num: 5
+                        },
+                        SubTestStruct {
+                            name: "sub6".into(),
+                            num: 6
+                        },
+                        SubTestStruct {
+                            name: "sub3".into(),
+                            num: 3
+                        },
+                        SubTestStruct {
+                            name: "sub4".into(),
+                            num: 4
+                        },
+                        SubTestStruct {
+                            name: "sub7".into(),
+                            num: 7
+                        },
+                    ]
+                }
+            );
+        }
+
+        #[test]
+        fn merge_many_append() {
+            let patch1 = r#"
+                subs:
+                  +:
+                    - name: item1
+                      num: 0
+            "#;
+
+            let patch2 = r#"
+                subs:
+                  +:
+                    - name: item2
+                      num: 0
+            "#;
+
+            let patch1_data: TestStructPatch = serde_yaml::from_str(patch1).unwrap();
+            let patch2_data = serde_yaml::from_str(patch2).unwrap();
+
+            let merged = patch1_data.merge(patch2_data);
+
+            let list_patch = merged.subs.clone().unwrap();
+            let mut list: Vec<SubTestStruct> = vec![];
+            list.apply(list_patch);
+
+            assert_eq_sorted!(
+                list,
+                vec![
+                    SubTestStruct {
+                        name: "item1".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0
+                    },
+                ]
+            );
+        }
+
+        #[test]
+        fn merge_with_same_size() {
+            let a: VecDeepPatch<SubTestStruct, SubTestStructPatch> = VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::Append(vec![SubTestStruct {
+                    name: "item1".to_string(),
+                    num: 0,
+                }])],
+            };
+            let b = VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::Append(vec![SubTestStruct {
+                    name: "item2".to_string(),
+                    num: 0,
+                }])],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<SubTestStruct> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(
+                list,
+                vec![
+                    SubTestStruct {
+                        name: "item1".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0
+                    },
+                ]
+            );
+        }
+
+        #[test]
+        fn merge_with_a_greater() {
+            let a: VecDeepPatch<SubTestStruct, SubTestStructPatch> = VecDeepPatch {
+                commands: vec![
+                    VecDeepPatchCommand::InsertBefore(
+                        0,
+                        vec![SubTestStruct {
+                            name: "item1".to_string(),
+                            num: 0,
+                        }],
+                    ),
+                    VecDeepPatchCommand::Append(vec![SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0,
+                    }]),
+                ],
+            };
+            let b = VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::Append(vec![SubTestStruct {
+                    name: "item3".to_string(),
+                    num: 0,
+                }])],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<SubTestStruct> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(
+                list,
+                vec![
+                    SubTestStruct {
+                        name: "item1".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item3".to_string(),
+                        num: 0
+                    },
+                ]
+            );
+        }
+
+        #[test]
+        fn merge_with_b_greater() {
+            let a: VecDeepPatch<SubTestStruct, SubTestStructPatch> = VecDeepPatch {
+                commands: vec![VecDeepPatchCommand::Append(vec![SubTestStruct {
+                    name: "item2".to_string(),
+                    num: 0,
+                }])],
+            };
+            let b = VecDeepPatch {
+                commands: vec![
+                    VecDeepPatchCommand::InsertBefore(
+                        0,
+                        vec![SubTestStruct {
+                            name: "item1".to_string(),
+                            num: 0,
+                        }],
+                    ),
+                    VecDeepPatchCommand::Append(vec![SubTestStruct {
+                        name: "item3".to_string(),
+                        num: 0,
+                    }]),
+                ],
+            };
+            let merged = a.merge(b);
+            let mut list: Vec<SubTestStruct> = vec![];
+            list.apply(merged);
+
+            assert_eq_sorted!(
+                list,
+                vec![
+                    SubTestStruct {
+                        name: "item1".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item2".to_string(),
+                        num: 0
+                    },
+                    SubTestStruct {
+                        name: "item3".to_string(),
+                        num: 0
+                    },
+                ]
             );
         }
     }
@@ -2304,6 +3150,41 @@ mod test {
     }
 
     #[cfg(feature = "permissive")]
+    mod nested_map {
+
+        use super::*;
+
+        #[test]
+        fn test_nested_map_patch() {
+            let mut base_data: HashMap<String, String> =
+                HashMap::from([("key1.key2".to_string(), "value2".to_string())]);
+            let patch_data: NestedMap<String> = NestedMap(HashMap::from([
+                (
+                    "key1".to_string(),
+                    NestedMapValue::Map(NestedMap(HashMap::from([(
+                        "key2".to_string(),
+                        NestedMapValue::Value("patch 1".to_string()),
+                    )]))),
+                ),
+                (
+                    "key1.key3".to_string(),
+                    NestedMapValue::Value("value3".to_string()),
+                ),
+            ]));
+
+            base_data.apply(patch_data);
+
+            assert_eq!(
+                base_data,
+                HashMap::from([
+                    ("key1.key2".to_string(), "patch 1".to_string()),
+                    ("key1.key3".to_string(), "value3".to_string())
+                ])
+            );
+        }
+    }
+
+    #[cfg(feature = "permissive")]
     mod deserialize {
         use super::*;
 
@@ -2441,6 +3322,130 @@ mod test {
             fn absent() {
                 let ret: TestStruct = serde_yaml::from_str("").unwrap();
                 assert_eq_sorted!(ret, TestStruct { test: None })
+            }
+        }
+
+        mod nested_map {
+
+            use super::*;
+
+            #[test]
+            fn test_single_level_map() {
+                let yaml = r#"
+                        key1: value1
+                        key2: value2
+                        key3:
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([
+                        (
+                            "key1".to_string(),
+                            NestedMapValue::Value("value1".to_string())
+                        ),
+                        (
+                            "key2".to_string(),
+                            NestedMapValue::Value("value2".to_string())
+                        ),
+                        ("key3".to_string(), NestedMapValue::Null)
+                    ]))
+                );
+            }
+
+            #[test]
+            fn test_multilevel_map() {
+                let yaml = r#"
+                        key1:
+                          key2: value
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([(
+                        "key1".to_string(),
+                        NestedMapValue::Map(NestedMap(HashMap::from([(
+                            "key2".to_string(),
+                            NestedMapValue::Value("value".to_string())
+                        )])))
+                    )]))
+                );
+            }
+
+            #[test]
+            fn test_equivalent_flattened_map() {
+                let yaml = r#"
+                          key1.key2: value
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([(
+                        "key1.key2".to_string(),
+                        NestedMapValue::Value("value".to_string())
+                    )]))
+                );
+            }
+
+            #[test]
+            fn test_combined_multilevel_and_flattened_map() {
+                let yaml = r#"
+                          key1:
+                            key2: value2
+                          key1.key3: value3
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([
+                        (
+                            "key1".to_string(),
+                            NestedMapValue::Map(NestedMap(HashMap::from([(
+                                "key2".to_string(),
+                                NestedMapValue::Value("value2".to_string())
+                            )])))
+                        ),
+                        (
+                            "key1.key3".to_string(),
+                            NestedMapValue::Value("value3".to_string())
+                        )
+                    ]))
+                );
+            }
+
+            #[test]
+            fn test_empty_map() {
+                let yaml = r#"
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(result, NestedMap(HashMap::new()));
+            }
+
+            #[test]
+            fn test_nested_empty_map() {
+                let yaml = r#"
+                          key1: {}
+                    "#;
+
+                let result: NestedMap<String> = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq!(
+                    result,
+                    NestedMap(HashMap::from([(
+                        "key1".to_string(),
+                        NestedMapValue::Map(NestedMap(HashMap::new()))
+                    )]))
+                );
             }
         }
     }

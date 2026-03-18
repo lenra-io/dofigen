@@ -20,6 +20,9 @@ fn test_cases() {
     // Get the Dockerfile results by filtering the files ending with .result.Dockerfile in a map with the basename as key
     let (dockerfile_results, path_ref) = filter_to_map(path_ref, ".result.Dockerfile");
 
+    // Get the lock files
+    let (_, path_ref) = filter_to_map(path_ref, ".lock");
+
     // Iterate over remaining files and generate the effective YAML and Dockerfile to compare with the expected results
     for path in path_ref {
         let mut basename = path.to_str().unwrap().to_string();
@@ -35,7 +38,8 @@ fn test_cases() {
 
         println!("Processing {}", basename);
 
-        let dofigen: Dofigen = DofigenContext::new()
+        let mut context = DofigenContext::new();
+        let dofigen: Dofigen = context
             .parse_from_resource(Resource::File(path.clone()))
             .unwrap();
 
@@ -78,7 +82,7 @@ fn test_cases() {
 
 #[test]
 fn test_load_url() {
-    use httptest::{matchers::*, responders::*, Expectation, Server};
+    use httptest::{Expectation, Server, matchers::*, responders::*};
     use url::Url;
 
     let test_case_dir = PathBuf::from("tests/cases/");
@@ -118,4 +122,48 @@ fn test_load_url() {
         std::fs::read_to_string(test_case_dir.join("springboot-maven.override.result.Dockerfile"))
             .unwrap()
     );
+}
+
+#[test]
+fn test_dockerfile_parser() {
+    // Get all the files in the tests/cases directory
+    let paths: Vec<PathBuf> = std::fs::read_dir("tests/cases")
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .collect();
+
+    let path_ref: Vec<&PathBuf> = paths.iter().collect();
+
+    // Get the Dockerfile results by filtering the files ending with .result.Dockerfile in a map with the basename as key
+    let (dockerfile_results, _) = filter_to_map(path_ref, ".result.Dockerfile");
+
+    // Iterate over remaining files and generate the effective YAML and Dockerfile to compare with the expected results
+    for basename in dockerfile_results.keys() {
+        println!("Processing Dockerfile {}", basename);
+        let content = dockerfile_results.get(basename).unwrap();
+
+        let dockerfile: DockerFile = content.parse().unwrap();
+        assert!(dockerfile.lines.len() > 0);
+    }
+}
+
+fn filter_to_map<'a>(
+    files: Vec<&'a PathBuf>,
+    filter: &str,
+) -> (std::collections::HashMap<String, String>, Vec<&'a PathBuf>) {
+    let (results, files): (_, Vec<_>) = files
+        .into_iter()
+        .partition(|path| path.to_str().unwrap().ends_with(filter));
+
+    let results = results
+        .iter()
+        .filter_map(|path| {
+            let mut basename = path.to_str().unwrap().to_string();
+            basename.truncate(basename.len() - filter.len());
+            let content = std::fs::read_to_string(path).unwrap();
+            Some((basename, content))
+        })
+        .collect::<std::collections::HashMap<String, String>>();
+
+    (results, files)
 }

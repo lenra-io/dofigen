@@ -1,0 +1,7 @@
+extend: springboot-maven.base.permissive.yml
+globalArg:
+  JAVA_VERSION: "21"
+builders:
+  maven-builder:
+    fromContext: maven:3-eclipse-temurin-${JAVA_VERSION}-alpine
+fromContext: eclipse-temurin:${JAVA_VERSION}-jre-alpine

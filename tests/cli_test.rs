@@ -6,12 +6,11 @@ mod cli {
     use assert_cmd::output::OutputOkExt;
     use assert_fs::{
         assert::PathAssert,
-        prelude::{PathChild, PathCopy},
+        prelude::{FileWriteStr, PathChild, PathCopy},
     };
     use escargot::CargoRun;
     use lazy_static::lazy_static;
     use pretty_assertions_sorted::assert_eq_sorted;
-    use regex::Regex;
 
     lazy_static! {
         static ref BIN: CargoRun = generate_bin();
@@ -36,6 +35,10 @@ mod cli {
         {
             cargo_build = cargo_build.features("json_schema");
         }
+        #[cfg(feature = "parse")]
+        {
+            cargo_build = cargo_build.features("parse");
+        }
 
         cargo_build.run().unwrap()
     }
@@ -44,6 +47,12 @@ mod cli {
         let mut output = str::from_utf8(output).unwrap().to_string();
 
         output.truncate(expected.len());
+
+        assert_eq_sorted!(output, expected);
+    }
+
+    fn assert_output(output: &Vec<u8>, expected: &str) {
+        let output = str::from_utf8(output).unwrap().to_string();
 
         assert_eq_sorted!(output, expected);
     }
@@ -100,7 +109,7 @@ Usage: dofigen <COMMAND>"#,
     }
 
     #[test]
-    fn generate_specified_file_offline() {
+    fn generate_specified_file_locked() {
         let temp = assert_fs::TempDir::new().unwrap();
 
         let mut cmd = BIN.command();
@@ -109,14 +118,18 @@ Usage: dofigen <COMMAND>"#,
 
         #[cfg(not(feature = "permissive"))]
         {
-            temp.copy_from("tests/cases", &["simple.yml"]).unwrap();
+            temp.copy_from("tests/cases", &["simple.yml", "simple.lock"])
+                .unwrap();
             cmd.arg("simple.yml");
         }
 
         #[cfg(feature = "permissive")]
         {
-            temp.copy_from("tests/cases", &["simple.permissive.yml"])
-                .unwrap();
+            temp.copy_from(
+                "tests/cases",
+                &["simple.permissive.yml", "simple.permissive.lock"],
+            )
+            .unwrap();
             cmd.arg("simple.permissive.yml");
         }
 
@@ -124,7 +137,7 @@ Usage: dofigen <COMMAND>"#,
 
         assert!(output.status.success());
 
-        output_starts_with(&output.stdout, "        Add resource simple.");
+        assert_output(&output.stdout, "");
 
         let dockerfile = temp.child("Dockerfile");
         let dockerignore = temp.child(".dockerignore");
@@ -134,13 +147,9 @@ Usage: dofigen <COMMAND>"#,
 
         let dockerfile_content = read_to_string(dockerfile.path()).unwrap();
 
-        // Remove the sha256 hash
-        let re = Regex::new(r"@sha256:\S+").unwrap();
-        let dockerfile_content = re.replace_all(dockerfile_content.as_str(), "");
-
         assert_eq_sorted!(
             dockerfile_content,
-            read_to_string("tests/cases/simple.result.Dockerfile").unwrap()
+            read_to_string("tests/cases/simple.locked.result.Dockerfile").unwrap()
         );
 
         dockerignore.assert(
@@ -169,6 +178,145 @@ Usage: dofigen <COMMAND>"#,
         assert!(output.stdout.is_empty());
 
         output_starts_with(&output.stderr, "error: No Dofigen file found");
+
+        temp.close().unwrap();
+    }
+
+    #[test]
+    fn extend_not_existing_url() {
+        let temp = assert_fs::TempDir::new().unwrap();
+
+        let mut cmd = BIN.command();
+        cmd.current_dir(temp.path());
+        cmd.arg("generate");
+
+        let file = temp.child("dofigen.yml");
+        file.write_str(
+            r#"extend:
+  - http://localhost:1/not-existing.yml
+"#,
+        )
+        .unwrap();
+
+        let output = cmd.unwrap_err();
+        let output = output.as_output().unwrap();
+
+        assert!(!output.status.success());
+
+        let output = str::from_utf8(&output.stderr).unwrap().to_string();
+
+        assert_eq_sorted!(
+            output,
+            "error: error sending request for url (http://localhost:1/not-existing.yml)\n\tCaused by: client error (Connect)\n\tCaused by: tcp connect error\n\tCaused by: Connection refused (os error 111)\n"
+        );
+
+        temp.close().unwrap();
+    }
+
+    #[test]
+    fn extend_append_context_in_many_patches() {
+        let temp = assert_fs::TempDir::new().unwrap();
+
+        let file = temp.child("dofigen.yml");
+        file.write_str(
+            r#"extend:
+  - file1.yml
+  - file2.yml
+"#,
+        )
+        .unwrap();
+
+        let file1 = temp.child("file1.yml");
+        file1
+            .write_str(
+                r#"context:
+  +:
+    - src/
+"#,
+            )
+            .unwrap();
+
+        let file2 = temp.child("file2.yml");
+        file2
+            .write_str(
+                r#"context:
+  +:
+    - Cargo.*
+"#,
+            )
+            .unwrap();
+
+        let mut cmd = BIN.command();
+        cmd.current_dir(temp.path());
+        cmd.arg("effective");
+
+        let output = cmd.unwrap().stdout;
+        let output = str::from_utf8(&output).unwrap();
+
+        assert_eq_sorted!(
+            output,
+            r#"context:
+- src/
+- Cargo.*
+label:
+  io.dofigen.version: 0.0.0
+
+"#
+        );
+
+        temp.close().unwrap();
+    }
+
+    #[cfg(feature = "parse")]
+    #[test]
+    fn parse_specified_file() {
+        let temp = assert_fs::TempDir::new().unwrap();
+
+        let mut cmd = BIN.command();
+        cmd.current_dir(temp.path());
+        cmd.arg("parse").arg("-f");
+
+        temp.copy_from("tests/cases", &["simple.result.Dockerfile"])
+            .unwrap();
+        cmd.arg("simple.result.Dockerfile");
+
+        let output = cmd.unwrap();
+
+        assert!(output.status.success());
+
+        assert_output(&output.stdout, "");
+
+        let dofigen = temp.child("dofigen.yml");
+
+        dofigen.assert(predicates::path::is_file());
+
+        let dofigen_content = read_to_string(dofigen.path()).unwrap();
+
+        assert_eq_sorted!(
+            dofigen_content,
+            read_to_string("tests/cases/simple.yml").unwrap()
+        );
+
+        temp.close().unwrap();
+    }
+
+    #[cfg(feature = "parse")]
+    #[test]
+    fn parse_file_not_found() {
+        let temp = assert_fs::TempDir::new().unwrap();
+
+        let mut cmd = BIN.command();
+        cmd.current_dir(temp.path());
+        cmd.arg("parse");
+
+        let output = cmd.unwrap_err();
+        let output = output.as_output().unwrap();
+
+        assert!(!output.status.success());
+
+        assert!(output.stdout.is_empty());
+
+        output_starts_with(&output.stderr, "error: No Dockerfile file found");
 
         temp.close().unwrap();
     }

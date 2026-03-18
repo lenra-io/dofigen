@@ -30,7 +30,7 @@ Use it with Docker
 You can run Dofigen directly from its Docker image with the following command:
 
 ```bash
-docker run --rm -it -v $(pwd):/app lenra/dofigen
+docker run --rm -it -v $(pwd):/app -u $UID lenra/dofigen
 ```
 
 See the full documentation on the [GitHub repository](https://github.com/lenra-io/dofigen/).

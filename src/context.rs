@@ -2,8 +2,8 @@ use colored::{Color, Colorize};
 use serde::Deserialize;
 
 use crate::{
-    lock::{DockerTag, ResourceVersion, DEFAULT_NAMESPACE, DOCKER_HUB_HOST},
     Dofigen, DofigenPatch, Error, Extend, ImageName, ImageVersion, Resource, Result,
+    lock::{DEFAULT_NAMESPACE, DOCKER_HUB_HOST, DockerTag, ResourceVersion},
 };
 use std::{
     collections::{HashMap, HashSet},
@@ -21,6 +21,7 @@ pub struct DofigenContext {
     pub update_url_resources: bool,
     pub update_docker_tags: bool,
     pub display_updates: bool,
+    pub no_default_labels: bool,
 
     // Load resources
     load_resource_stack: Vec<Resource>,
@@ -128,15 +129,11 @@ impl DofigenContext {
                         "Offline mode can't load URL resources".to_string(),
                     ));
                 }
-                let response = reqwest::blocking::get(url.as_ref()).map_err(|err| {
-                    Error::Custom(format!("Could not get url {:?}: {}", url, err))
-                })?;
-                response.text().map_err(|err| {
-                    Error::Custom(format!(
-                        "Could not read response from url {:?}: {}",
-                        url, err
-                    ))
-                })?
+                reqwest::blocking::get(url.as_ref())
+                    .map_err(Error::from)?
+                    .error_for_status()?
+                    .text()
+                    .map_err(Error::from)?
             }
         };
         let version = ResourceVersion {
@@ -225,6 +222,15 @@ impl DofigenContext {
             .host
             .clone()
             .ok_or(Error::Custom("No host found for image".into()))?;
+        let port = image
+            .port
+            .clone()
+            .ok_or(Error::Custom("No port found for image".into()))?;
+        let port = if port == 443 {
+            String::new()
+        } else {
+            format!(":{port}")
+        };
 
         let client = reqwest::blocking::Client::new();
 
@@ -239,7 +245,7 @@ impl DofigenContext {
                 DEFAULT_NAMESPACE
             };
             let request_url = format!(
-                "https://{host}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
+                "https://{DOCKER_HUB_HOST}/v2/namespaces/{namespace}/repositories/{repo}/tags/{tag}",
                 namespace = namespace,
                 repo = repo,
                 tag = tag
@@ -255,7 +261,7 @@ impl DofigenContext {
             }
         } else {
             let request_url = format!(
-                "https://{host}/v2/{path}/manifests/{tag}",
+                "https://{host}{port}/v2/{path}/manifests/{tag}",
                 path = image.path,
                 tag = tag
             );
@@ -620,6 +626,7 @@ impl DofigenContext {
             update_file_resources: true,
             update_url_resources: false,
             display_updates: true,
+            no_default_labels: false,
             load_resource_stack: vec![],
             resources: HashMap::new(),
             used_resources: HashSet::new(),
@@ -638,6 +645,7 @@ impl DofigenContext {
             update_file_resources: true,
             update_url_resources: false,
             display_updates: true,
+            no_default_labels: false,
             load_resource_stack: vec![],
             resources,
             used_resources: HashSet::new(),

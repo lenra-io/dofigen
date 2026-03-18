@@ -1,0 +1,29 @@
+context:
+- /pom.xml
+- /src/main/
+globalArg:
+  JAVA_VERSION: '21'
+builders:
+  maven-builder:
+    fromContext: maven:3-eclipse-temurin-${JAVA_VERSION}-alpine
+    workdir: /app
+    copy:
+    - paths:
+      - .
+    root:
+      run:
+      - mvn package -DskipTests
+      - mv target/*.jar app.jar
+      cache:
+      - target: /root/.m2
+      - target: /app/target
+fromContext: eclipse-temurin:${JAVA_VERSION}-jre-alpine
+copy:
+- fromBuilder: maven-builder
+  paths:
+  - /app/app.jar
+  target: app.jar
+cmd:
+- java
+- -jar
+- app.jar

@@ -1,5 +1,7 @@
 use crate::deserialize::*;
 #[cfg(feature = "json_schema")]
+use crate::json_schema::optional_string_or_number_schema;
+#[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf};
@@ -12,13 +14,18 @@ use url::Url;
 #[patch(
     attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
     // attribute(serde(deny_unknown_fields)),
-    attribute(serde(default))
+    attribute(serde(default, rename_all = "camelCase"))
 )]
 #[cfg_attr(
     feature = "json_schema",
     patch(
         attribute(derive(JsonSchema)),
-        attribute(schemars(title = "Dofigen", rename = "Dofigen"))
+        attribute(schemars(
+            title = "Dofigen",
+            rename = "Dofigen",
+            extend("$id" = "https://json.schemastore.org/dofigen.json"),
+            description = "Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format"
+        ))
     )
 )]
 pub struct Dofigen {
@@ -35,9 +42,18 @@ pub struct Dofigen {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub ignore: Vec<String>,
 
+    /// The global build args of the Dockerfile
+    /// See: https://docs.docker.com/build/building/variables/#scoping
+    #[patch(name = "HashMapPatch<String, String>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "globalArgs"))))]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub global_arg: HashMap<String, String>,
+
     /// The builder stages of the Dockerfile
     #[patch(name = "HashMapDeepPatch<String, StagePatch>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "builder"))))]
     #[serde(skip_serializing_if = "HashMap::is_empty")]
+    // TODO: deprecated. Replace builders by builder
     pub builders: HashMap<String, Stage>,
 
     /// The runtime stage of the Dockerfile
@@ -56,6 +72,13 @@ pub struct Dofigen {
     #[patch(name = "VecPatch<String>")]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub cmd: Vec<String>,
+
+    /// Create volume mounts
+    /// See https://docs.docker.com/reference/dockerfile/#volume
+    #[patch(name = "VecPatch<String>")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "volumes"))))]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub volume: Vec<String>,
 
     /// The ports exposed by the Dockerfile
     /// See https://docs.docker.com/reference/dockerfile/#expose
@@ -101,6 +124,14 @@ pub struct Stage {
     #[serde(flatten, skip_serializing_if = "FromContext::is_empty")]
     #[patch(name = "FromContextPatch", attribute(serde(flatten, default)))]
     pub from: FromContext,
+
+    /// Add metadata to an image
+    /// See https://docs.docker.com/reference/dockerfile/#label
+    #[cfg_attr(not(feature = "strict"), patch(name = "NestedMap<String>"))]
+    #[cfg_attr(feature = "strict", patch(name = "HashMapPatch<String, String>"))]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "labels"))))]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
+    pub label: HashMap<String, String>,
 
     /// The user and group of the stage
     /// See https://docs.docker.com/reference/dockerfile/#user
@@ -186,6 +217,12 @@ pub struct Run {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub run: Vec<String>,
 
+    /// The shell to use for the RUN command
+    /// See https://docs.docker.com/reference/dockerfile/#shell
+    #[patch(name = "VecPatch<String>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub shell: Vec<String>,
+
     /// The cache definitions during the run
     /// See https://docs.docker.com/reference/dockerfile/#run---mounttypecache
     #[cfg_attr(
@@ -214,6 +251,42 @@ pub struct Run {
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "binds"))))]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub bind: Vec<Bind>,
+
+    /// This mount type allows [mounting tmpfs](https://docs.docker.com/reference/dockerfile/#run---mounttypetmpfs) in the build container.
+    #[cfg_attr(
+        feature = "permissive",
+        patch(name = "VecDeepPatch<TmpFs, ParsableStruct<TmpFsPatch>>")
+    )]
+    #[cfg_attr(
+        not(feature = "permissive"),
+        patch(name = "VecDeepPatch<TmpFs, TmpFsPatch>")
+    )]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tmpfs: Vec<TmpFs>,
+
+    /// This allows the build container to access secret values, such as tokens or private keys, without baking them into the image.
+    /// By default, the secret is mounted as a file. You can also mount the secret as an environment variable by setting the env option.
+    /// See https://docs.docker.com/reference/dockerfile/#run---mounttypesecret
+    #[patch(name = "VecDeepPatch<Secret, SecretPatch>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "secrets"))))]
+    pub secret: Vec<Secret>,
+
+    /// This allows the build container to access SSH keys via SSH agents, with support for passphrases.
+    /// See https://docs.docker.com/reference/dockerfile/#run---mounttypessh
+    #[patch(name = "VecDeepPatch<Ssh, SshPatch>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ssh: Vec<Ssh>,
+
+    /// This allows control over which networking environment the command is run in.
+    /// See https://docs.docker.com/reference/dockerfile/#run---network
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub network: Option<Network>,
+
+    /// The default security mode is sandbox. With `security: insecure`, the builder runs the command without sandbox in insecure mode, which allows to run flows requiring elevated privileges (e.g. containerd).
+    /// See https://docs.docker.com/reference/dockerfile/#run---security
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub security: Option<Security>,
 }
 
 /// Represents a cache definition during a run
@@ -270,6 +343,10 @@ pub struct Cache {
         )))
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "json_schema",
+        patch(attribute(schemars(schema_with = "optional_string_or_number_schema")))
+    )]
     pub chmod: Option<String>,
 
     /// The user and group that own the cache
@@ -309,6 +386,114 @@ pub struct Bind {
     #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "rw"))))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub readwrite: Option<bool>,
+}
+
+/// This mount type allows [mounting tmpfs](https://docs.docker.com/reference/dockerfile/#run---mounttypetmpfs) in the build container.
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypetmpfs
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "TmpFs", rename = "TmpFs"))
+    )
+)]
+pub struct TmpFs {
+    /// Mount path of the tmpfs
+    pub target: String,
+
+    /// Specify an upper limit on the size of the filesystem.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<String>,
+}
+
+/// This mount type allows the build container to access secret values, such as tokens or private keys, without baking them into the image.
+/// By default, the secret is mounted as a file. You can also mount the secret as an environment variable by setting the env option.
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypesecret
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Secret", rename = "Secret"))
+    )
+)]
+pub struct Secret {
+    /// ID of the secret. Defaults to basename of the target path.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// Mount the secret to the specified path. Defaults to /run/secrets/ + id if unset and if env is also unset.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+
+    /// Mount the secret to an environment variable instead of a file, or both.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub env: Option<String>,
+
+    /// If set to true, the instruction errors out when the secret is unavailable. Defaults to false.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub required: Option<bool>,
+
+    /// File mode for secret file in octal. Default `0400`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+
+    /// User ID for secret file. Default 0.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uid: Option<u16>,
+
+    /// Group ID for secret file. Default 0.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gid: Option<u16>,
+}
+
+/// This mount type allows the build container to access SSH keys via SSH agents, with support for passphrases.
+/// See https://docs.docker.com/reference/dockerfile/#run---mounttypessh
+#[derive(Serialize, Debug, Clone, PartialEq, Default, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "Ssh", rename = "Ssh"))
+    )
+)]
+pub struct Ssh {
+    /// ID of SSH agent socket or key. Defaults to "default".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+
+    /// SSH agent socket path. Defaults to /run/buildkit/ssh_agent.${N}.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<String>,
+
+    /// If set to true, the instruction errors out when the key is unavailable. Defaults to false.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub required: Option<bool>,
+
+    /// File mode for socket in octal. Default `0600`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
+
+    /// User ID for socket. Default 0.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uid: Option<u16>,
+
+    /// Group ID for socket. Default 0.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gid: Option<u16>,
 }
 
 /// Represents the Dockerfile healthcheck instruction
@@ -375,6 +560,13 @@ pub struct ImageName {
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
     #[patch(attribute(serde(flatten)))]
     pub version: Option<ImageVersion>,
+
+    /// The optional platform option can be used to specify the platform of the image in case FROM references a multi-platform image.
+    /// For example, linux/amd64, linux/arm64, or windows/amd64.
+    /// By default, the target platform of the build request is used. Global build arguments can be used in the value of this flag, for example automatic platform ARGs allow you to force a stage to native build platform (platform: $BUILDPLATFORM), and use it to cross-compile to the target platform inside the stage.
+    /// See https://docs.docker.com/reference/dockerfile/#from
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<String>,
 }
 
 /// Represents the COPY instruction in a Dockerfile.
@@ -411,16 +603,44 @@ pub struct Copy {
     #[serde(flatten)]
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
-    // excludes are not supported yet: minimal version 1.7-labs
-    // /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    // #[patch(name = "VecPatch<String>")]
-    // #[serde(skip_serializing_if = "Vec::is_empty")]
-    // pub exclude: Vec<String>,
 
-    // parents are not supported yet: minimal version 1.7-labs
-    // /// See https://docs.docker.com/reference/dockerfile/#copy---parents
-    // #[serde(skip_serializing_if = "Option::is_none")]
-    // pub parents: Option<bool>,
+    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[patch(name = "VecPatch<String>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
+
+    /// See https://docs.docker.com/reference/dockerfile/#copy---parents
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parents: Option<bool>,
+}
+
+/// Represents the COPY instruction in a Dockerfile from file content.
+/// See https://docs.docker.com/reference/dockerfile/#example-creating-inline-files
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Patch)]
+#[patch(
+    attribute(derive(Deserialize, Debug, Clone, PartialEq, Default)),
+    attribute(serde(deny_unknown_fields, default))
+)]
+#[cfg_attr(
+    feature = "json_schema",
+    patch(
+        attribute(derive(JsonSchema)),
+        attribute(schemars(title = "CopyContent", rename = "CopyContent"))
+    )
+)]
+pub struct CopyContent {
+    /// Content of the file to copy
+    pub content: String,
+
+    /// If true, replace variables in the content at build time. Default is true.
+    #[cfg_attr(not(feature = "strict"), patch(attribute(serde(alias = "subst"))))]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub substitute: Option<bool>,
+
+    /// The options of the copy
+    #[serde(flatten)]
+    #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
+    pub options: CopyOptions,
 }
 
 /// Represents the ADD instruction in a Dockerfile specific for Git repo.
@@ -446,15 +666,20 @@ pub struct AddGitRepo {
     #[patch(name = "CopyOptionsPatch", attribute(serde(flatten)))]
     pub options: CopyOptions,
 
-    // excludes are not supported yet: minimal version 1.7-labs
-    // /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
-    // #[patch(name = "VecPatch<String>")]
-    // #[serde(skip_serializing_if = "Vec::is_empty")]
-    // pub exclude: Vec<String>,
+    /// See https://docs.docker.com/reference/dockerfile/#copy---exclude
+    #[patch(name = "VecPatch<String>")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub exclude: Vec<String>,
+
     /// Keep the git directory
     /// See https://docs.docker.com/reference/dockerfile/#add---keep-git-dir
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keep_git_dir: Option<bool>,
+
+    /// The checksum of the files
+    /// See https://docs.docker.com/reference/dockerfile/#add---checksum
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub checksum: Option<String>,
 }
 
 /// Represents the ADD instruction in a Dockerfile file from URLs or uncompress an archive.
@@ -486,6 +711,12 @@ pub struct Add {
     /// See https://docs.docker.com/reference/dockerfile/#add---checksum
     #[serde(skip_serializing_if = "Option::is_none")]
     pub checksum: Option<String>,
+
+    /// The unpack flag controls whether or not to automatically unpack tar archives (including compressed formats like gzip or bzip2) when adding them to the image.
+    /// Local tar archives are unpacked by default, whereas remote tar archives (where src is a URL) are downloaded without unpacking.
+    /// See https://docs.docker.com/reference/dockerfile/#add---unpack
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unpack: Option<bool>,
 }
 
 /// Represents the options of a COPY/ADD instructions
@@ -526,6 +757,10 @@ pub struct CopyOptions {
         )))
     )]
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(
+        feature = "json_schema",
+        patch(attribute(schemars(schema_with = "optional_string_or_number_schema")))
+    )]
     pub chmod: Option<String>,
 
     /// Use of the link flag
@@ -604,6 +839,7 @@ pub enum FromContext {
 #[serde(untagged)]
 pub enum CopyResource {
     Copy(Copy),
+    Content(CopyContent),
     AddGitRepo(AddGitRepo),
     Add(Add),
 }
@@ -636,6 +872,28 @@ pub enum Resource {
     File(PathBuf),
 }
 
+/// Represents a network configuration
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum Network {
+    /// Run in the default network.
+    Default,
+    /// Run with no network access.
+    None,
+    /// Run in the host's network environment.
+    Host,
+}
+
+/// Represents a security mode
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "json_schema", derive(JsonSchema))]
+pub enum Security {
+    Sandbox,
+    Insecure,
+}
+
 ///////////////// Enum Patches //////////////////
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -662,6 +920,7 @@ pub enum FromContextPatch {
 #[cfg_attr(feature = "json_schema", derive(JsonSchema))]
 pub enum CopyResourcePatch {
     Copy(CopyPatch),
+    Content(CopyContentPatch),
     AddGitRepo(AddGitRepoPatch),
     Add(AddPatch),
     Unknown(UnknownPatch),
@@ -672,8 +931,7 @@ pub enum CopyResourcePatch {
 pub struct UnknownPatch {
     #[serde(flatten)]
     pub options: Option<CopyOptionsPatch>,
-    // exclude are not supported yet: minimal version 1.7-labs
-    // pub exclude: Option<VecPatch<String>>,
+    pub exclude: Option<VecPatch<String>>,
 }
 
 ///////////////// Tests //////////////////
@@ -757,6 +1015,30 @@ mod test {
 
                 assert!(dofigen.is_err());
             }
+
+            #[test]
+            fn global_arg() {
+                let data = r#"
+                globalArg:
+                  IMAGE: ubuntu
+                fromContext: ${IMAGE}
+                "#;
+
+                let dofigen: DofigenPatch = serde_yaml::from_str(data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
+
+                assert_eq_sorted!(
+                    dofigen,
+                    Dofigen {
+                        global_arg: HashMap::from([("IMAGE".into(), "ubuntu".into())]),
+                        stage: Stage {
+                            from: FromContext::FromContext(Some("${IMAGE}".into())).into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
+                );
+            }
         }
 
         mod stage {
@@ -824,6 +1106,32 @@ mod test {
 
                 assert!(stage.is_err());
             }
+
+            #[test]
+            fn label() {
+                #[cfg(not(feature = "strict"))]
+                let data = r#"
+                label:
+                  io.dofigen:
+                    test: test
+                "#;
+                #[cfg(feature = "strict")]
+                let data = r#"
+                label:
+                  io.dofigen.test: test
+                "#;
+
+                let stage: StagePatch = serde_yaml::from_str(data).unwrap();
+                let stage: Stage = stage.into();
+
+                assert_eq_sorted!(
+                    stage,
+                    Stage {
+                        label: HashMap::from([("io.dofigen.test".into(), "test".into())]),
+                        ..Default::default()
+                    }
+                );
+            }
         }
 
         mod user {
@@ -886,7 +1194,51 @@ mod test {
                         from: FromContext::FromImage(ImageName {
                             path: "my-image".into(),
                             ..Default::default()
-                        })
+                        }),
+                        exclude: vec![].into(),
+                        parents: None,
+                    })
+                );
+            }
+
+            #[test]
+            fn copy_from_yaml() {
+                let yaml_data = r#"
+paths: 
+  - file1.txt
+  - file2.txt
+target: destination/
+chown:
+  user: root
+  group: root
+chmod: "755"
+link: true
+fromImage:
+  path: my-image
+"#;
+
+                let copy_resource: CopyResourcePatch = serde_yaml::from_str(yaml_data).unwrap();
+                let copy_resource: CopyResource = copy_resource.into();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResource::Copy(Copy {
+                        paths: vec!["file1.txt".into(), "file2.txt".into()].into(),
+                        options: CopyOptions {
+                            target: Some("destination/".into()),
+                            chown: Some(User {
+                                user: "root".into(),
+                                group: Some("root".into())
+                            }),
+                            chmod: Some("755".into()),
+                            link: Some(true),
+                        },
+                        from: FromContext::FromImage(ImageName {
+                            path: "my-image".into(),
+                            ..Default::default()
+                        }),
+                        exclude: vec![].into(),
+                        parents: None,
                     })
                 );
             }
@@ -966,6 +1318,98 @@ mod test {
             }
 
             #[test]
+            fn copy_with_chown_regression() {
+                let yaml = r#"
+fromContext: get-composer
+paths:
+  - "/usr/bin/composer"
+target: "/bin/"
+chown:
+  user: test
+link: true
+"#;
+
+                let copy_resource: CopyResourcePatch = serde_yaml::from_str(yaml).unwrap();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResourcePatch::Copy(CopyPatch {
+                        from: Some(FromContextPatch::FromContext(Some("get-composer".into()))),
+                        paths: Some(VecPatch {
+                            commands: vec![VecPatchCommand::ReplaceAll(
+                                vec!["/usr/bin/composer".to_string()].into()
+                            )]
+                        }),
+                        options: Some(CopyOptionsPatch {
+                            target: Some(Some("/bin/".into())),
+                            chown: Some(Some(UserPatch {
+                                user: Some("test".into()),
+                                group: None
+                            })),
+                            link: Some(Some(true)),
+                            ..Default::default()
+                        }),
+                        ..Default::default()
+                    })
+                );
+
+                let copy_resource: CopyResource = copy_resource.into();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResource::Copy(Copy {
+                        from: FromContext::FromContext(Some("get-composer".into())),
+                        paths: vec!["/usr/bin/composer".into()].into(),
+                        options: CopyOptions {
+                            target: Some("/bin/".into()),
+                            chown: Some(User {
+                                user: "test".into(),
+                                group: None
+                            }),
+                            link: Some(true),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    })
+                );
+            }
+
+            #[test]
+            fn copy_content() {
+                let json_data = r#"{
+    "content": "echo coucou",
+    "substitute": false,
+    "target": "test.sh",
+    "chown": {
+        "user": "1001",
+        "group": "1001"
+    },
+    "chmod": "555",
+    "link": true
+}"#;
+
+                let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
+                let copy_resource: CopyResource = copy_resource.into();
+
+                assert_eq_sorted!(
+                    copy_resource,
+                    CopyResource::Content(CopyContent {
+                        content: "echo coucou".into(),
+                        substitute: Some(false),
+                        options: CopyOptions {
+                            target: Some("test.sh".into()),
+                            chown: Some(User {
+                                user: "1001".into(),
+                                group: Some("1001".into())
+                            }),
+                            chmod: Some("555".into()),
+                            link: Some(true),
+                        }
+                    })
+                );
+            }
+
+            #[test]
             fn add_git_repo() {
                 let json_data = r#"{
             "repo": "https://github.com/example/repo.git",
@@ -976,7 +1420,8 @@ mod test {
             },
             "chmod": "755",
             "link": true,
-            "keepGitDir": true
+            "keepGitDir": true,
+            "checksum": "sha256:abcdef123456"
         }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
@@ -995,7 +1440,9 @@ mod test {
                             chmod: Some("755".into()),
                             link: Some(true),
                         },
-                        keep_git_dir: Some(true)
+                        keep_git_dir: Some(true),
+                        exclude: vec![].into(),
+                        checksum: Some("sha256:abcdef123456".into()),
                     })
                 );
             }
@@ -1011,7 +1458,8 @@ mod test {
                 "group": "root"
             },
             "chmod": "755",
-            "link": true
+            "link": true,
+            "unpack": false
         }"#;
 
                 let copy_resource: CopyResourcePatch = serde_yaml::from_str(json_data).unwrap();
@@ -1035,7 +1483,69 @@ mod test {
                             link: Some(true),
                         },
                         checksum: Some("sha256:abcdef123456".into()),
+                        unpack: Some(false),
                     })
+                );
+            }
+
+            #[test]
+            fn copy_in_dofigen() {
+                let yaml_data = r#"
+copy:
+- fromContext: get-composer
+  paths:
+    - "/usr/bin/composer"
+  target: "/bin/"
+  chown:
+    user: test
+  link: true
+- repo: 'https://github.com/pelican-dev/panel.git'
+  target: '/tmp/pelican'
+  chown:
+    user: test
+  link: true
+"#;
+
+                let dofigen: DofigenPatch = serde_yaml::from_str(yaml_data).unwrap();
+                let dofigen: Dofigen = dofigen.into();
+
+                assert_eq_sorted!(
+                    dofigen,
+                    Dofigen {
+                        stage: Stage {
+                            copy: vec![
+                                CopyResource::Copy(Copy {
+                                    from: FromContext::FromContext(Some("get-composer".into())),
+                                    paths: vec!["/usr/bin/composer".into()].into(),
+                                    options: CopyOptions {
+                                        target: Some("/bin/".into()),
+                                        chown: Some(User {
+                                            user: "test".into(),
+                                            group: None
+                                        }),
+                                        link: Some(true),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                }),
+                                CopyResource::AddGitRepo(AddGitRepo {
+                                    repo: "https://github.com/pelican-dev/panel.git".into(),
+                                    options: CopyOptions {
+                                        target: Some("/tmp/pelican".into()),
+                                        chown: Some(User {
+                                            user: "test".into(),
+                                            group: None
+                                        }),
+                                        link: Some(true),
+                                        ..Default::default()
+                                    },
+                                    ..Default::default()
+                                })
+                            ],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    }
                 );
             }
         }

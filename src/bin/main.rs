@@ -5,6 +5,9 @@ use commands::schema::Schema;
 use commands::{effective::Effective, generate::Generate, update::Update};
 use dofigen_lib::Result;
 
+#[cfg(feature = "parse")]
+use crate::commands::parse::Parse;
+
 mod commands;
 
 /// Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
@@ -50,6 +53,10 @@ pub enum Command {
     /// Generate the JSON Schema for the Dofigen structure
     #[cfg(feature = "json_schema")]
     Schema(Schema),
+
+    /// Parse a Dockerfile (and optionally a .dockerignore) into a Dofigen file
+    #[cfg(feature = "parse")]
+    Parse(Parse),
 }
 
 impl Command {
@@ -60,6 +67,8 @@ impl Command {
             Command::Update(u) => u.run(),
             #[cfg(feature = "json_schema")]
             Command::Schema(s) => s.run(),
+            #[cfg(feature = "parse")]
+            Command::Parse(p) => p.run(),
         }
     }
 }

@@ -1,6 +1,6 @@
 name: Bug Report
 description: Send a bug report
-title: "[Bug]: "
+type: Bug
 labels: ["bug", "triage"]
 assignees:
   - taorepoara

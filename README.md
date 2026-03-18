@@ -27,6 +27,7 @@
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
 [![Crates.io][crate-shield]][crate-url]
+[![Twitch][twitch-shield]][twitch-url]
 
 <img alt="Dofigen logo" src="./logo.svg" width="256" style="margin: 20px 0" /> 
 
@@ -53,7 +54,25 @@ A french DevOps said about it:
 
 Install Dofigen using one of the following options.
 
-#### Cargo install
+#### Use it with Docker
+
+You can run Dofigen directly from its Docker image with the following command:
+
+```bash
+docker run --rm -it -v $(pwd):/app -u $UID lenra/dofigen --help
+```
+
+#### Arch Linux
+
+[dofigen](https://aur.archlinux.org/packages/dofigen) is available as an AUR package.
+
+You can install it using an AUR helper (e.g. `paru`):
+
+```bash
+paru -S dofigen
+```
+
+#### Cargo
 
 First install Cargo, the Rust package manager: https://doc.rust-lang.org/cargo/getting-started/installation.html
 
@@ -63,17 +82,38 @@ Then use the following command to install dofigen:
 cargo install dofigen
 ```
 
+#### Homebrew
+
+You can install Dofigen using Homebrew:
+
+```bash
+brew tap lenra-io/tools
+brew install dofigen
+```
+
+Or:
+
+```bash
+brew install lenra-io/tools/dofigen
+```
+
 #### Download the binary
 
 You can download the Dofigen binary from [the release page](https://github.com/lenra-io/dofigen/releases) and add it to your path environment variable.
 
-#### Use it with Docker
+<p align="right">(<a href="#top">back to top</a>)</p>
 
-You can run Dofigen directly from its Docker image with the following command:
+### Migrate from an existing Dockerfile
+
+You can generate a Dofigen file from an existing Dockerfile using the `dofigen parse` command:
 
 ```bash
-docker run --rm -it -v $(pwd):/app lenra/dofigen --help
+dofigen parse
 ```
+
+This command will read the Dockerfile from the current directory and generate a `dofigen.yml` file.
+
+See the `dofigen parse --help` command for more options.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
@@ -98,6 +138,7 @@ Options:
       --offline          The command won't load data from any URL. This disables extending file from URL and loading image tag
   -o, --output <OUTPUT>  The output Dockerfile file Define to - to write to stdout [default: Dockerfile]
   -l, --locked           Locked version of the dofigen definition
+  -n, --no-labels        Do not define the default labels
   -h, --help             Print help
 ```
 
@@ -112,7 +153,7 @@ dofigen --help
 
 The structure of the Dofigen descriptor was created to be simpler than the Dockerfile.
 
-The JSON Schema of the Dofigen descriptor is available [here](./docs/dofigen.schema.json).
+The structure description is detailed [here](./docs/struct.md).
 
 Here is an example to generate the Dofigen Dockerfile:
 
@@ -204,9 +245,9 @@ RUSTFLAGS="-C instrument-coverage" \
   LLVM_PROFILE_FILE="target/coverage/profiles/cargo-test-%p-%m.profraw" \
   cargo test
 # Convert to lcov format
-grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing --ignore ../* --ignore /* -o target/coverage/lcov.info
+grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing -o target/coverage/lcov.info
 # Generate the HTML report
-grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html --branch --ignore-not-existing --ignore ../* --ignore /* -o target/coverage/html
+grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html --branch --ignore-not-existing -o target/coverage/html
 ```
 
 ### Generate the JSON Schema
@@ -214,7 +255,14 @@ grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html 
 To generate the JSON schema of the Dofigen file structure, use the following command:
 
 ```bash
-cargo run -F json_schema -- schema
+# Generate the JSON Schema
+cargo run -F json_schema -- schema > docs/dofigen.schema.json
+# Download the SchemaStore's Prettier configuration
+curl -O -L -f -s -H 'Accept: application/vnd.github.v3.raw' https://github.com/SchemaStore/schemastore/raw/refs/heads/master/.prettierrc.cjs
+# Install Prettier if you don't have it
+npm i -g prettier prettier-plugin-sort-json prettier-plugin-toml
+# Format the JSON Schema
+npx prettier --config .prettierrc.cjs --write docs/dofigen.schema.json
 ```
 
 ### Buildkit frontend
@@ -258,3 +306,5 @@ Project Link: [https://github.com/lenra-io/dofigen](https://github.com/lenra-io/
 [license-url]: https://github.com/lenra-io/dofigen/blob/master/LICENSE.txt
 [crate-shield]: https://img.shields.io/crates/v/dofigen.svg?style=for-the-badge
 [crate-url]: https://crates.io/crates/dofigen
+[twitch-shield]: https://img.shields.io/twitch/status/lenra4devs?logo=twitch&logoColor=white&style=for-the-badge
+[twitch-url]: https://twitch.tv/lenra4devs

@@ -7,12 +7,12 @@ use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use colored::{Color, Colorize};
 use dofigen_lib::{
-    lock::{Lock, LockFile},
     DofigenContext, Error, GenerationContext, MessageLevel, Result,
+    lock::{Lock, LockFile},
 };
 use std::{fs, path::PathBuf};
 
-const DEFAULT_DOCKERFILE: &str = "Dockerfile";
+pub(crate) const DEFAULT_DOCKERFILE: &str = "Dockerfile";
 
 #[derive(Args, Debug, Default, Clone)]
 pub struct Generate {
@@ -27,6 +27,10 @@ pub struct Generate {
     /// Locked version of the dofigen definition
     #[clap(short, long, action)]
     locked: bool,
+
+    /// Do not define the default labels
+    #[clap(short, long, action)]
+    no_labels: bool,
 }
 
 impl Generate {
@@ -51,6 +55,7 @@ impl CliCommand for Generate {
         let path = get_file_path(&self.options.file)?;
         let lockfile_path = get_lockfile_path(path.clone());
         let lockfile = load_lockfile(lockfile_path.clone());
+
         let mut context = lockfile
             .as_ref()
             .map(|l| l.to_context())
@@ -67,6 +72,7 @@ impl CliCommand for Generate {
         } else {
             context.offline = self.options.offline;
             context.update_file_resources = true;
+            context.no_default_labels = self.no_labels;
 
             let dofigen = get_image_from_path(path, &mut context)?;
 

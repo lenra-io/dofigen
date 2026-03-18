@@ -1,8 +1,10 @@
-use dofigen_lib::{lock::LockFile, Dofigen, DofigenContext, Error, Resource, Result};
+use dofigen_lib::{Dofigen, DofigenContext, Error, Resource, Result, lock::LockFile};
 use std::path::PathBuf;
 
 pub mod effective;
 pub mod generate;
+#[cfg(feature = "parse")]
+pub mod parse;
 #[cfg(feature = "json_schema")]
 pub mod schema;
 pub mod update;
