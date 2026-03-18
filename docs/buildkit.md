@@ -1,5 +1,11 @@
 # Dofigen Buildkit frontend
 
+Start a local registry for tests:
+
+```bash
+docker run -d -p 5000:5000 --restart always --name registry registry:3
+```
+
 To generate the Dofigen Buildkit frontend, use the following command:
 
 ```bash

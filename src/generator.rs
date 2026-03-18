@@ -11,7 +11,7 @@ use crate::{
 pub const LINE_SEPARATOR: &str = " \\\n    ";
 pub const DEFAULT_FROM: &str = "scratch";
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct GenerationContext {
     dofigen: Dofigen,
     pub(crate) user: Option<User>,
@@ -977,19 +977,6 @@ fn generate_arg_command(arg: &HashMap<String, String>) -> Vec<DockerFileLine> {
 mod test {
     use super::*;
     use pretty_assertions_sorted::assert_eq_sorted;
-
-    impl Default for GenerationContext {
-        fn default() -> Self {
-            Self {
-                dofigen: Dofigen::default(),
-                user: None,
-                stage_name: String::default(),
-                default_from: FromContext::default(),
-                lint_session: LintSession::default(),
-                state_stack: vec![],
-            }
-        }
-    }
 
     mod stage {
         use std::collections::HashMap;
