@@ -2,11 +2,11 @@
 //!
 //! The generate subcommand generates a Dockerfile and a .dockerignore file from a Dofigen file.
 
-use super::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile};
 use crate::{CliCommand, GlobalOptions};
 use clap::Args;
 use dofigen_lib::{
     Error, Result,
+    bin::{get_file_path, get_image_from_path, get_lockfile_path, load_lockfile},
     lock::{Lock, LockFile},
 };
 

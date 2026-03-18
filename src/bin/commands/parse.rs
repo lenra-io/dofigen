@@ -4,9 +4,9 @@
 
 use std::{fs, path::PathBuf};
 
-use crate::commands::{generate::DEFAULT_DOCKERFILE, get_file_path};
+use crate::commands::generate::DEFAULT_DOCKERFILE;
 pub use clap::Args;
-use dofigen_lib::{Dofigen, Error, Result};
+use dofigen_lib::{Dofigen, Error, Result, bin::get_file_path};
 
 use crate::CliCommand;
 

@@ -1,16 +1,18 @@
 use async_trait::async_trait;
-use buildkit_frontend::oci::*;
 use buildkit_frontend::run_frontend;
 use buildkit_frontend::{Bridge, Frontend, FrontendOutput};
 use buildkit_llb::ops::*;
 use dofigen_lib::DofigenContext;
+use dofigen_lib::bin::get_lockfile_path;
+use dofigen_lib::lock::LockFile;
 use failure::Error;
-use fs::LayerPath;
 use serde::Deserialize;
 use std::env;
 use std::path::PathBuf;
 
-// mod debug;
+use crate::spec::ImageSpecificationExt;
+
+mod spec;
 
 #[tokio::main]
 async fn main() {
@@ -33,9 +35,6 @@ async fn main() {
 pub struct Options {
     /// Path to the `Dockerfile` - in our case it's a path to `dofigen.yml`
     pub filename: Option<PathBuf>,
-
-    /// Dofigen lockfile
-    pub lockfile: Option<PathBuf>,
 }
 
 pub struct DofigenFrontend;
@@ -50,26 +49,20 @@ impl Frontend<Options> for DofigenFrontend {
         eprintln!("\n\n===============================\n\n");
         eprintln!("Running DofigenFrontend");
         dbg!(&options.filename);
-        dbg!(&options.lockfile);
 
         let dofigen_file = options
             .filename
             .map(|filename| filename.to_string_lossy().to_string())
             .unwrap_or("dofigen.yml".into());
-        let dofigen_lockfile = options
-            .lockfile
-            .map(|filename| filename.to_string_lossy().to_string())
-            .unwrap_or("dofigen.lock".into());
+        let dofigen_lockfile =
+            get_lockfile_path(dofigen_file.clone()).map(|path| path.to_string_lossy().to_string());
         let dockerfile_source = Source::local("dockerfile");
         dbg!(&dockerfile_source);
-        let dockerfile_layer = bridge
-            .solve(Terminal::with(
-                dockerfile_source
-                    .add_include_pattern(&dofigen_file)
-                    .add_include_pattern(&dofigen_lockfile)
-                    .output(),
-            ))
-            .await?;
+        let mut sources = dockerfile_source.add_include_pattern(&dofigen_file);
+        if let Some(dofigen_lockfile) = dofigen_lockfile.as_ref() {
+            sources = sources.add_include_pattern(dofigen_lockfile);
+        }
+        let dockerfile_layer = bridge.solve(Terminal::with(sources.output())).await?;
 
         dbg!(&dockerfile_layer);
 
@@ -80,40 +73,32 @@ impl Frontend<Options> for DofigenFrontend {
         )?;
         dbg!(&dockerfile_contents);
 
-        let lockfile_contents = String::from_utf8(
-            bridge
+        let lockfile = if let Some(dofigen_lockfile) = dofigen_lockfile {
+            let bytes = bridge
                 .read_file(&dockerfile_layer, dofigen_lockfile, None)
-                .await?,
-        )?;
-        dbg!(&lockfile_contents);
+                .await;
+            if let Ok(bytes) = bytes {
+                let lockfile_contents = String::from_utf8(bytes)?;
+                dbg!(&lockfile_contents);
+                let lockfile: LockFile = serde_yaml::from_str(lockfile_contents.as_str())?;
+                Some(lockfile)
+            } else {
+                eprintln!("Failed to read lockfile: {}", bytes.err().unwrap());
+                None
+            }
+        } else {
+            None
+        };
 
         let mut context = DofigenContext::new();
-        let dofigen = context.parse_from_string(&dockerfile_contents)?;
-        dbg!(dofigen);
 
-        let out_spec = ImageSpecification {
-            created: None,
-            author: None,
-
-            architecture: Architecture::Amd64,
-            os: OperatingSystem::Linux,
-
-            config: Some(ImageConfig {
-                entrypoint: Some(vec!["/bin/sh".into()]),
-                cmd: Some(vec!["-c".into(), "/usr/bin/sha256sum *".into()]),
-                env: None,
-                user: None,
-                working_dir: Some("/app".into()),
-
-                labels: None,
-                volumes: None,
-                exposed_ports: None,
-                stop_signal: None,
-            }),
-
-            rootfs: None,
-            history: None,
+        let dofigen = if let Some(lockfile) = lockfile {
+            context = lockfile.to_context();
+            context.parse_from_string(dockerfile_contents.as_str())?
+        } else {
+            context.parse_from_string(&dockerfile_contents)?
         };
+        dbg!(&dofigen);
 
         // let llb = {
         //     // let alpine = Source::image("alpine:latest").ref_counted();
@@ -130,7 +115,7 @@ impl Frontend<Options> for DofigenFrontend {
 
         let out_ref = bridge.solve_with_cache(Terminal::with(llb), &[]).await?;
 
-        let out = FrontendOutput::with_spec_and_ref(out_spec, out_ref);
+        let out = FrontendOutput::with_spec_and_ref(dofigen.image_specification(), out_ref);
 
         Ok(out)
     }

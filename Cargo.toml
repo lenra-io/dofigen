@@ -28,13 +28,14 @@ path = "src/frontend/main.rs"
 required-features = ["frontend"]
 
 [features]
-default = ["cli", "permissive", "json_schema", "parse"]
-cli = ["clap"]
+default = ["cli", "permissive", "json_schema", "parse", "frontend"]
+bin = []
+cli = ["clap", "bin"]
 json_schema = ["schemars", "serde_json"]
 parse = ["permissive", "serde_json"]
 permissive = []
 strict = []
-frontend = ["buildkit-frontend", "buildkit-llb", "failure", "async-trait", "tokio"]
+frontend = ["bin", "buildkit-frontend", "buildkit-llb", "failure", "async-trait", "tokio"]
 
 [dependencies]
 serde = "1.0"

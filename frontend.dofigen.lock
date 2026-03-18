@@ -2,6 +2,10 @@ effective: |
   fromImage:
     path: ubuntu
     digest: sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295
+  label:
+    io.dofigen.version: 2.7.0
+    org.opencontainers.image.base.name: docker.io/ubuntu:latest
+    org.opencontainers.image.base.digest: sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295
   copy:
   - paths:
     - target/release/dofigen-frontend
@@ -10,7 +14,7 @@ effective: |
   entrypoint:
   - /usr/local/bin/dofigen-frontend
 images:
-  registry.hub.docker.com:443:
+  docker.io:
     library:
       ubuntu:
         latest:
