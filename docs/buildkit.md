@@ -43,7 +43,7 @@ docker logs buildkitd -f
 To build a file using the frontend, use the following command:
 
 ```bash
-buildctl build --frontend=gateway.v0 --opt source=localhost:5000/dofigen:frontend-local --local context=. --local dockerfile=. --opt filename=./test.dofigen.yml --trace test.log --output type=image,name=localhost:5000/local/test,push=true
+buildctl build --frontend=gateway.v0 --opt source=localhost:5000/dofigen:frontend-local --local context=. --local dockerfile=. --opt filename=./test.dofigen.yml --trace test.log --opt platform=linux/amd64,linux/arm64 --output type=image,name=localhost:5000/local/test,push=true
 ```
 
 To run the resulting image:

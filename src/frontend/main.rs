@@ -35,6 +35,9 @@ async fn main() {
 pub struct Options {
     /// Path to the `Dockerfile` - in our case it's a path to `dofigen.yml`
     pub filename: Option<PathBuf>,
+
+    /// Target platform for the build (e.g., `linux/amd64`, `linux/arm64`, etc.)
+    pub platform: Vec<String>,
 }
 
 pub struct DofigenFrontend;
@@ -49,6 +52,7 @@ impl Frontend<Options> for DofigenFrontend {
         eprintln!("\n\n===============================\n\n");
         eprintln!("Running DofigenFrontend");
         dbg!(&options.filename);
+        dbg!(&options.platform);
 
         let dofigen_file = options
             .filename
@@ -110,6 +114,10 @@ impl Frontend<Options> for DofigenFrontend {
         //     //     .ref_counted()
         //     //     .output(0)
         // };
+
+        // TODO: Handle multiplaform builds: https://docs.docker.com/build/building/multi-platform/
+        // And https://github.com/moby/buildkit/blob/eaa4de09fec1edc751dace2cb698342ce611a853/client/llb/state.go#L735
+
         let image = Source::image("alpine:latest");
         let llb = image.output();
 
