@@ -1,0 +1,16 @@
+# syntax=localhost:5000/dofigen:frontend-local
+
+fromImage: alpine
+workdir: /app
+env: 
+  RUST_LOG: debug
+volume:
+  - /data
+expose:
+  - 80
+  - port: 12345
+    protocol: udp
+label:
+  maintainer: taorepoara
+entrypoint: "/bin/sh"
+cmd: ["-c", "echo Hello World!"]

@@ -17,6 +17,8 @@
 //! let dockerfile = generate_dockerfile(&dofigen).unwrap();
 //! ```
 
+#[cfg(feature = "bin")]
+pub mod bin;
 mod context;
 mod deserialize;
 mod dockerfile_struct;
@@ -34,7 +36,7 @@ pub mod lock;
 mod parse;
 pub use {
     context::*, deserialize::*, dockerfile_struct::*, dofigen_struct::*, errors::*, extend::*,
-    generator::GenerationContext, linter::*,
+    generator::GenerationContext, linter::*
 };
 
 #[cfg(all(feature = "strict", feature = "permissive"))]
