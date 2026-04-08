@@ -10,8 +10,10 @@ use serde::Deserialize;
 use std::env;
 use std::path::PathBuf;
 
+use crate::llb::ToLlbOperationOutput;
 use crate::spec::ImageSpecificationExt;
 
+mod llb;
 mod spec;
 
 #[tokio::main]
@@ -60,7 +62,7 @@ impl Frontend<Options> for DofigenFrontend {
             .unwrap_or("dofigen.yml".into());
         let dofigen_lockfile =
             get_lockfile_path(dofigen_file.clone()).map(|path| path.to_string_lossy().to_string());
-        let dockerfile_source = Source::local("dockerfile");
+        let dockerfile_source = Source::local("dockerfile").custom_name("Loading Dofigen file");
         dbg!(&dockerfile_source);
         let mut sources = dockerfile_source.add_include_pattern(&dofigen_file);
         if let Some(dofigen_lockfile) = dofigen_lockfile.as_ref() {
@@ -104,24 +106,15 @@ impl Frontend<Options> for DofigenFrontend {
         };
         dbg!(&dofigen);
 
-        // let llb = {
-        //     // let alpine = Source::image("alpine:latest").ref_counted();
-        //     // let destination = LayerPath::Other(alpine.output(), OUTPUT_FILENAME);
-
-        //     // FileSystem::mkfile(OutputIdx(0), destination)
-        //     //     .data(transformed_contents.into_bytes())
-        //     //     .into_operation()
-        //     //     .ref_counted()
-        //     //     .output(0)
-        // };
-
         // TODO: Handle multiplaform builds: https://docs.docker.com/build/building/multi-platform/
         // And https://github.com/moby/buildkit/blob/eaa4de09fec1edc751dace2cb698342ce611a853/client/llb/state.go#L735
+        // buildkit_frontend doesn't support multiple platforms yet.
+        // See: https://github.com/denzp/rust-buildkit/blob/f5eaa6f1eea04627108fa6819b94e36aeac111ce/buildkit-frontend/src/bridge.rs#L163
+        // The RefResult enum Refs value is never used.
 
-        let image = Source::image("alpine:latest");
-        let llb = image.output();
-
-        let out_ref = bridge.solve_with_cache(Terminal::with(llb), &[]).await?;
+        let out_ref = bridge
+            .solve_with_cache(Terminal::with(dofigen.to_llb_operation_output()), &[])
+            .await?;
 
         let out = FrontendOutput::with_spec_and_ref(dofigen.image_specification(), out_ref);
 

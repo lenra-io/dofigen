@@ -10,9 +10,12 @@ pub trait ImageSpecificationExt {
 impl ImageSpecificationExt for Dofigen {
     fn image_specification(&self) -> ImageSpecification {
         ImageSpecification {
+            // TODO: manage created date based on labels or use the current date if not specified
             created: None,
+            // TODO: manage author based on labels
             author: None,
 
+            // TODO: manage architecture and os based on the target platform(s) specified in the build options
             architecture: Architecture::Amd64,
             os: OperatingSystem::Linux,
 
@@ -29,6 +32,8 @@ impl ImageSpecificationExt for Dofigen {
                 // TODO: Manage stop signals
                 stop_signal: None,
             }),
+
+            // TODO: handle healthcheck
 
             // TODO: we should be able to generate the rootfs and history from the stages
             rootfs: None,

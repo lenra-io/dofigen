@@ -1,9 +1,13 @@
 # syntax=localhost:5000/dofigen:frontend-local
 
+context:
+  - logo.svg
 fromImage: alpine
 workdir: /app
 env: 
   RUST_LOG: debug
+copy: logo.svg
+run: echo Hello World!
 volume:
   - /data
 expose:
@@ -13,4 +17,4 @@ expose:
 label:
   maintainer: taorepoara
 entrypoint: "/bin/sh"
-cmd: ["-c", "echo Hello World!"]
+cmd: ["-c", "cat logo.svg"]
