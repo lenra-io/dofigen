@@ -57,3 +57,9 @@ docker pull localhost:5000/local/test
 # Run the image
 docker run --rm -it localhost:5000/local/test
 ```
+
+Short:
+
+```bash
+docker pull localhost:5000/local/test && docker run --rm -it localhost:5000/local/test
+```

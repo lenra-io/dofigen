@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use buildkit_frontend::run_frontend;
 use buildkit_frontend::{Bridge, Frontend, FrontendOutput};
 use buildkit_llb::ops::*;
-use dofigen_lib::DofigenContext;
+use colored::{Color, Colorize};
+use dofigen_lib::{DofigenContext, MessageLevel};
 use dofigen_lib::bin::get_lockfile_path;
 use dofigen_lib::lock::LockFile;
 use failure::Error;
@@ -10,7 +11,7 @@ use serde::Deserialize;
 use std::env;
 use std::path::PathBuf;
 
-use crate::llb::ToLlbOperationOutput;
+use crate::llb::LlbBuilder;
 use crate::spec::ImageSpecificationExt;
 
 mod llb;
@@ -112,11 +113,29 @@ impl Frontend<Options> for DofigenFrontend {
         // See: https://github.com/denzp/rust-buildkit/blob/f5eaa6f1eea04627108fa6819b94e36aeac111ce/buildkit-frontend/src/bridge.rs#L163
         // The RefResult enum Refs value is never used.
 
-        let out_ref = bridge
-            .solve_with_cache(Terminal::with(dofigen.to_llb_operation_output()), &[])
+        let image_spec = dofigen.image_specification();
+        dbg!(&image_spec);
+
+        let mut builder = LlbBuilder::new(dofigen);
+        let lint_messages = builder.get_lint_messages();
+
+        lint_messages.iter().for_each(|message| {
+            eprintln!(
+                "{}[path={}]: {}",
+                match message.level {
+                    MessageLevel::Error => "error".color(Color::Red).bold(),
+                    MessageLevel::Warn => "warning".color(Color::Yellow).bold(),
+                },
+                message.path.join(".").color(Color::Blue).bold(),
+                message.message
+            );
+        });
+
+        let image_ref = bridge
+            .solve_with_cache(Terminal::with(builder.build()), &[])
             .await?;
 
-        let out = FrontendOutput::with_spec_and_ref(dofigen.image_specification(), out_ref);
+        let out = FrontendOutput::with_spec_and_ref(image_spec, image_ref);
 
         Ok(out)
     }
