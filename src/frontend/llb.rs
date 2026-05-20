@@ -97,7 +97,7 @@ impl LlbBuilder {
         for copy_resource in &stage.copy {
             match copy_resource {
                 CopyResource::Copy(c) => {
-                    let from_output = self.resolve_copy_from(&c.from, &base, stage_outputs);
+                    let from_output = self.resolve_copy_from(&c.from, stage_outputs);
                     for path in &c.paths {
                         let dest =
                             self.dest_layer(&workdir, &c.options.target, &base, last_own_idx);
@@ -235,7 +235,7 @@ impl LlbBuilder {
         }
 
         for bind in &run.bind {
-            let from_output = self.resolve_copy_from(&bind.from, &None, stage_outputs);
+            let from_output = self.resolve_copy_from(&bind.from, stage_outputs);
             match &bind.source {
                 Some(src) => {
                     cmd = cmd.mount(Mount::ReadOnlySelector(
@@ -272,7 +272,6 @@ impl LlbBuilder {
     fn resolve_copy_from(
         &self,
         from: &FromContext,
-        base: &Option<OperationOutput<'static>>,
         stage_outputs: &HashMap<String, OperationOutput<'static>>,
     ) -> OperationOutput<'static> {
         match from {
@@ -283,7 +282,7 @@ impl LlbBuilder {
             FromContext::FromContext(Some(ctx_name)) => {
                 Source::local(ctx_name.clone()).ref_counted().output()
             }
-            FromContext::FromContext(None) => base.clone().unwrap_or_else(|| self.context.output()),
+            FromContext::FromContext(None) => self.context.output(),
         }
     }
 
