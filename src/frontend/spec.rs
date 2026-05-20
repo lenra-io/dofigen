@@ -1,23 +1,31 @@
 use std::collections::{BTreeMap, HashMap};
 
 use buildkit_frontend::oci::*;
+use buildkit_llb::ops::platform::Platform;
 use dofigen_lib::{Dofigen, Port, PortProtocol, User};
 
 pub trait ImageSpecificationExt {
-    fn image_specification(&self) -> ImageSpecification;
+    fn image_specification(&self, platform: &Platform) -> ImageSpecification;
 }
 
 impl ImageSpecificationExt for Dofigen {
-    fn image_specification(&self) -> ImageSpecification {
+    fn image_specification(&self, platform: &Platform) -> ImageSpecification {
         ImageSpecification {
             // TODO: manage created date based on labels or use the current date if not specified
             created: None,
             // TODO: manage author based on labels
             author: None,
 
-            // TODO: manage architecture and os based on the target platform(s) specified in the build options
-            architecture: Architecture::Amd64,
-            os: OperatingSystem::Linux,
+            architecture: arch_from_str(&platform.architecture),
+            os: os_from_str(&platform.os),
+            variant: if platform.variant.is_empty() {
+                None
+            } else {
+                Some(platform.variant.clone())
+            }, //platform.variant.clone(),
+
+            os_version: None,
+            os_features: None,
 
             config: Some(ImageConfig {
                 entrypoint: into_optional_vec(&self.entrypoint),
@@ -31,6 +39,7 @@ impl ImageSpecificationExt for Dofigen {
                 exposed_ports: into_optional_mapped_vec(&self.expose, Port::to_exposed_port),
                 // TODO: Manage stop signals
                 stop_signal: None,
+                ..Default::default()
             }),
 
             // TODO: handle healthcheck
@@ -82,5 +91,37 @@ where
         None
     } else {
         Some(vec.clone().into_iter().map(f).collect())
+    }
+}
+
+fn arch_from_str(arch: &str) -> Architecture {
+    match arch {
+        "amd64" => Architecture::Amd64,
+        "arm64" | "aarch64" => Architecture::ARM64,
+        "arm" => Architecture::ARM,
+        "386" | "i386" => Architecture::I386,
+        "ppc64le" => Architecture::PPC64le,
+        "ppc64" => Architecture::PPC64,
+        "mips64le" => Architecture::Mips64le,
+        "mips64" => Architecture::Mips64,
+        "mipsle" => Architecture::Mipsle,
+        "mips" => Architecture::Mips,
+        "s390x" => Architecture::S390x,
+        _ => Architecture::Amd64,
+    }
+}
+
+fn os_from_str(os: &str) -> OperatingSystem {
+    match os {
+        "linux" => OperatingSystem::Linux,
+        "windows" => OperatingSystem::Windows,
+        "darwin" => OperatingSystem::Darwin,
+        "freebsd" => OperatingSystem::Freebsd,
+        "dragonfly" => OperatingSystem::Dragonfly,
+        "netbsd" => OperatingSystem::Netbsd,
+        "openbsd" => OperatingSystem::Openbsd,
+        "plan9" => OperatingSystem::Plan9,
+        "solaris" => OperatingSystem::Solaris,
+        _ => OperatingSystem::Linux,
     }
 }

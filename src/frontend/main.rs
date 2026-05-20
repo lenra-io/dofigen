@@ -1,15 +1,17 @@
 use async_trait::async_trait;
 use buildkit_frontend::run_frontend;
-use buildkit_frontend::{Bridge, Frontend, FrontendOutput};
+use buildkit_frontend::{Bridge, Frontend, FrontendOutput, MultiPlatformEntry};
+use buildkit_llb::ops::platform::{Platform, linux_amd64};
 use buildkit_llb::ops::*;
 use colored::{Color, Colorize};
-use dofigen_lib::{DofigenContext, MessageLevel};
 use dofigen_lib::bin::get_lockfile_path;
 use dofigen_lib::lock::LockFile;
+use dofigen_lib::{DofigenContext, LintMessage, LintSession, MessageLevel};
 use failure::Error;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer, de};
 use std::env;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use crate::llb::LlbBuilder;
 use crate::spec::ImageSpecificationExt;
@@ -40,7 +42,8 @@ pub struct Options {
     pub filename: Option<PathBuf>,
 
     /// Target platform for the build (e.g., `linux/amd64`, `linux/arm64`, etc.)
-    pub platform: Vec<String>,
+    #[serde(deserialize_with = "de_vec_from_str")]
+    pub platform: Vec<Platform>,
 }
 
 pub struct DofigenFrontend;
@@ -107,36 +110,57 @@ impl Frontend<Options> for DofigenFrontend {
         };
         dbg!(&dofigen);
 
-        // TODO: Handle multiplaform builds: https://docs.docker.com/build/building/multi-platform/
-        // And https://github.com/moby/buildkit/blob/eaa4de09fec1edc751dace2cb698342ce611a853/client/llb/state.go#L735
-        // buildkit_frontend doesn't support multiple platforms yet.
-        // See: https://github.com/denzp/rust-buildkit/blob/f5eaa6f1eea04627108fa6819b94e36aeac111ce/buildkit-frontend/src/bridge.rs#L163
-        // The RefResult enum Refs value is never used.
+        let platforms = options.platform;
 
-        let image_spec = dofigen.image_specification();
-        dbg!(&image_spec);
+        let lint_messages = LintSession::analyze(&dofigen).messages();
+        print_lint_messages(&lint_messages);
 
-        let mut builder = LlbBuilder::new(dofigen);
-        let lint_messages = builder.get_lint_messages();
-
-        lint_messages.iter().for_each(|message| {
-            eprintln!(
-                "{}[path={}]: {}",
-                match message.level {
-                    MessageLevel::Error => "error".color(Color::Red).bold(),
-                    MessageLevel::Warn => "warning".color(Color::Yellow).bold(),
-                },
-                message.path.join(".").color(Color::Blue).bold(),
-                message.message
-            );
-        });
-
-        let image_ref = bridge
-            .solve_with_cache(Terminal::with(builder.build()), &[])
-            .await?;
-
-        let out = FrontendOutput::with_spec_and_ref(image_spec, image_ref);
-
-        Ok(out)
+        if platforms.len() > 1 {
+            let mut entries = Vec::with_capacity(platforms.len());
+            for plat in &platforms {
+                let image_spec = dofigen.image_specification(plat);
+                let mut builder = LlbBuilder::new(dofigen.clone(), Some(plat.clone()));
+                let image_ref = bridge
+                    .solve_with_cache(Terminal::with(builder.build()), &[])
+                    .await?;
+                entries
+                    .push(MultiPlatformEntry::new(plat.clone(), image_ref).with_spec(image_spec));
+            }
+            Ok(FrontendOutput::with_multi_platform(entries))
+        } else {
+            // TODO: default to the platform of the host if not specified, instead of defaulting to linux/amd64
+            let platform = platforms.into_iter().next().unwrap_or(linux_amd64());
+            let image_spec = dofigen.image_specification(&platform);
+            dbg!(&image_spec);
+            let mut builder = LlbBuilder::new(dofigen, Some(platform));
+            let image_ref = bridge
+                .solve_with_cache(Terminal::with(builder.build()), &[])
+                .await?;
+            Ok(FrontendOutput::with_spec_and_ref(image_spec, image_ref))
+        }
     }
+}
+
+fn print_lint_messages(messages: &[LintMessage]) {
+    messages.iter().for_each(|message| {
+        eprintln!(
+            "{}[path={}]: {}",
+            match message.level {
+                MessageLevel::Error => "error".color(Color::Red).bold(),
+                MessageLevel::Warn => "warning".color(Color::Yellow).bold(),
+            },
+            message.path.join(".").color(Color::Blue).bold(),
+            message.message
+        );
+    });
+}
+
+fn de_vec_from_str<'de, D>(deserializer: D) -> Result<Vec<Platform>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vec = Vec::<String>::deserialize(deserializer)?;
+    vec.into_iter()
+        .map(|s| Platform::from_str(&s).map_err(de::Error::custom))
+        .collect()
 }

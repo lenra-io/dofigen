@@ -2,35 +2,31 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use buildkit_llb::{
     ops::{
-        Command, FileSystem, MultiOwnedLastOutput, MultiOwnedOutput, OperationBuilder,
+        Command, FileSystem, MultiOwnedLastOutput, MultiOwnedOutput, OperationBuilder, Platform,
         SingleOwnedOutput, Source, source::LocalSource,
     },
     prelude::{LayerPath, Mount, OwnOutputIdx},
     utils::{OperationOutput, OutputIdx},
 };
-use dofigen_lib::{
-    CopyResource, Dofigen, FromContext, LintMessage, LintSession, Resource, Run, Stage,
-};
+use dofigen_lib::{CopyResource, Dofigen, FromContext, LintSession, Resource, Run, Stage};
 
 pub struct LlbBuilder {
     dofigen: Dofigen,
     context: Arc<LocalSource>,
     lint_session: LintSession,
+    platform: Option<Platform>,
 }
 
 impl LlbBuilder {
-    pub fn new(dofigen: Dofigen) -> Self {
+    pub fn new(dofigen: Dofigen, platform: Option<Platform>) -> Self {
         let context = Self::init_context(&dofigen);
         let lint_session = LintSession::analyze(&dofigen);
         Self {
             dofigen,
             context,
             lint_session,
+            platform,
         }
-    }
-
-    pub fn get_lint_messages(&self) -> Vec<LintMessage> {
-        self.lint_session.messages()
     }
 
     fn init_context(dofigen: &Dofigen) -> Arc<LocalSource> {
@@ -41,6 +37,7 @@ impl LlbBuilder {
         let context = dofigen.ignore.iter().fold(context, |ctx, pattern| {
             ctx.add_exclude_pattern(pattern.clone())
         });
+        dbg!("Initialized context with include patterns: {:?} and exclude patterns: {:?}", &dofigen.context, &dofigen.ignore);
         context.ref_counted()
     }
 
@@ -68,7 +65,7 @@ impl LlbBuilder {
     ) -> OperationOutput<'static> {
         let base: Option<OperationOutput<'static>> = match &stage.from {
             FromContext::FromImage(image) => {
-                Some(Source::image(image.to_string()).ref_counted().output())
+                Some(self.image_source(image.to_string()).ref_counted().output())
             }
             FromContext::FromBuilder(name) => Some(stage_outputs[name].clone()),
             FromContext::FromContext(Some(ctx_name)) => {
@@ -82,6 +79,7 @@ impl LlbBuilder {
         let mut last_own_idx: Option<u32> = None;
 
         // WORKDIR → mkdir
+        dbg!("Processing WORKDIR: {:?}", &stage.workdir);
         let workdir = if let Some(workdir) = &stage.workdir {
             let dest = self.dest_layer(&PathBuf::from("/"), &stage.workdir, &base, last_own_idx);
             sequence =
@@ -95,6 +93,7 @@ impl LlbBuilder {
         };
 
         // COPY resources
+        dbg!("Processing COPY resources: {:?}", &stage.copy);
         for copy_resource in &stage.copy {
             match copy_resource {
                 CopyResource::Copy(c) => {
@@ -170,6 +169,7 @@ impl LlbBuilder {
         };
 
         // Root RUN (runs as root user)
+        dbg!("Processing root RUN: {:?}", &stage.root);
         if let Some(root) = &stage.root {
             if !root.run.is_empty() {
                 current = self.apply_run(
@@ -184,6 +184,7 @@ impl LlbBuilder {
         }
 
         // Regular RUN
+        dbg!("Processing RUN: {:?}", &stage.run);
         if !stage.run.run.is_empty() {
             let user_str = stage.user.as_ref().map(|u| u.to_string());
             current = self.apply_run(
@@ -260,6 +261,14 @@ impl LlbBuilder {
         cmd.ref_counted().output(0)
     }
 
+    fn image_source(&self, name: String) -> buildkit_llb::ops::source::ImageSource {
+        let src = Source::image(name);
+        match &self.platform {
+            Some(p) => src.with_platform(p.clone()),
+            None => src,
+        }
+    }
+
     fn resolve_copy_from(
         &self,
         from: &FromContext,
@@ -268,7 +277,7 @@ impl LlbBuilder {
     ) -> OperationOutput<'static> {
         match from {
             FromContext::FromImage(image) => {
-                Source::image(image.to_string()).ref_counted().output()
+                self.image_source(image.to_string()).ref_counted().output()
             }
             FromContext::FromBuilder(name) => stage_outputs[name].clone(),
             FromContext::FromContext(Some(ctx_name)) => {
@@ -334,7 +343,7 @@ mod tests {
             },
             ..Default::default()
         };
-        validate_output(LlbBuilder::new(dofigen).build());
+        validate_output(LlbBuilder::new(dofigen, None).build());
     }
 
     #[test]
@@ -351,7 +360,7 @@ mod tests {
             },
             ..Default::default()
         };
-        validate_output(LlbBuilder::new(dofigen).build());
+        validate_output(LlbBuilder::new(dofigen, None).build());
     }
 
     #[test]
@@ -373,7 +382,7 @@ mod tests {
             ..Default::default()
         };
         todo!("Test the run cwd is the workdir");
-        validate_output(LlbBuilder::new(dofigen).build());
+        validate_output(LlbBuilder::new(dofigen, None).build());
     }
 
     #[test]
@@ -413,7 +422,7 @@ mod tests {
             },
             ..Default::default()
         };
-        validate_output(LlbBuilder::new(dofigen).build());
+        validate_output(LlbBuilder::new(dofigen, None).build());
     }
 
     #[test]
@@ -439,7 +448,7 @@ mod tests {
             },
             ..Default::default()
         };
-        validate_output(LlbBuilder::new(dofigen).build());
+        validate_output(LlbBuilder::new(dofigen, None).build());
     }
 
     #[test]
@@ -465,7 +474,7 @@ mod tests {
             ..Default::default()
         };
         todo!("Test the dest path is correct with workdir and no target");
-        validate_output(LlbBuilder::new(dofigen).build());
+        validate_output(LlbBuilder::new(dofigen, None).build());
     }
 
     #[test]
@@ -507,6 +516,6 @@ mod tests {
             },
             ..Default::default()
         };
-        validate_output(LlbBuilder::new(dofigen).build());
+        validate_output(LlbBuilder::new(dofigen, None).build());
     }
 }

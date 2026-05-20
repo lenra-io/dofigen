@@ -2,11 +2,14 @@
 
 context:
   - logo.svg
+  - README.md
 fromImage: alpine
 workdir: /app
 env: 
   RUST_LOG: debug
-copy: logo.svg
+copy:
+  - logo.svg
+  - README.md
 run: echo Hello World!
 volume:
   - /data
@@ -17,4 +20,4 @@ expose:
 label:
   maintainer: taorepoara
 entrypoint: "/bin/sh"
-cmd: ["-c", "cat logo.svg"]
+cmd: ["-c", "cat README.md"]
