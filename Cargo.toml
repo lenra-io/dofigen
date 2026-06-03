@@ -46,13 +46,13 @@ clap = { version = "4.6", features = ["derive"], optional = true }
 schemars = { version = "1", optional = true, features = ["url2"] }
 regex = "1.11.1"
 url = { version = "2.5.4", features = ["serde"] }
-struct-patch = { version = "=0.10.4", default-features = false, features = ["option", "merge"] }
+struct-patch = { version = "=0.12.0", default-features = false, features = ["option", "merge"] }
 reqwest = { version = "0.12.28", default-features = false, features = ["json", "blocking", "rustls-tls-native-roots"] }
 relative-path = "2.0.1"
 sha256 = { version = "1.5.0", default-features = false }
 colored = "3.0.0"
 log = "0.4.27"
-env_logger = "0.11.9"
+env_logger = "0.11.10"
 buildkit-frontend = { version = "0.3.0", git = "https://github.com/lenra-io/rust-buildkit", branch = "claude/update-buildkit-proto-8VpS0", optional = true }
 buildkit-llb = { version = "0.2.0", git = "https://github.com/lenra-io/rust-buildkit", branch = "claude/update-buildkit-proto-8VpS0", optional = true }
 failure = { version = "0.1.8", optional = true }
@@ -63,7 +63,7 @@ chrono = { version = "0.4", optional = true, default-features = false, features 
 [dev-dependencies]
 buildkit-proto = { version = "0.2.0", git = "https://github.com/lenra-io/rust-buildkit", branch = "claude/update-buildkit-proto-8VpS0" }
 prost = "0.13"
-assert_cmd = "2.2.0"
+assert_cmd = "2.2.2"
 assert_fs = "1.1.3"
 escargot = "0.5.15"
 httptest = "0.16.4"
