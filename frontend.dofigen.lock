@@ -1,31 +1,34 @@
 effective: |
-  fromImage:
-    path: ubuntu
-    digest: sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295
+  context:
+  - /builds
   label:
-    io.dofigen.version: 2.7.0
-    org.opencontainers.image.base.name: docker.io/ubuntu:latest
-    org.opencontainers.image.base.digest: sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295
+    io.dofigen.version: 0.0.0
+  user:
+    user: root
+  arg:
+    TARGETPLATFORM: ''
   copy:
   - paths:
-    - target/release/dofigen-frontend
-    target: /usr/local/bin/dofigen-frontend
+    - builds/${TARGETPLATFORM}/dofigen-frontend
+    target: /bin/dofigen-frontend
     chmod: '555'
   entrypoint:
-  - /usr/local/bin/dofigen-frontend
-images:
-  docker.io:
-    library:
-      ubuntu:
-        latest:
-          digest: sha256:278628f08d4979fb9af9ead44277dbc9c92c2465922310916ad0c46ec9999295
+  - /bin/dofigen-frontend
+images: {}
 resources:
   frontend.dofigen.yml:
-    hash: 42c5a53e4b928c06160d079ca835226cac68b4d82b9ced7dfc7c55fe23979280
-    content: |-
-      fromImage: ubuntu
+    hash: ce57b8496e6fab7f78ee12ccb9db4f86dde66eb82746e503083158a4a19acd51
+    content: |
+      # Buildkit frontend runtime
+      context:
+        - "/builds"
+      arg:
+        TARGETPLATFORM: ""
+      # The frontend runs inside the Buildkit sandbox and needs to read the build
+      # context, so it must run as root.
+      user: root
       copy:
-        - paths: target/release/dofigen-frontend
-          target: /usr/local/bin/dofigen-frontend
+        - paths: builds/${TARGETPLATFORM}/dofigen-frontend
+          target: /bin/dofigen-frontend
           chmod: 555
-      entrypoint: ["/usr/local/bin/dofigen-frontend"]
+      entrypoint: /bin/dofigen-frontend
