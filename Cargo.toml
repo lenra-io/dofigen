@@ -61,7 +61,6 @@ tokio = { version = "1", optional = true, features = ["macros", "rt-multi-thread
 chrono = { version = "0.4", optional = true, default-features = false, features = ["clock"] }
 
 [dev-dependencies]
-buildkit-proto = { version = "0.2.0", git = "https://github.com/lenra-io/rust-buildkit", branch = "claude/update-buildkit-proto-8VpS0" }
 prost = "0.13"
 assert_cmd = "2.2.2"
 assert_fs = "1.1.3"

@@ -532,7 +532,6 @@ dependencies = [
  "async-trait",
  "buildkit-frontend",
  "buildkit-llb",
- "buildkit-proto",
  "chrono",
  "clap",
  "colored",

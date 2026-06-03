@@ -59,7 +59,7 @@ jobs:
 
     - name: Generate JSON Schema
       shell: bash
-      run: cargo run -F json_schema -- schema > docs/dofigen.schema.json
+      run: cargo run --bin dofigen -F json_schema -- schema > docs/dofigen.schema.json
 
     - name: Format with SchemaStore Prettier config
       shell: bash
@@ -310,7 +310,7 @@ jobs:
       with:
         use-cross: true
         command: build
-        args: --release --target ${{ matrix.target }}
+        args: --release --bin dofigen --target ${{ matrix.target }}
 
     - name: Rename artifact to platform specific name and generate hash
       run: |
