@@ -1,0 +1,11 @@
+# `cross` is used in CI to (cross-)compile the release binaries.
+#
+# The `dofigen-frontend` binary depends on `buildkit-proto`, whose build script
+# invokes `protoc` to compile the Buildkit `.proto` files. The default `cross`
+# images don't ship `protoc`, so we install it in every build container.
+# `protoc` runs on the build host architecture (it only generates Rust code), so
+# the host package is enough for all targets.
+[build]
+pre-build = [
+    "apt-get update && apt-get install --assume-yes protobuf-compiler",
+]

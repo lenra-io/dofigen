@@ -329,11 +329,6 @@ jobs:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}.sha256
         path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
 
-    # The frontend depends on buildkit-proto, whose build script invokes protoc.
-    - name: Install protoc
-      if: matrix.os == 'linux'
-      run: sudo apt-get update && sudo apt-get install --assume-yes protobuf-compiler
-
     # The Buildkit frontend binary is only published as a Docker image, so it is
     # only built for the Linux targets used to assemble that image.
     - name: Build frontend target
