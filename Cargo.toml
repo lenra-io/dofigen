@@ -28,7 +28,7 @@ path = "src/frontend/main.rs"
 required-features = ["frontend"]
 
 [features]
-default = ["cli", "permissive", "json_schema", "parse", "frontend"]
+default = ["cli", "permissive", "json_schema", "parse"]
 bin = []
 cli = ["clap", "bin"]
 json_schema = ["schemars", "serde_json"]
@@ -38,7 +38,7 @@ strict = []
 frontend = ["bin", "buildkit-frontend", "buildkit-llb", "failure", "async-trait", "tokio"]
 
 [dependencies]
-serde = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 serde_yaml = { package = "yaml_serde", version = "0.10" }
 serde_json = { version = "1.0.149", optional = true }
 thiserror = "2.0"
