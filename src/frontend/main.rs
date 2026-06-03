@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use buildkit_frontend::run_frontend;
 use buildkit_frontend::{Bridge, Frontend, FrontendOutput, MultiPlatformEntry};
-use buildkit_llb::ops::platform::{Platform, linux_amd64};
+use buildkit_llb::ops::platform::Platform;
 use buildkit_llb::ops::*;
 use colored::{Color, Colorize};
 use dofigen_lib::bin::get_lockfile_path;
@@ -9,7 +9,6 @@ use dofigen_lib::lock::LockFile;
 use dofigen_lib::{DofigenContext, LintMessage, LintSession, MessageLevel};
 use failure::Error;
 use serde::{Deserialize, Deserializer, de};
-use std::env;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -21,9 +20,6 @@ mod spec;
 
 #[tokio::main]
 async fn main() {
-    let args: Vec<String> = env::args().collect();
-    dbg!(args);
-
     if let Err(error) = run_frontend(DofigenFrontend).await {
         eprintln!("{}", error);
 
@@ -55,10 +51,7 @@ impl Frontend<Options> for DofigenFrontend {
         bridge: Bridge,
         options: Options,
     ) -> std::result::Result<FrontendOutput, Error> {
-        eprintln!("\n\n===============================\n\n");
         eprintln!("Running DofigenFrontend");
-        dbg!(&options.filename);
-        dbg!(&options.platform);
 
         let dofigen_file = options
             .filename
@@ -67,34 +60,32 @@ impl Frontend<Options> for DofigenFrontend {
         let dofigen_lockfile =
             get_lockfile_path(dofigen_file.clone()).map(|path| path.to_string_lossy().to_string());
         let dockerfile_source = Source::local("dockerfile").custom_name("Loading Dofigen file");
-        dbg!(&dockerfile_source);
         let mut sources = dockerfile_source.add_include_pattern(&dofigen_file);
         if let Some(dofigen_lockfile) = dofigen_lockfile.as_ref() {
             sources = sources.add_include_pattern(dofigen_lockfile);
         }
         let dockerfile_layer = bridge.solve(Terminal::with(sources.output())).await?;
 
-        dbg!(&dockerfile_layer);
-
         let dockerfile_contents = String::from_utf8(
             bridge
                 .read_file(&dockerfile_layer, dofigen_file, None)
                 .await?,
         )?;
-        dbg!(&dockerfile_contents);
 
         let lockfile = if let Some(dofigen_lockfile) = dofigen_lockfile {
-            let bytes = bridge
+            match bridge
                 .read_file(&dockerfile_layer, dofigen_lockfile, None)
-                .await;
-            if let Ok(bytes) = bytes {
-                let lockfile_contents = String::from_utf8(bytes)?;
-                dbg!(&lockfile_contents);
-                let lockfile: LockFile = serde_yaml::from_str(lockfile_contents.as_str())?;
-                Some(lockfile)
-            } else {
-                eprintln!("Failed to read lockfile: {}", bytes.err().unwrap());
-                None
+                .await
+            {
+                Ok(bytes) => {
+                    let lockfile_contents = String::from_utf8(bytes)?;
+                    let lockfile: LockFile = serde_yaml::from_str(lockfile_contents.as_str())?;
+                    Some(lockfile)
+                }
+                Err(error) => {
+                    eprintln!("Failed to read lockfile: {}", error);
+                    None
+                }
             }
         } else {
             None
@@ -108,7 +99,6 @@ impl Frontend<Options> for DofigenFrontend {
         } else {
             context.parse_from_string(&dockerfile_contents)?
         };
-        dbg!(&dofigen);
 
         let platforms = options.platform;
 
@@ -121,20 +111,19 @@ impl Frontend<Options> for DofigenFrontend {
                 let image_spec = dofigen.image_specification(plat);
                 let mut builder = LlbBuilder::new(dofigen.clone(), Some(plat.clone()));
                 let image_ref = bridge
-                    .solve_with_cache(Terminal::with(builder.build()), &[])
+                    .solve_with_cache(Terminal::with(builder.build()?), &[])
                     .await?;
                 entries
                     .push(MultiPlatformEntry::new(plat.clone(), image_ref).with_spec(image_spec));
             }
             Ok(FrontendOutput::with_multi_platform(entries))
         } else {
-            // TODO: default to the platform of the host if not specified, instead of defaulting to linux/amd64
-            let platform = platforms.into_iter().next().unwrap_or(linux_amd64());
+            // Default to the host platform when none is explicitly requested.
+            let platform = platforms.into_iter().next().unwrap_or_else(host_platform);
             let image_spec = dofigen.image_specification(&platform);
-            dbg!(&image_spec);
             let mut builder = LlbBuilder::new(dofigen, Some(platform));
             let image_ref = bridge
-                .solve_with_cache(Terminal::with(builder.build()), &[])
+                .solve_with_cache(Terminal::with(builder.build()?), &[])
                 .await?;
             Ok(FrontendOutput::with_spec_and_ref(image_spec, image_ref))
         }
@@ -153,6 +142,34 @@ fn print_lint_messages(messages: &[LintMessage]) {
             message.message
         );
     });
+}
+
+/// Builds the [`Platform`] of the machine running the frontend, which BuildKit
+/// schedules on the build host. Used as the default target platform when the
+/// build request doesn't specify one.
+fn host_platform() -> Platform {
+    let architecture = match std::env::consts::ARCH {
+        "x86_64" => "amd64",
+        "aarch64" => "arm64",
+        "x86" => "386",
+        "powerpc64" => "ppc64le",
+        other => other,
+    }
+    .to_string();
+    let os = match std::env::consts::OS {
+        "macos" => "darwin",
+        other => other,
+    }
+    .to_string();
+    // BuildKit/Docker default the 32-bit ARM platform to the `v7` variant.
+    let variant = if architecture == "arm" { "v7" } else { "" }.to_string();
+
+    Platform {
+        architecture,
+        os,
+        variant,
+        ..Default::default()
+    }
 }
 
 fn de_vec_from_str<'de, D>(deserializer: D) -> Result<Vec<Platform>, D::Error>
