@@ -59,7 +59,7 @@ jobs:
 
     - name: Generate JSON Schema
       shell: bash
-      run: cargo run -F json_schema -- schema > docs/dofigen.schema.json
+      run: cargo run --bin dofigen -F json_schema -- schema > docs/dofigen.schema.json
 
     - name: Format with SchemaStore Prettier config
       shell: bash
@@ -219,9 +219,35 @@ jobs:
         command: test
         args: --no-default-features -F strict -F json_schema -F cli
 
+  test-frontend:
+    name: Test frontend
+    needs: [style]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+
+    - name: Install rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        profile: minimal
+        override: true
+
+    # The frontend depends on buildkit-proto, whose build script invokes protoc.
+    - name: Install protoc
+      run: sudo apt-get update && sudo apt-get install --assume-yes protobuf-compiler
+
+    - name: "-F frontend -F permissive"
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --no-default-features -F frontend -F permissive
+
   build:
     name: Build ${{ matrix.os }} ${{ matrix.arch }}
-    needs: [test-base, test-permissive, test-strict, test-parse, get-version]
+    needs: [test-base, test-permissive, test-strict, test-parse, test-frontend, get-version]
     runs-on: "${{ matrix.runner }}"
     env:
       VERSION: ${{ needs.get-version.outputs.version }}
@@ -284,7 +310,7 @@ jobs:
       with:
         use-cross: true
         command: build
-        args: --release --target ${{ matrix.target }}
+        args: --release --bin dofigen --target ${{ matrix.target }}
 
     - name: Rename artifact to platform specific name and generate hash
       run: |
@@ -302,6 +328,36 @@ jobs:
       with:
         name: dofigen-${{ matrix.os }}-${{ matrix.arch }}.sha256
         path: ./dofigen-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.file_extension }}.sha256
+
+    # The Buildkit frontend binary is only published as a Docker image, so it is
+    # only built for the Linux targets used to assemble that image.
+    - name: Build frontend target
+      if: matrix.os == 'linux'
+      uses: actions-rs/cargo@v1
+      with:
+        use-cross: true
+        command: build
+        args: --release --bin dofigen-frontend --no-default-features -F frontend -F permissive --target ${{ matrix.target }}
+
+    - name: Rename frontend artifact to platform specific name and generate hash
+      if: matrix.os == 'linux'
+      run: |
+        mv target/${{ matrix.target }}/release/dofigen-frontend ./dofigen-frontend-${{ matrix.os }}-${{ matrix.arch }}
+        shasum -a 256 ./dofigen-frontend-${{ matrix.os }}-${{ matrix.arch }} | awk '{printf $1}' > ./dofigen-frontend-${{ matrix.os }}-${{ matrix.arch }}.sha256
+
+    - name: Upload frontend binary
+      if: matrix.os == 'linux'
+      uses: actions/upload-artifact@v4
+      with:
+        name: dofigen-frontend-${{ matrix.os }}-${{ matrix.arch }}
+        path: ./dofigen-frontend-${{ matrix.os }}-${{ matrix.arch }}
+
+    - name: Upload frontend hash
+      if: matrix.os == 'linux'
+      uses: actions/upload-artifact@v4
+      with:
+        name: dofigen-frontend-${{ matrix.os }}-${{ matrix.arch }}.sha256
+        path: ./dofigen-frontend-${{ matrix.os }}-${{ matrix.arch }}.sha256
 
   release-github:
     name: Release GitHub
@@ -433,7 +489,64 @@ jobs:
           sudo chown $USER:$USER .github/release.sh
           sudo chmod +x .github/release.sh
           .github/release.sh ${VERSION}
-  
+
+  publish-docker-frontend:
+    name: Publish Docker frontend
+    needs: [build, get-version, release-github]
+    if: needs.get-version.outputs.version != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.get-version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+      - name: Docker Login
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: download-artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: dofigen-frontend-linux-{x86_64,aarch64}
+          merge-multiple: true
+
+      - name: move artifacts
+        run: |
+          mkdir -p ./builds/linux/amd64/
+          mkdir -p ./builds/linux/arm64/
+          mv ./artifacts/dofigen-frontend-linux-x86_64 ./builds/linux/amd64/dofigen-frontend
+          mv ./artifacts/dofigen-frontend-linux-aarch64 ./builds/linux/arm64/dofigen-frontend
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/cache
+          key: ${{ runner.os }}-${{ hashFiles('./Dockerfile.frontend') }}
+
+      - name: Build Docker images
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PERSONNAL_TOKEN }}
+          DOCKER_IMAGE: lenra/dofigen
+          VERSION: ${{ env.VERSION }}
+        run: |
+          sudo chown $USER:$USER .github/release.sh
+          sudo chmod +x .github/release.sh
+          .github/release.sh ${VERSION} syntax- Dockerfile.frontend
+
   publish-release-on-social-networks:
     name: Publish release on social networks
     needs: [release-github]

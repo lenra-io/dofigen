@@ -1,0 +1,13 @@
+# Buildkit frontend runtime
+context:
+  - "/builds"
+arg:
+  TARGETPLATFORM: ""
+# The frontend runs inside the Buildkit sandbox and needs to read the build
+# context, so it must run as root.
+user: root
+copy:
+  - paths: builds/${TARGETPLATFORM}/dofigen-frontend
+    target: /bin/dofigen-frontend
+    chmod: 555
+entrypoint: /bin/dofigen-frontend

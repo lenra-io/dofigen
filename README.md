@@ -265,6 +265,10 @@ npm i -g prettier prettier-plugin-sort-json prettier-plugin-toml
 npx prettier --config .prettierrc.cjs --write docs/dofigen.schema.json
 ```
 
+### Buildkit frontend
+
+See the [Buildkit frontend](./docs/buildkit.md) documentation to understand how to use the Buildkit frontend.
+
 <p align="right">(<a href="#top">back to top</a>)</p>
 
 

@@ -1,0 +1,34 @@
+effective: |
+  context:
+  - /builds
+  label:
+    io.dofigen.version: 0.0.0
+  user:
+    user: root
+  arg:
+    TARGETPLATFORM: ''
+  copy:
+  - paths:
+    - builds/${TARGETPLATFORM}/dofigen-frontend
+    target: /bin/dofigen-frontend
+    chmod: '555'
+  entrypoint:
+  - /bin/dofigen-frontend
+images: {}
+resources:
+  frontend.dofigen.yml:
+    hash: ce57b8496e6fab7f78ee12ccb9db4f86dde66eb82746e503083158a4a19acd51
+    content: |
+      # Buildkit frontend runtime
+      context:
+        - "/builds"
+      arg:
+        TARGETPLATFORM: ""
+      # The frontend runs inside the Buildkit sandbox and needs to read the build
+      # context, so it must run as root.
+      user: root
+      copy:
+        - paths: builds/${TARGETPLATFORM}/dofigen-frontend
+          target: /bin/dofigen-frontend
+          chmod: 555
+      entrypoint: /bin/dofigen-frontend

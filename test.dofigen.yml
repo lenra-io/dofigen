@@ -1,0 +1,23 @@
+# syntax=localhost:5000/dofigen:frontend-local
+
+context:
+  - logo.svg
+  - README.md
+fromImage: alpine
+workdir: /app
+env: 
+  RUST_LOG: debug
+copy:
+  - logo.svg
+  - README.md
+run: echo Hello World!
+volume:
+  - /data
+expose:
+  - 80
+  - port: 12345
+    protocol: udp
+label:
+  maintainer: taorepoara
+entrypoint: "/bin/sh"
+cmd: ["-c", "cat README.md"]

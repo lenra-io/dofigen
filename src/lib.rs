@@ -17,6 +17,8 @@
 //! let dockerfile = generate_dockerfile(&dofigen).unwrap();
 //! ```
 
+#[cfg(feature = "bin")]
+pub mod bin;
 mod context;
 mod deserialize;
 mod dockerfile_struct;

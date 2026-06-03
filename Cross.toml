@@ -1,0 +1,17 @@
+# `cross` is used in CI to (cross-)compile the release binaries.
+#
+# The `dofigen-frontend` binary depends on `buildkit-proto`, whose build script
+# invokes `protoc` to compile the Buildkit `.proto` files. The `protoc` provided
+# by the default `cross` images (via the distro package) is too old to parse the
+# vendored protobuf definitions, so we download a recent release into every build
+# container, under `/usr/local` (which precedes `/usr/bin` on `PATH`, so it
+# shadows any preexisting `protoc`). `protoc` runs on the build host architecture
+# (it only generates Rust code), so the x86_64 host binary is enough for all
+# targets.
+[build]
+pre-build = [
+    "apt-get update && apt-get install --assume-yes curl unzip",
+    "curl -fsSL -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v29.3/protoc-29.3-linux-x86_64.zip",
+    "unzip -o /tmp/protoc.zip -d /usr/local bin/protoc 'include/*'",
+    "chmod +x /usr/local/bin/protoc",
+]
