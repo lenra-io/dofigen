@@ -222,48 +222,9 @@ To regenerate the Dockerfile with the same versions, you can use the `dofigen ge
 ## Contributing
 
 Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-
-If you have a suggestion that would make this better, please open an issue with the tag "enhancement" or "bug".
 Don't forget to give the project a star! Thanks again!
 
-### Tests
-
-To run the tests, use the following command:
-
-```bash
-cargo test
-```
-
-#### Test coverage
-
-To generate the test coverage, use the following commands:
-
-```bash
-# Generate the coverage report
-RUSTFLAGS="-C instrument-coverage" \
-  RUSTDOCFLAGS="-C instrument-coverage" \
-  LLVM_PROFILE_FILE="target/coverage/profiles/cargo-test-%p-%m.profraw" \
-  cargo test
-# Convert to lcov format
-grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t lcov --branch --ignore-not-existing -o target/coverage/lcov.info
-# Generate the HTML report
-grcov target/coverage/profiles/ --binary-path ./target/debug/deps/ -s . -t html --branch --ignore-not-existing -o target/coverage/html
-```
-
-### Generate the JSON Schema
-
-To generate the JSON schema of the Dofigen file structure, use the following command:
-
-```bash
-# Generate the JSON Schema
-cargo run -F json_schema -- schema > docs/dofigen.schema.json
-# Download the SchemaStore's Prettier configuration
-curl -O -L -f -s -H 'Accept: application/vnd.github.v3.raw' https://github.com/SchemaStore/schemastore/raw/refs/heads/master/.prettierrc.cjs
-# Install Prettier if you don't have it
-npm i -g prettier prettier-plugin-sort-json prettier-plugin-toml
-# Format the JSON Schema
-npx prettier --config .prettierrc.cjs --write docs/dofigen.schema.json
-```
+New here? Check the [good first issues](https://github.com/lenra-io/dofigen/labels/good%20first%20issue) and read the [contributing guide](CONTRIBUTING.md) for the development setup, coding conventions and PR workflow.
 
 <p align="right">(<a href="#top">back to top</a>)</p>
 
