@@ -5,12 +5,21 @@
 use std::{fs, path::PathBuf};
 
 use crate::commands::{generate::DEFAULT_DOCKERFILE, get_file_path};
-pub use clap::Args;
+pub use clap::{Args, ValueEnum};
 use dofigen_lib::{Dofigen, Error, Result};
 
 use crate::CliCommand;
 
 const DEFAULT_DOFIGEN_FILE: &str = "dofigen.yml";
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+enum OutputFormat {
+    #[default]
+    Yaml,
+    Yml,
+    Json,
+    Jsonc,
+}
 
 #[derive(Args, Debug, Default, Clone)]
 pub struct Parse {
@@ -23,6 +32,10 @@ pub struct Parse {
     /// Define to - to write to stdout
     #[clap(short, long, default_value = DEFAULT_DOFIGEN_FILE)]
     output: String,
+
+    /// Output format
+    #[clap(long, value_enum, default_value = "yaml")]
+    format: OutputFormat,
 }
 
 impl CliCommand for Parse {
@@ -69,7 +82,11 @@ impl CliCommand for Parse {
         };
 
         let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore)?;
-        let dofigen_content = serde_yaml::to_string(&dofigen)?;
+        let dofigen_content = match self.format {
+            OutputFormat::Yaml | OutputFormat::Yml => serde_yaml::to_string(&dofigen)?,
+            OutputFormat::Json => serde_json::to_string_pretty(&dofigen)?,
+            OutputFormat::Jsonc => serde_json::to_string_pretty(&dofigen)?,
+        };
 
         if self.output == "-" {
             print!("{}", dofigen_content);
