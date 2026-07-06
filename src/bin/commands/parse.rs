@@ -10,8 +10,6 @@ use dofigen_lib::{Dofigen, Error, Result};
 
 use crate::CliCommand;
 
-const DEFAULT_DOFIGEN_FILE: &str = "dofigen.yml";
-
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
 enum OutputFormat {
     #[default]
@@ -30,17 +28,22 @@ pub struct Parse {
 
     /// The output Dofigen file
     /// Define to - to write to stdout
-    #[clap(short, long, default_value = DEFAULT_DOFIGEN_FILE)]
-    output: String,
+    #[clap(short, long, alias = "out")]
+    output: Option<String>,
 
     /// Output format
-    #[clap(long, value_enum, default_value = "yaml")]
-    format: OutputFormat,
+    #[clap(long, value_enum, ignore_case = true)]
+    format: Option<OutputFormat>,
 }
 
 impl CliCommand for Parse {
     fn run(self) -> Result<()> {
         let path = get_file_path(&self.file)?;
+        let format = match (self.format, self.output.as_deref()) {
+            (Some(f), _) => f,
+            (None, Some(output)) if output.ends_with(".json") => OutputFormat::Jsonc,
+            (None, _) => OutputFormat::Yaml,
+        };
 
         let (dockerfile_content, dockerignore_content): (String, Option<String>) = if path == "-" {
             let content = std::io::read_to_string(std::io::stdin())
@@ -82,16 +85,20 @@ impl CliCommand for Parse {
         };
 
         let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore)?;
-        let dofigen_content = match self.format {
+        let dofigen_content = match format {
             OutputFormat::Yaml | OutputFormat::Yml => serde_yaml::to_string(&dofigen)?,
             OutputFormat::Json => serde_json::to_string_pretty(&dofigen)?,
             OutputFormat::Jsonc => serde_json::to_string_pretty(&dofigen)?,
         };
+        let output = self.output.unwrap_or_else(|| match format {
+            OutputFormat::Yaml | OutputFormat::Yml => "dofigen.yml".to_string(),
+            OutputFormat::Json | OutputFormat::Jsonc => "dofigen.json".to_string(),
+        });
 
-        if self.output == "-" {
+        if output == "-" {
             print!("{}", dofigen_content);
         } else {
-            fs::write(PathBuf::from(&self.output), dofigen_content)
+            fs::write(PathBuf::from(&output), dofigen_content)
                 .expect("Unable to write the Dofigen file");
         };
         Ok(())
