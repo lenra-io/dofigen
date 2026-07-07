@@ -33,7 +33,7 @@ strict = []
 [dependencies]
 serde = "1.0"
 serde_yaml = { package = "yaml_serde", version = "0.10" }
-serde_json = { version = "1.0.149", optional = true }
+serde_json = { version = "1.0.150", optional = true }
 thiserror = "2.0"
 clap = { version = "4.6", features = ["derive"], optional = true }
 schemars = { version = "1", optional = true, features = ["url2"] }
