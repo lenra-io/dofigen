@@ -17,6 +17,7 @@ enum OutputFormat {
     Yml,
     Json,
     Jsonc,
+    Toml,
 }
 
 #[derive(Args, Debug, Default, Clone)]
@@ -42,6 +43,7 @@ impl CliCommand for Parse {
         let format = match (self.format, self.output.as_deref()) {
             (Some(f), _) => f,
             (None, Some(output)) if output.ends_with(".json") => OutputFormat::Jsonc,
+            (None, Some(output)) if output.ends_with(".toml") => OutputFormat::Toml,
             (None, _) => OutputFormat::Yaml,
         };
 
@@ -89,10 +91,12 @@ impl CliCommand for Parse {
             OutputFormat::Yaml | OutputFormat::Yml => serde_yaml::to_string(&dofigen)?,
             OutputFormat::Json => serde_json::to_string_pretty(&dofigen)?,
             OutputFormat::Jsonc => serde_json::to_string_pretty(&dofigen)?,
+            OutputFormat::Toml => toml::to_string_pretty(&dofigen)?,
         };
         let output = self.output.unwrap_or_else(|| match format {
             OutputFormat::Yaml | OutputFormat::Yml => "dofigen.yml".to_string(),
             OutputFormat::Json | OutputFormat::Jsonc => "dofigen.json".to_string(),
+            OutputFormat::Toml => "dofigen.toml".to_string(),
         });
 
         if output == "-" {
