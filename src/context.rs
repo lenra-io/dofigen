@@ -485,12 +485,8 @@ impl DofigenContext {
     /// ```
     pub fn parse_from_string(&mut self, input: &str) -> Result<Dofigen> {
         let dofigen = match self.input_format {
-            InputFormat::Yaml => {
-                serde_yaml::from_str(input).map_err(Error::Deserialize)?
-            }
-            InputFormat::Toml => {
-                toml::from_str(input).map_err(Error::DeserializeTOML)?
-            }
+            InputFormat::Yaml => serde_yaml::from_str(input).map_err(Error::Deserialize)?,
+            InputFormat::Toml => toml::from_str(input).map_err(Error::DeserializeTOML)?,
         };
 
         self.merge_extended_image(dofigen)

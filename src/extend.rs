@@ -1,6 +1,6 @@
 #[cfg(feature = "permissive")]
 use crate::OneOrMany;
-use crate::{DofigenContext, InputFormat, Error, Result, dofigen_struct::*};
+use crate::{DofigenContext, Error, InputFormat, Result, dofigen_struct::*};
 use relative_path::RelativePath;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
@@ -119,22 +119,18 @@ impl Resource {
         let content = self.load_resource_content(context)?;
 
         match context.input_format {
-            InputFormat::Yaml => Ok(
-                serde_yaml::from_str(content.as_str()).map_err(|err| {
-                    Error::Custom(format!(
-                        "Could not deserialize resource {:?}: {}",
-                        self, err
-                    ))
-                })?,
-            ),
-            InputFormat::Toml => Ok(
-                toml::from_str(content.as_str()).map_err(|err| {
-                    Error::Custom(format!(
-                        "Could not deserialize resource {:?}: {}",
-                        self, err
-                    ))
-                })?,
-            ),
+            InputFormat::Yaml => Ok(serde_yaml::from_str(content.as_str()).map_err(|err| {
+                Error::Custom(format!(
+                    "Could not deserialize resource {:?}: {}",
+                    self, err
+                ))
+            })?),
+            InputFormat::Toml => Ok(toml::from_str(content.as_str()).map_err(|err| {
+                Error::Custom(format!(
+                    "Could not deserialize resource {:?}: {}",
+                    self, err
+                ))
+            })?),
         }
     }
 }

@@ -13,7 +13,12 @@ pub(crate) fn get_file_path(path: &Option<String>) -> Result<String> {
     if let Some(path) = path {
         Ok(path.clone())
     } else {
-        let mut files = vec!["dofigen.yml", "dofigen.yaml", "dofigen.toml", "dofigen.json"];
+        let mut files = vec![
+            "dofigen.yml",
+            "dofigen.yaml",
+            "dofigen.toml",
+            "dofigen.json",
+        ];
         files.retain(|f| std::path::Path::new(f).exists());
         if files.is_empty() {
             return Err(Error::Custom("No Dofigen file found".into()));
