@@ -1,6 +1,6 @@
 #[cfg(feature = "permissive")]
 use crate::OneOrMany;
-use crate::{DofigenContext, Error, Result, dofigen_struct::*};
+use crate::{DofigenContext, Error, InputFormat, Result, dofigen_struct::*};
 use relative_path::RelativePath;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
@@ -92,6 +92,22 @@ impl Resource {
         // push the resource to the stack
         context.push_resource_stack(resource.clone())?;
 
+        match &resource {
+            Resource::File(path) => {
+                context.input_format = if path
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("toml"))
+                {
+                    InputFormat::Toml
+                } else {
+                    InputFormat::Yaml
+                };
+            }
+            Resource::Url(_) => {
+                context.input_format = InputFormat::Yaml;
+            }
+        }
+
         // load the resource content
         context.get_resource_content(resource)
     }
@@ -100,14 +116,22 @@ impl Resource {
     where
         T: DeserializeOwned,
     {
-        Ok(
-            serde_yaml::from_str(self.load_resource_content(context)?.as_str()).map_err(|err| {
+        let content = self.load_resource_content(context)?;
+
+        match context.input_format {
+            InputFormat::Yaml => Ok(serde_yaml::from_str(content.as_str()).map_err(|err| {
                 Error::Custom(format!(
                     "Could not deserialize resource {:?}: {}",
                     self, err
                 ))
-            })?,
-        )
+            })?),
+            InputFormat::Toml => Ok(toml::from_str(content.as_str()).map_err(|err| {
+                Error::Custom(format!(
+                    "Could not deserialize resource {:?}: {}",
+                    self, err
+                ))
+            })?),
+        }
     }
 }
 

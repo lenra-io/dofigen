@@ -22,7 +22,7 @@ struct Cli {
 /// Represents option common to all subcommands
 #[derive(Args, Debug, Default, Clone)]
 pub struct GlobalOptions {
-    /// The input Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json
+    /// The input Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.toml, dofigen.json
     /// Use "-" to read from stdin
     #[clap(short, long)]
     pub file: Option<String>,
