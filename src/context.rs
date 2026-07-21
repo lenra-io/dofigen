@@ -14,6 +14,13 @@ use std::{
 
 const MAX_LOAD_STACK_SIZE: usize = 10;
 
+#[derive(Debug, Clone, Copy, Default)]
+pub(crate) enum InputFormat {
+    #[default]
+    Yaml,
+    Toml,
+}
+
 /// The representation of the Dofigen execution context
 pub struct DofigenContext {
     pub offline: bool,
@@ -22,6 +29,7 @@ pub struct DofigenContext {
     pub update_docker_tags: bool,
     pub display_updates: bool,
     pub no_default_labels: bool,
+    pub(crate) input_format: InputFormat,
 
     // Load resources
     load_resource_stack: Vec<Resource>,
@@ -476,9 +484,16 @@ impl DofigenContext {
     /// );
     /// ```
     pub fn parse_from_string(&mut self, input: &str) -> Result<Dofigen> {
-        self.merge_extended_image(
-            serde_yaml::from_str(input).map_err(|err| Error::Deserialize(err))?,
-        )
+        let dofigen = match self.input_format {
+            InputFormat::Yaml => {
+                serde_yaml::from_str(input).map_err(Error::Deserialize)?
+            }
+            InputFormat::Toml => {
+                toml::from_str(input).map_err(Error::DeserializeTOML)?
+            }
+        };
+
+        self.merge_extended_image(dofigen)
     }
 
     /// Parse an Dofigen from an IO stream.
@@ -627,6 +642,7 @@ impl DofigenContext {
             update_url_resources: false,
             display_updates: true,
             no_default_labels: false,
+            input_format: InputFormat::Yaml,
             load_resource_stack: vec![],
             resources: HashMap::new(),
             used_resources: HashSet::new(),
@@ -646,6 +662,7 @@ impl DofigenContext {
             update_url_resources: false,
             display_updates: true,
             no_default_labels: false,
+            input_format: InputFormat::Yaml,
             load_resource_stack: vec![],
             resources,
             used_resources: HashSet::new(),
