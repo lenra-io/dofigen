@@ -47,6 +47,10 @@ fromImage = "ubuntu"
     let mut generation_context = GenerationContext::from(dofigen);
     let dockerfile = generation_context.generate_dockerfile().unwrap();
 
+    println!("INPUT:\n{}", toml);
+    println!("DOFIGEN: {:#?}", dofigen);
+    println!("DOCKERFILE:\n{}", dockerfile);
+
     assert!(dockerfile.contains("FROM ubuntu"));
 }
 
