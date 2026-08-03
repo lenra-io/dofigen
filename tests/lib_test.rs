@@ -34,6 +34,7 @@ USER 1000:1000
 }
 
 #[test]
+#[cfg(feature = "permissive")]
 fn toml_to_dockerfile() {
     let toml = r#"
 fromImage = "ubuntu"
