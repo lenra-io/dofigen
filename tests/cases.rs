@@ -23,6 +23,12 @@ fn test_cases() {
     // Get the lock files
     let (_, path_ref) = filter_to_map(path_ref, ".lock");
 
+    // Skip raw Dockerfiles used as extend bases (e.g. *.base.Dockerfile)
+    let (_, path_ref) = filter_to_map(path_ref, ".Dockerfile");
+
+    // Skip companion dockerignore fixtures
+    let (_, path_ref) = filter_to_map(path_ref, ".dockerignore");
+
     // Iterate over remaining files and generate the effective YAML and Dockerfile to compare with the expected results
     for path in path_ref {
         let mut basename = path.to_str().unwrap().to_string();
