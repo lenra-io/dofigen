@@ -164,7 +164,7 @@ impl Resource {
         })?;
 
         let dockerignore = match context.current_resource() {
-            Some(Resource::File(path)) => Self::load_companion_dockerignore(path),
+            Some(Resource::File(path)) => Self::load_companion_dockerignore(path)?,
             _ => None,
         };
 
@@ -187,17 +187,24 @@ impl Resource {
     }
 
     #[cfg(feature = "parse")]
-    fn load_companion_dockerignore(dockerfile_path: &Path) -> Option<DockerIgnore> {
-        let filename = dockerfile_path.file_name()?.to_str()?;
+    fn load_companion_dockerignore(dockerfile_path: &Path) -> Result<Option<DockerIgnore>> {
+        let Some(filename) = dockerfile_path.file_name().and_then(|n| n.to_str()) else {
+            return Ok(None);
+        };
         let mut ignorefile = dockerfile_path.with_file_name(format!("{}.dockerignore", filename));
         if filename.eq_ignore_ascii_case("Dockerfile") && !ignorefile.exists() {
             ignorefile = dockerfile_path.with_file_name(".dockerignore");
         }
         if !ignorefile.exists() {
-            return None;
+            return Ok(None);
         }
-        let content = std::fs::read_to_string(&ignorefile).ok()?;
-        content.parse().ok()
+        let content = std::fs::read_to_string(&ignorefile).map_err(|err| {
+            Error::Custom(format!("Could not read {}: {}", ignorefile.display(), err))
+        })?;
+        let dockerignore = content.parse().map_err(|err| {
+            Error::Custom(format!("Could not parse {}: {}", ignorefile.display(), err))
+        })?;
+        Ok(Some(dockerignore))
     }
 }
 
