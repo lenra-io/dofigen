@@ -374,8 +374,8 @@ jobs:
       shell: bash
       run: |
         export FILE_URL=https://api.github.com/repos/lenra-io/homebrew-tools/contents/dofigen.rb
-        curl -fs -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" ${FILE_URL} \
-        -d "{\"message\":\"feat: Dofigen release ${{ env.VERSION }}\",\"content\": \"$(base64 -w0 .github/homebrew.rb)\",\"sha\":$(curl -fs ${FILE_URL} | jq '.sha')}"
+        curl --fail-with-body -sS -X PUT -H "Authorization: Bearer ${{ env.GITHUB_TOKEN }}" ${FILE_URL} \
+        -d "{\"message\":\"feat: Dofigen release ${{ env.VERSION }}\",\"content\": \"$(base64 -w0 .github/homebrew.rb)\",\"sha\":$(curl --fail-with-body -sS ${FILE_URL} | jq '.sha')}"
 
   publish-docker:
     name: Publish Docker
@@ -436,11 +436,9 @@ jobs:
   
   publish-release-on-social-networks:
     name: Publish release on social networks
-    needs: [release-github]
+    needs: [get-version, release-github]
     if: github.ref_name == 'main' && needs.get-version.outputs.version != ''
     runs-on: ubuntu-latest
-    env:
-      VERSION: ${{ needs.get-version.outputs.version }}
     steps:
       - name: Send post to Bluesky
         id: bluesky_post
@@ -449,6 +447,6 @@ jobs:
           handle: ${{ secrets.BLUESKY_HANDLE }}
           password: ${{ secrets.BLUESKY_PASSWORD }}
           text: |
-            New release of Dofigen: ${VERSION}! 🚀
+            New release of Dofigen: ${{ needs.get-version.outputs.version }}! 🚀
 
-            Check it out on GitHub: https://github.com/lenra-io/dofigen/releases/tag/v${VERSION}
+            Check it out on GitHub: https://github.com/lenra-io/dofigen/releases/tag/v${{ needs.get-version.outputs.version }}
