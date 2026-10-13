@@ -135,6 +135,27 @@ impl Resource {
     {
         let content = self.load_resource_content(context)?;
 
+        match self {
+            Resource::File(path)
+                if path
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("toml")) =>
+            {
+                Ok(toml::from_str(content.as_str()).map_err(|err| {
+                    Error::Custom(format!(
+                        "Could not deserialize resource {:?}: {}",
+                        self, err
+                    ))
+                })?)
+            }
+
+            _ => Ok(serde_yaml::from_str(content.as_str()).map_err(|err| {
+                Error::Custom(format!(
+                    "Could not deserialize resource {:?}: {}",
+                    self, err
+                ))
+            })?),
+        }
         #[cfg(feature = "parse")]
         {
             let resolved = context

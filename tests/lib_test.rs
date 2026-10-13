@@ -35,6 +35,26 @@ USER 1000:1000
 
 #[test]
 #[cfg(feature = "permissive")]
+fn toml_to_dockerfile() {
+    let toml = r#"
+fromImage = "ubuntu"
+"#;
+
+    let dofigen: Dofigen = DofigenContext::new()
+        .parse_from_string(toml)
+        .map_err(Error::from)
+        .unwrap();
+
+    let mut generation_context = GenerationContext::from(dofigen);
+    let dockerfile = generation_context.generate_dockerfile().unwrap();
+
+    println!("DOCKERFILE:\n{}", dockerfile);
+
+    assert!(dockerfile.contains("FROM ubuntu"));
+}
+
+#[test]
+#[cfg(feature = "permissive")]
 fn yaml_to_dockerfile_complex() {
     let yaml = r#"
 builders:

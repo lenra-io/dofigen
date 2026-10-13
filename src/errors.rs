@@ -12,6 +12,10 @@ pub enum Error {
     #[cfg(feature = "serde_json")]
     #[error("Error while deserializing JSON: {0}")]
     DeserializeJSON(#[from] serde_json::Error),
+    #[error("Error while deserializing TOML: {0}")]
+    DeserializeTOML(#[from] toml::de::Error),
+    #[error("Error while serializing TOML: {0}")]
+    SerializeTOML(#[from] toml::ser::Error),
     #[error("Error while parsing: {0}")]
     ParseFromStr(#[from] serde::de::value::Error),
     #[error("Error while parsing bool value: {0}")]

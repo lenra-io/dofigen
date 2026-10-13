@@ -476,9 +476,11 @@ impl DofigenContext {
     /// );
     /// ```
     pub fn parse_from_string(&mut self, input: &str) -> Result<Dofigen> {
-        self.merge_extended_image(
-            serde_yaml::from_str(input).map_err(|err| Error::Deserialize(err))?,
-        )
+        let dofigen = toml::from_str(input)
+            .or_else(|_| serde_yaml::from_str(input))
+            .map_err(Error::Deserialize)?;
+
+        self.merge_extended_image(dofigen)
     }
 
     /// Parse an Dofigen from an IO stream.

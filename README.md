@@ -35,7 +35,7 @@
 
 </div>
 
-Dofigen is a Dockerfile generator using a simplified description in YAML or JSON format.
+Dofigen is a Dockerfile generator using a simplified description in YAML, TOML or JSON format.
 It defines default values and behaviors that simplify the creation of Dockerfiles.
 
 Dofigen is also made to use the Buildkit, which is now the default Docker build engine, optimizations that speed-up the Docker image build by parallelizing the layer builds.
@@ -134,7 +134,7 @@ Generate the Dockerfile and .dockerignore files
 Usage: dofigen generate [OPTIONS]
 
 Options:
-  -f, --file <FILE>      The input Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.json Use "-" to read from stdin
+  -f, --file <FILE>      The input Dofigen file. Default search for the next files: dofigen.yml, dofigen.yaml, dofigen.toml, dofigen.json Use "-" to read from stdin
       --offline          The command won't load data from any URL. This disables extending file from URL and loading image tag
   -o, --output <OUTPUT>  The output Dockerfile file Define to - to write to stdout [default: Dockerfile]
   -l, --locked           Locked version of the dofigen definition
