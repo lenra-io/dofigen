@@ -1,11 +1,14 @@
 #[cfg(feature = "permissive")]
 use crate::OneOrMany;
+#[cfg(feature = "parse")]
+use crate::{DockerFile, DockerIgnore, Dofigen};
 use crate::{DofigenContext, Error, Result, dofigen_struct::*};
 use relative_path::RelativePath;
 #[cfg(feature = "json_schema")]
 use schemars::JsonSchema;
 use serde::{Deserialize, de::DeserializeOwned};
 use std::iter;
+use std::path::Path;
 use struct_patch::Merge;
 
 #[cfg(feature = "permissive")]
@@ -59,15 +62,41 @@ where
 }
 
 impl Resource {
-    fn load_resource_content(&self, context: &mut DofigenContext) -> Result<String> {
-        let resource = match self {
+    pub fn is_dockerfile_name(name: &str) -> bool {
+        let name = name.to_ascii_lowercase();
+        if name.ends_with(".yml") || name.ends_with(".yaml") || name.ends_with(".json") {
+            return false;
+        }
+        name == "dockerfile" || name.starts_with("dockerfile.") || name.ends_with(".dockerfile")
+    }
+
+    pub fn looks_like_dockerfile(&self) -> bool {
+        match self {
+            Resource::File(path) => path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(Self::is_dockerfile_name)
+                .unwrap_or(false),
+            Resource::Url(url) => url
+                .path_segments()
+                .and_then(|mut segments| segments.next_back())
+                .map(Self::is_dockerfile_name)
+                .unwrap_or(false),
+        }
+    }
+
+    fn resolve_resource(&self, context: &DofigenContext) -> Result<Resource> {
+        Ok(match self {
             Resource::File(path) => {
                 if path.is_absolute() {
                     Resource::File(path.clone())
-                } else {
-                    if let Some(current_resource) = context.current_resource() {
-                        match current_resource {
-                            Resource::File(file) => {
+                } else if let Some(current_resource) = context.current_resource() {
+                    match current_resource {
+                        Resource::File(file) => {
+                            if file.is_absolute() {
+                                let parent = file.parent().unwrap_or_else(|| Path::new(""));
+                                Resource::File(parent.join(path))
+                            } else {
                                 let current_file_relative_path =
                                     RelativePath::from_path(file).map_err(Error::display)?;
                                 let relative_path =
@@ -77,17 +106,21 @@ impl Resource {
                                     .join_normalized(relative_path);
                                 Resource::File(relative_path.to_path(""))
                             }
-                            Resource::Url(url) => {
-                                Resource::Url(url.join(path.to_str().unwrap()).unwrap())
-                            }
                         }
-                    } else {
-                        Resource::File(path.clone())
+                        Resource::Url(url) => {
+                            Resource::Url(url.join(path.to_str().unwrap()).unwrap())
+                        }
                     }
+                } else {
+                    Resource::File(path.clone())
                 }
             }
             Resource::Url(url) => Resource::Url(url.clone()),
-        };
+        })
+    }
+
+    fn load_resource_content(&self, context: &mut DofigenContext) -> Result<String> {
+        let resource = self.resolve_resource(context)?;
 
         // push the resource to the stack
         context.push_resource_stack(resource.clone())?;
@@ -123,6 +156,76 @@ impl Resource {
                 ))
             })?),
         }
+        #[cfg(feature = "parse")]
+        {
+            let resolved = context
+                .current_resource()
+                .cloned()
+                .unwrap_or_else(|| self.clone());
+            if resolved.looks_like_dockerfile() {
+                return Self::load_from_dockerfile_content(&content, context);
+            }
+        }
+
+        serde_yaml::from_str(content.as_str()).map_err(|err| {
+            Error::Custom(format!(
+                "Could not deserialize resource {:?}: {}",
+                self, err
+            ))
+        })
+    }
+
+    #[cfg(feature = "parse")]
+    fn load_from_dockerfile_content<T>(content: &str, context: &DofigenContext) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        let dockerfile: DockerFile = content.parse().map_err(|err| {
+            Error::Custom(format!("Could not parse extended Dockerfile: {}", err))
+        })?;
+
+        let dockerignore = match context.current_resource() {
+            Some(Resource::File(path)) => Self::load_companion_dockerignore(path)?,
+            _ => None,
+        };
+
+        let dofigen = Dofigen::from_dockerfile(dockerfile, dockerignore)?;
+
+        // Round-trip through YAML so any deserializable Dofigen-shaped target works
+        let yaml = serde_yaml::to_string(&dofigen).map_err(|err| {
+            Error::Custom(format!(
+                "Could not serialize Dockerfile as Dofigen: {}",
+                err
+            ))
+        })?;
+
+        serde_yaml::from_str(&yaml).map_err(|err| {
+            Error::Custom(format!(
+                "Could not convert Dockerfile to Dofigen configuration: {}",
+                err
+            ))
+        })
+    }
+
+    #[cfg(feature = "parse")]
+    fn load_companion_dockerignore(dockerfile_path: &Path) -> Result<Option<DockerIgnore>> {
+        let Some(filename) = dockerfile_path.file_name().and_then(|n| n.to_str()) else {
+            return Ok(None);
+        };
+        let mut ignorefile = dockerfile_path.with_file_name(format!("{}.dockerignore", filename));
+        if filename.eq_ignore_ascii_case("Dockerfile") && !ignorefile.exists() {
+            ignorefile = dockerfile_path.with_file_name(".dockerignore");
+        }
+        if !ignorefile.exists() {
+            return Ok(None);
+        }
+        let content = std::fs::read_to_string(&ignorefile).map_err(|err| {
+            Error::Custom(format!("Could not read {}: {}", ignorefile.display(), err))
+        })?;
+        let dockerignore = content.parse().map_err(|err| {
+            Error::Custom(format!("Could not parse {}: {}", ignorefile.display(), err))
+        })?;
+        Ok(Some(dockerignore))
     }
 }
 
@@ -289,6 +392,284 @@ fromImage:
                     }
                 );
             }
+        }
+    }
+
+    mod dockerfile_name_detection {
+        use super::*;
+        use std::path::PathBuf;
+
+        #[test]
+        fn recognizes_dockerfile_names() {
+            assert!(Resource::is_dockerfile_name("Dockerfile"));
+            assert!(Resource::is_dockerfile_name("dockerfile"));
+            assert!(Resource::is_dockerfile_name("DOCKERFILE"));
+            assert!(Resource::is_dockerfile_name("Dockerfile.prod"));
+            assert!(Resource::is_dockerfile_name("Dockerfile.base"));
+            assert!(Resource::is_dockerfile_name("app.Dockerfile"));
+            assert!(Resource::is_dockerfile_name("backend.dockerfile"));
+        }
+
+        #[test]
+        fn rejects_dofigen_and_other_names() {
+            assert!(!Resource::is_dockerfile_name("dofigen.yml"));
+            assert!(!Resource::is_dockerfile_name("dofigen.yaml"));
+            assert!(!Resource::is_dockerfile_name("dofigen.json"));
+            assert!(!Resource::is_dockerfile_name("Dockerfile.yml"));
+            assert!(!Resource::is_dockerfile_name("Dockerfile.yaml"));
+            assert!(!Resource::is_dockerfile_name("Dockerfile.json"));
+            assert!(!Resource::is_dockerfile_name("base.yml"));
+            assert!(!Resource::is_dockerfile_name("README.md"));
+            assert!(!Resource::is_dockerfile_name("Containerfile"));
+        }
+
+        #[test]
+        fn looks_like_dockerfile_for_file_and_url() {
+            assert!(Resource::File(PathBuf::from("path/to/Dockerfile")).looks_like_dockerfile());
+            assert!(
+                Resource::File(PathBuf::from("./legacy/app.Dockerfile")).looks_like_dockerfile()
+            );
+            assert!(!Resource::File(PathBuf::from("dofigen.yml")).looks_like_dockerfile());
+
+            let url: url::Url = "https://example.com/repo/Dockerfile".parse().unwrap();
+            assert!(Resource::Url(url).looks_like_dockerfile());
+
+            let url: url::Url = "https://example.com/repo/dofigen.yml".parse().unwrap();
+            assert!(!Resource::Url(url).looks_like_dockerfile());
+        }
+    }
+
+    #[cfg(feature = "parse")]
+    mod extend_from_dockerfile {
+        use super::*;
+        use crate::{Dofigen, FromContext, GenerationContext, ImageName, ImageVersion};
+        use assert_fs::TempDir;
+        use assert_fs::prelude::*;
+        use std::path::PathBuf;
+
+        fn write_temp_dockerfile(content: &str) -> (TempDir, PathBuf) {
+            let dir = TempDir::new().unwrap();
+            let path = dir.child("Dockerfile");
+            path.write_str(content).unwrap();
+            let path = path.path().to_path_buf();
+            (dir, path)
+        }
+
+        #[test]
+        fn load_dockerfile_as_extend_patch() {
+            let (_dir, path) = write_temp_dockerfile(
+                r#"FROM alpine:3.19
+WORKDIR /app
+RUN echo hello
+"#,
+            );
+
+            let mut context = DofigenContext::new();
+            context.display_updates = false;
+
+            let extend: Extend<crate::DofigenPatch> =
+                Resource::File(path).load(&mut context).unwrap();
+
+            let dofigen: Dofigen = extend.merge(&mut context).unwrap().into();
+
+            assert_eq_sorted!(
+                dofigen.stage.from,
+                FromContext::FromImage(ImageName {
+                    path: "alpine".into(),
+                    version: Some(ImageVersion::Tag("3.19".into())),
+                    ..Default::default()
+                })
+            );
+            assert_eq_sorted!(dofigen.stage.workdir, Some("/app".into()));
+            assert_eq_sorted!(dofigen.stage.run.run, vec!["echo hello".to_string()]);
+        }
+
+        #[test]
+        fn merge_dofigen_overrides_on_top_of_dockerfile() {
+            let dir = TempDir::new().unwrap();
+            dir.child("Dockerfile")
+                .write_str(
+                    r#"FROM alpine:3.19 AS runtime
+WORKDIR /app
+USER app
+CMD ["echo", "from-dockerfile"]
+"#,
+                )
+                .unwrap();
+
+            // Dofigen file next to the Dockerfile that extends it and overrides fields
+            let dofigen_path = dir.child("dofigen.yml");
+            dofigen_path
+                .write_str(
+                    r#"
+extend:
+  - Dockerfile
+workdir: /opt/app
+user: 1001
+cmd:
+  - echo
+  - from-dofigen
+"#,
+                )
+                .unwrap();
+
+            let mut context = DofigenContext::new();
+            context.display_updates = false;
+
+            let dofigen = context
+                .parse_from_resource(Resource::File(dofigen_path.path().to_path_buf()))
+                .unwrap();
+
+            assert_eq_sorted!(
+                dofigen.stage.from,
+                FromContext::FromImage(ImageName {
+                    path: "alpine".into(),
+                    version: Some(ImageVersion::Tag("3.19".into())),
+                    ..Default::default()
+                })
+            );
+            // Overrides win
+            assert_eq_sorted!(dofigen.stage.workdir, Some("/opt/app".into()));
+            assert_eq_sorted!(
+                dofigen.stage.user,
+                Some(crate::User {
+                    user: "1001".into(),
+                    group: None,
+                })
+            );
+            assert_eq_sorted!(
+                dofigen.cmd,
+                vec!["echo".to_string(), "from-dofigen".to_string()]
+            );
+        }
+
+        #[test]
+        fn extend_dockerfile_with_multistage_and_append_run() {
+            let dir = TempDir::new().unwrap();
+            dir.child("Dockerfile.base")
+                .write_str(
+                    r#"FROM golang:1.22 AS builder
+WORKDIR /src
+RUN go build -o /out/app
+
+FROM alpine:3.19 AS runtime
+COPY --from=builder /out/app /bin/app
+"#,
+                )
+                .unwrap();
+
+            let dofigen_path = dir.child("app.yml");
+            // Append an extra run command on top of the imported Dockerfile
+            dofigen_path
+                .write_str(
+                    r#"
+extend:
+  - Dockerfile.base
+run:
+  +:
+    - chmod +x /bin/app
+entrypoint:
+  - /bin/app
+"#,
+                )
+                .unwrap();
+
+            let mut context = DofigenContext::new();
+            context.display_updates = false;
+
+            let dofigen = context
+                .parse_from_resource(Resource::File(dofigen_path.path().to_path_buf()))
+                .unwrap();
+
+            assert!(dofigen.builders.contains_key("builder"));
+            assert_eq_sorted!(
+                dofigen.stage.from,
+                FromContext::FromImage(ImageName {
+                    path: "alpine".into(),
+                    version: Some(ImageVersion::Tag("3.19".into())),
+                    ..Default::default()
+                })
+            );
+            assert_eq_sorted!(dofigen.stage.run.run, vec!["chmod +x /bin/app".to_string()]);
+            assert_eq_sorted!(dofigen.entrypoint, vec!["/bin/app".to_string()]);
+
+            // Generated Dockerfile should still be valid multi-stage
+            let dockerfile = GenerationContext::from(dofigen)
+                .generate_dockerfile()
+                .unwrap();
+            assert!(dockerfile.contains("FROM golang:1.22 AS builder"));
+            assert!(dockerfile.contains("FROM alpine:3.19 AS runtime"));
+            assert!(dockerfile.contains("chmod +x /bin/app"));
+        }
+
+        #[test]
+        fn extend_dockerfile_loads_companion_dockerignore() {
+            let dir = TempDir::new().unwrap();
+            dir.child("Dockerfile")
+                .write_str("FROM alpine:3.19\n")
+                .unwrap();
+            dir.child(".dockerignore")
+                .write_str("target\n*.log\n")
+                .unwrap();
+
+            let dofigen_path = dir.child("dofigen.yml");
+            dofigen_path
+                .write_str(
+                    r#"
+extend:
+  - Dockerfile
+"#,
+                )
+                .unwrap();
+
+            let mut context = DofigenContext::new();
+            context.display_updates = false;
+
+            let dofigen = context
+                .parse_from_resource(Resource::File(dofigen_path.path().to_path_buf()))
+                .unwrap();
+
+            assert_eq_sorted!(
+                dofigen.ignore,
+                vec!["target".to_string(), "*.log".to_string()]
+            );
+        }
+
+        #[test]
+        fn yaml_extend_still_works_alongside_dockerfile_support() {
+            let dir = TempDir::new().unwrap();
+            dir.child("base.yml")
+                .write_str(
+                    r#"
+fromImage:
+  path: alpine
+  tag: "3.19"
+workdir: /app
+"#,
+                )
+                .unwrap();
+
+            let dofigen_path = dir.child("dofigen.yml");
+            dofigen_path
+                .write_str(
+                    r#"
+extend:
+  - base.yml
+cmd:
+  - sh
+"#,
+                )
+                .unwrap();
+
+            let mut context = DofigenContext::new();
+            context.display_updates = false;
+
+            let dofigen = context
+                .parse_from_resource(Resource::File(dofigen_path.path().to_path_buf()))
+                .unwrap();
+
+            assert_eq_sorted!(dofigen.stage.workdir, Some("/app".into()));
+            assert_eq_sorted!(dofigen.cmd, vec!["sh".to_string()]);
         }
     }
 }

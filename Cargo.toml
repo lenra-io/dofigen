@@ -33,14 +33,14 @@ strict = []
 [dependencies]
 serde = "1.0"
 serde_yaml = { package = "yaml_serde", version = "0.10" }
-serde_json = { version = "1.0.149", optional = true }
+serde_json = { version = "1.0.150", optional = true }
 toml = "0.9"
 thiserror = "2.0"
 clap = { version = "4.6", features = ["derive"], optional = true }
 schemars = { version = "1", optional = true, features = ["url2"] }
 regex = "1.11.1"
 url = { version = "2.5.4", features = ["serde"] }
-struct-patch = { version = "=0.12.3", default-features = false, features = ["option", "merge"] }
+struct-patch = { version = "=0.12.5", default-features = false, features = ["option", "merge"] }
 reqwest = { version = "0.12.28", default-features = false, features = ["json", "blocking", "rustls-tls-native-roots"] }
 relative-path = "2.0.1"
 sha256 = { version = "1.5.0", default-features = false }
